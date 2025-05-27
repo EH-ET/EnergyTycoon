@@ -1,0 +1,22 @@
+body {
+  height: 100vh;
+}
+
+#expressBar {
+  height: 20%;
+}
+
+#mainMap {
+  height: 60%;
+}
+
+#buildBar {
+  border: 5px solid black;
+  border-radius: 10px;
+  height: 20%;
+  transition: 0.5s;
+}
+
+#buildBar:hover {
+  transform: scale(1.1);
+}

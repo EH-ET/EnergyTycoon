@@ -1,0 +1,65 @@
+body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+}
+
+.login-container {
+  background-color: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 300px;
+  transition: 0.5s;
+}
+
+.login-container:hover {
+  transform: scale(1.1);
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 91%;
+  padding: 12px;
+  margin: 8px 0 16px 0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  transition: 0.5s;
+}
+
+input[type="text"]:hover,
+input[type="password"]:hover {
+  transform: scale(1.1);
+}
+
+button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  background-color: #007bff;
+  border: none;
+  color: white;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.5s;
+}
+
+button:hover {
+  background-color: #0056b3;
+  transform: scale(1.1);
+}
+
+.message {
+  margin-top: 16px;
+  text-align: center;
+  color: green;
+}
