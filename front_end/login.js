@@ -3,6 +3,7 @@ const signupBtn = document.getElementById('signupBtn');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const messageBox = document.getElementById('messageBox');
+const backendUrl = "";
 
 function showMessage(msg, color = 'green') {
   messageBox.textContent = msg;
@@ -22,8 +23,24 @@ loginBtn.addEventListener('click', () => {
     return;
   }
 
+  const object = {
+    body: JSON.stringify({username, password}),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    }
+  };
+
   // 로그인 백엔드
-  window.location.href = 'main.html';
+  fetch(`${backendUrl}/login`, object)
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = "main.html";
+    }else {
+      alert("로그인 실패!");
+    }
+  }).catch(error => console.log("Error: ", error))
 });
 
 signupBtn.addEventListener('click', () => {
@@ -39,5 +56,22 @@ signupBtn.addEventListener('click', () => {
     return;
   }
 
+  const object = {
+    body: JSON.stringify({username, password}),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    }
+  };
+
   // 회원가입 백엔드
+  fetch(`${backendUrl}/createuser`, object)
+  .then(response => {response.json()})
+  .then(data => {
+    if (data.success) {
+      window.location.href = "main.html";
+    }else {
+      alert("회원가입 오류!");
+    }
+  }).catch(error => console.log("Error: ", error))
 });
