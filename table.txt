@@ -1,0 +1,52 @@
+class User(Base):
+    __tablename__ = "users"
+
+    user_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
+    energy = Column(Integer, default=0, nullable=False)
+    money = Column(Integer, default=0, nullable=False)
+
+    generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
+    map_progresses = relationship("MapProgress", back_populates="user", cascade="all, delete-orphan")
+
+
+class GeneratorType(Base):
+    __tablename__ = "generator_types"
+
+    generator_type_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(String, nullable=False)
+    cost = Column(Integer, nullable=False)
+
+    generators = relationship("Generator", back_populates="generator_type")
+
+
+class Generator(Base):
+    __tablename__ = "generators"
+
+    generator_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    generator_type_id = Column(String, ForeignKey("generator_types.generator_type_id"), nullable=False)
+    owner_id = Column(String, ForeignKey("users.user_id"), nullable=False)
+    level = Column(Integer, default=1, nullable=False)
+    x_position = Column(Integer, nullable=False)
+    world_position = Column(Integer, nullable=False)
+    isdeveloping = Column(Boolean, default=False, nullable=False)
+    heat = Column(Integer, default=0, nullable=False)
+
+    owner = relationship("User", back_populates="generators")
+    generator_type = relationship("GeneratorType")
+    map_progresses = relationship("MapProgress", back_populates="generator", cascade=CASCADE_OPTION)
+
+
+class MapProgress(Base):
+    __tablename__ = "map_progress"
+
+    map_progress_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String, ForeignKey("users.user_id"), nullable=False)
+    generator_id = Column(String, ForeignKey("generators.generator_id"), nullable=False)
+
+    user = relationship("User", back_populates="map_progresses")
+    generator = relationship("Generator", back_populates="map_progresses")
+
+    __table_args__ = (UniqueConstraint('user_id', 'generator_id', name='_user_generator_uc'),)
