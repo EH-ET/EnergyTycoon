@@ -7,13 +7,54 @@
   <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="main.css">
 </head>
-<body>
-  <div id="expressBar"></div>
-  <div id="mainMap"></div>
-  <div id="buildBar">
-    <div id="buildMenu"></div>
-    <div id="buildInfo"></div>
-  </div>
-  <script scr="main.js"></script>
-</body>
+  <body>
+    <header class="header">
+      <div class="profile">
+        <div class="profile-modal modal">
+          <p class="modal-line"><strong>이름:</strong> ADMIN</p>
+          <p class="modal-line"><strong>랭킹:</strong> 1</p>
+          <div class="modal-actions">
+            <button class="modal-button">설정</button>
+            <button class="modal-button">로그아웃</button>
+          </div>
+        </div>
+      </div>
+      <div class="text-wrapper">ADMIN</div>
+      <div class="generator-bar">
+        <div class="generator-img"></div>
+        <div class="generator text-bar generator-text-bar"><p>0/0</p></div>
+      </div>
+      <div class="money-bar">
+        <div class="money-img">
+          <div class="money-modal modal">
+            <p class="modal-line"><strong>교환소 환율</strong></p>
+            <p class="modal-line">에너지 1 = 돈 <span class="money-rate">0</span></p>
+          </div>
+        </div>
+        <div class="money text-bar long"><p>0</p></div>
+      </div>
+      <div class="energy-bar">
+        <div class="energy-img">
+          <div class="energy-modal modal">
+            <p class="modal-line"><strong>초당 에너지 생산량</strong></p>
+            <p class="modal-line"><span class="energy-rate">0</span> / 초</p>
+          </div>
+        </div>
+        <div class="energy text-bar long"><p>0</p></div>
+      </div>
+    </header>
+    <main>
+      <div class="main"></div>
+    </main>
+    <footer>
+      <div class="build-bar">
+        <div class="btn-bar">
+          <button class="generator-btn bbtn">발전기</button>
+          <button class="trade-btn bbtn">교환소</button>
+          <button class="upgrade-btn bbtn">업그레이드</button>
+          <button class="info-btn bbtn">정보</button>
+        </div>
+      </div>
+    </footer>
+  </body>
 </html>
