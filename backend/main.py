@@ -1,20 +1,22 @@
 import os
-from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, status, Header
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
-from pydantic import BaseModel
 import uuid
 import hashlib
 import time
+from typing import Optional, List
 
-# Database URL from env, default to sqlite file for local development
+from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
+
+# --- DB 설정
 dataBase_url = os.getenv("DATABASE_URL", "sqlite:///./energy_tycoon.db")
 engine = create_engine(dataBase_url, connect_args={"check_same_thread": False} if dataBase_url.startswith("sqlite") else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+# --- 앱과 CORS
 app = FastAPI()
 
 _origins_env = os.getenv("FRONTEND_ORIGINS")
@@ -31,16 +33,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def generate_uuid():
+# --- 유틸
+def generate_uuid() -> str:
     return str(uuid.uuid4())
 
-# reuse cascade option string to avoid duplication warnings
-CASCADE_OPTION = "all, delete-orphan"
+def hash_pw(pw: str) -> str:
+    return hashlib.sha256(pw.encode()).hexdigest()
 
+# --- 상수
+CASCADE_OPTION = "all, delete-orphan"
 ERR_ID_MISMATCH = "아이디가 일치하지 않습니다."
 
-
+# --- 모델 (table.txt 기준)
 class User(Base):
     __tablename__ = "users"
 
@@ -97,8 +101,7 @@ class MapProgress(Base):
 
 Base.metadata.create_all(bind=engine)
 
-
-# --- Pydantic schemas
+# --- Pydantic 스키마
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -123,21 +126,17 @@ class ExchangeIn(BaseModel):
     amount: int
 
 
-class SaveProgressIn(BaseModel):
+class ProgressSaveIn(BaseModel):
     user_id: str
     generator_type_id: str
     x_position: int
     world_position: int
 
 
-# --- simple in-memory token store (replace with real JWT later)
+# --- 간단한 토큰 스토어 (실환경에선 JWT 등으로 대체)
 _token_store = {}
 
-
-def hash_pw(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-
+# --- DB 의존성
 def get_db():
     db = SessionLocal()
     try:
@@ -145,63 +144,28 @@ def get_db():
     finally:
         db.close()
 
-
+# --- 초기 데이터
 def create_default_generator_types(db: Session):
-    existing = db.query(GeneratorType).count()
-    if existing == 0:
-        types = [
-            {"name": "Solar Panel", "description": "Produces small energy per second.", "cost": 10},
-            {"name": "Wind Turbine", "description": "Medium production.", "cost": 50},
-            {"name": "Nuclear Plant", "description": "High production.", "cost": 500},
+    if db.query(GeneratorType).count() == 0:
+        default_types = [
+            {"name": "광합성", "description": "태양을 이용해 에너지를 생산합니다. 낮에만 작동합니다.", "cost": 5},
+            {"name": "풍력", "description": "바람을 이용해 에너지를 생산합니다.", "cost": 20},
+            {"name": "지열", "description": "지열을 이용해 안정적으로 전력을 생산합니다.", "cost": 50},
         ]
-        for t in types:
-            gt = GeneratorType(name=t["name"], description=t["description"], cost=t["cost"])
-            db.add(gt)
+        for t in default_types:
+            db.add(GeneratorType(name=t["name"], description=t["description"], cost=t["cost"]))
         db.commit()
 
+with SessionLocal() as db:
+    create_default_generator_types(db)
 
-create_default_generator_types(next(get_db()))
-
-
-@app.post("/signup", response_model=UserOut)
-async def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    # simple username uniqueness
-    if db.query(User).filter_by(username=user.username).first():
-        raise HTTPException(status_code=400, detail="username already exists")
-    u = User(username=user.username, password=hash_pw(user.password), energy=0, money=0)
-    db.add(u)
-    db.commit()
-    db.refresh(u)
-    return u
-
-
-@app.post("/login")
-async def login(credentials: LoginIn, db: Session = Depends(get_db)):
-    user = db.query(User).filter_by(username=credentials.username).first()
-    if not user or user.password != hash_pw(credentials.password):
-        raise HTTPException(status_code=401, detail="유효하지 않는 입력")
-    token = str(uuid.uuid4())
-    # token expiry 1 day
-    _token_store[token] = {"user_id": user.user_id, "expiry": time.time() + 86400}
-    return {"access_token": token, "user": UserOut.model_validate(user)}
-
-
-@app.post("/logout")
-async def logout(token: str):
-    if token in _token_store:
-        del _token_store[token]
-    return {"ok": True}
-
-
-@app.post("/refresh")
-async def refresh_token(token: str):
-    data = _token_store.get(token)
-    if not data:
-        raise HTTPException(status_code=401, detail="유효하지 않는 토큰")
-    # extend
-    data["expiry"] = time.time() + 86400
-    return {"access_token": token}
-
+# --- 인증 헬퍼
+def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    if authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return authorization
 
 def require_user(token: str, db: Session) -> User:
     data = _token_store.get(token)
@@ -212,22 +176,46 @@ def require_user(token: str, db: Session) -> User:
         raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
     return user
 
-
-def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header missing")
-    if authorization.lower().startswith('bearer '):
-        return authorization.split(' ', 1)[1].strip()
-    return authorization
-
-
 def get_user_and_db(token: str = Depends(get_token_from_header), db: Session = Depends(get_db)):
     user = require_user(token, db)
     return user, db, token
 
+# --- API 엔드포인트 (api.txt 기준 + 프론트엔드 필요 엔드포인트)
+@app.post("/signup", response_model=UserOut)
+async def signup(payload: UserCreate, db: Session = Depends(get_db)):
+    if db.query(User).filter_by(username=payload.username).first():
+        raise HTTPException(status_code=400, detail="username already exists")
+    u = User(username=payload.username, password=hash_pw(payload.password), energy=0, money=0)
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    return u
+
+@app.post("/login")
+async def login(payload: LoginIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter_by(username=payload.username).first()
+    if not user or user.password != hash_pw(payload.password):
+        raise HTTPException(status_code=401, detail="유효하지 않는 입력")
+    token = generate_uuid()
+    _token_store[token] = {"user_id": user.user_id, "expiry": time.time() + 86400}
+    return {"access_token": token, "user": UserOut.model_validate(user)}
+
+@app.post("/logout")
+async def logout(token: str = Depends(get_token_from_header)):
+    if token in _token_store:
+        del _token_store[token]
+    return {"ok": True}
+
+@app.post("/refresh")
+async def refresh(token: str = Depends(get_token_from_header)):
+    data = _token_store.get(token)
+    if not data:
+        raise HTTPException(status_code=401, detail="유효하지 않는 토큰")
+    data["expiry"] = time.time() + 86400
+    return {"access_token": token}
 
 @app.post("/change/energy2money")
-async def change_energy_to_money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
+async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     if user.user_id != payload.user_id:
         raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
@@ -235,20 +223,19 @@ async def change_energy_to_money(payload: ExchangeIn, auth=Depends(get_user_and_
         raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.energy < payload.amount:
         raise HTTPException(status_code=400, detail="충분하지 않는 에너지입니다.")
-    # 1 energy = 1 money
+    # 환율 1:1 기본
     user.energy -= payload.amount
     user.money += payload.amount
     db.commit()
     return {"energy": user.energy, "money": user.money}
 
-
 @app.post("/change/money2energy")
-async def change_money_to_energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
+async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     if user.user_id != payload.user_id:
         raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
     if payload.amount <= 0:
-        raise HTTPException(status_code=400, detail="유효하지 않는 에너지입니다.")
+        raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.money < payload.amount:
         raise HTTPException(status_code=400, detail="충분하지 않는 금액입니다.")
     user.money -= payload.amount
@@ -256,51 +243,24 @@ async def change_money_to_energy(payload: ExchangeIn, auth=Depends(get_user_and_
     db.commit()
     return {"energy": user.energy, "money": user.money}
 
-
 @app.get("/rank")
-async def get_rank(db: Session = Depends(get_db)):
-    # return top user by money
+async def rank(db: Session = Depends(get_db)):
     u = db.query(User).order_by(User.money.desc()).first()
     if not u:
-        return {"rank": []}
+        return {"user": None}
     return {"user": UserOut.model_validate(u)}
 
-
-@app.get("/rank/list")
-async def get_rank_list(limit: int = 10, db: Session = Depends(get_db)):
+@app.get("/ranks")
+async def ranks(limit: int = 100, db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.money.desc()).limit(limit).all()
     return {"list": [UserOut.model_validate(u) for u in users]}
 
-
-@app.post("/saveprogress")
-async def save_progress(payload: SaveProgressIn, auth=Depends(get_user_and_db)):
-    user, db, _ = auth
-    if user.user_id != payload.user_id:
-        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
-    gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
-    if not gt:
-        raise HTTPException(status_code=404, detail="발전기가 존재하지 않습니다.")
-    if user.money < gt.cost:
-        raise HTTPException(status_code=400, detail="돈이 부족합니다.")
-    # create generator and mapprogress
-    g = Generator(generator_type_id=gt.generator_type_id, owner_id=user.user_id, x_position=payload.x_position, world_position=payload.world_position)
-    db.add(g)
-    db.commit()
-    db.refresh(g)
-    mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
-    db.add(mp)
-    # deduct cost
-    user.money -= gt.cost
-    db.commit()
-    return {"ok": True, "generator_id": g.generator_id}
-
-
-@app.get("/loadprogress")
+# /progress : GET -> 불러오기, POST -> 저장
+@app.get("/progress")
 async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     if user.user_id != user_id:
         raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
-    # load user's generators with type info
     gens = db.query(Generator).filter_by(owner_id=user.user_id).all()
     out = []
     for g in gens:
@@ -313,8 +273,31 @@ async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
         })
     return {"generators": out}
 
+@app.post("/progress")
+async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    if user.user_id != payload.user_id:
+        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+    gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
+    if not gt:
+        raise HTTPException(status_code=404, detail="발전기가 존재하지 않습니다.")
+    if user.money < gt.cost:
+        raise HTTPException(status_code=400, detail="돈이 부족합니다.")
+    g = Generator(generator_type_id=gt.generator_type_id, owner_id=user.user_id, x_position=payload.x_position, world_position=payload.world_position)
+    db.add(g)
+    db.commit()
+    db.refresh(g)
+    # map progress 등록 (중복 방지 위해 try/except)
+    try:
+        mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
+        db.add(mp)
+    except Exception:
+        pass
+    user.money -= gt.cost
+    db.commit()
+    return {"ok": True, "generator_id": g.generator_id}
 
-@app.get('/generator_types')
-async def list_generator_types(db: Session = Depends(get_db)):
+@app.get("/generator_types")
+async def generator_types(db: Session = Depends(get_db)):
     types = db.query(GeneratorType).all()
     return {"types": [{"id": t.generator_type_id, "name": t.name, "cost": t.cost, "description": t.description} for t in types]}

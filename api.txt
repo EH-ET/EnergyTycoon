@@ -1,0 +1,9 @@
+/signup
+/login
+/logout
+/refresh
+/change/energy2money
+/change/money2energy
+/rank
+/ranks
+/progress
