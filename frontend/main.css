@@ -61,7 +61,7 @@ main {
 }
 .modal-button:hover { background-color: #222; border-color: #666; }
 
-.profile:hover .profile-modal { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.profile:hover .profile-modal { opacity: 0.75; visibility: visible; transform: translateY(0); pointer-events: auto; }
 
 .text-wrapper {
   margin-top: 15px;
@@ -99,8 +99,8 @@ main {
 
 .money-img, .energy-img { position: relative; }
 .money-modal, .energy-modal { position: absolute; top: 60px; left: -40px; width: 180px; background-color: #0b0b0b; color: #fff; padding: 8px; border-radius: 8px; opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s ease; box-shadow: 0 6px 18px rgba(0,0,0,0.35); font-size: 14px; z-index: 10; pointer-events: none; }
-.money-img:hover .money-modal { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
-.energy-img:hover .energy-modal { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.money-img:hover .money-modal { opacity: 0.75; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.energy-img:hover .energy-modal { opacity: 0.75; visibility: visible; transform: translateY(0); pointer-events: auto; }
 .money-rate, .energy-rate { font-weight: 700; color: #a8ff8e; }
 
 .generator-text-bar {
@@ -179,7 +179,7 @@ main {
   width: 100vw;
   height: 20vh;
   display: flex;
-  background-color: #0b0448;
+  background-color: #101010;
   overflow: hidden;
   border-top-width: 2px;
   border-top-style: solid;
@@ -189,13 +189,13 @@ main {
 }
 
 .build-bar:hover {
-  height: 26vh;
-  margin-top: -10vh;
+  height: 32vh;
+  margin-top: -15vh;
 }
 
 .btn-bar {
   width: 8vw;
-  height: 210px;
+  height: 32vh;
   display: flex;
   flex-direction: column;
   border: #000000 3px solid;
@@ -212,14 +212,15 @@ main {
   font-size: 22px;
   letter-spacing: 0;
   line-height: normal;
-  background-color: #0b0448;
-  border: #040027 3px solid;
+  background-color: #141414;
+  border: #141414 3px solid;
   transition: 0.5s ease;
 }
 
 .bbtn:hover {
   border: white 3px solid;
-  background-color: #03001d;
+  background-color: #050505;
+  transform: scale(1.05);
 }
 
 .generator-btn:hover {
@@ -236,4 +237,46 @@ main {
 
 .info-btn:hover {
   color:yellow
+}
+
+.content-area {
+  width: 92vw;
+}
+
+.generator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  height: 26vh;
+  margin: 1vw;
+}
+
+.generator-grid img {
+  border-radius: 6px;
+  flex-shrink: 0;
+  height: 100px;
+}
+
+.generator-item {
+  border: 3px solid #151515;
+  border-radius: 8px;
+  padding: 8px;
+  background-color: #151515;
+  cursor: default;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  transition: 0.5s ease;
+  flex-direction: column;
+}
+
+.generator-item:hover {
+  border: 3px solid white;
+  background-color:#050505;
+  transform: scale(1.1);
+}
+
+.generator-stats {
+  color: white;
 }
