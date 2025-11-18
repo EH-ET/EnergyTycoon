@@ -82,6 +82,12 @@ UPGRADE_CONFIG = {
     "heat_reduction": {"field": "heat_reduction", "base_cost": 100, "price_growth": 1.15},
     "tolerance": {"field": "tolerance_bonus", "base_cost": 100, "price_growth": 1.2},
     "max_generators": {"field": "max_generators_bonus", "base_cost": 150, "price_growth": 1.3},
+    "supply": {"field": "supply_bonus", "base_cost": 120, "price_growth": 1.2},
+}
+
+MARKET_STATE = {
+    "sold_energy": 0,
+    "base_rate": 1.0,
 }
 
 # --- 모델
@@ -97,6 +103,7 @@ class User(Base):
     heat_reduction = Column(Integer, default=0, nullable=False)
     tolerance_bonus = Column(Integer, default=0, nullable=False)
     max_generators_bonus = Column(Integer, default=0, nullable=False)
+    supply_bonus = Column(Integer, default=0, nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade="all, delete-orphan")
@@ -154,6 +161,7 @@ def _ensure_user_upgrade_columns():
         ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
         ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
         ("money", "INTEGER NOT NULL DEFAULT 10"),
+        ("supply_bonus", "INTEGER NOT NULL DEFAULT 0"),
     ]
     with engine.begin() as conn:
         existing = set()
@@ -182,6 +190,7 @@ class UserOut(BaseModel):
     heat_reduction: int
     tolerance_bonus: int
     max_generators_bonus: int
+    supply_bonus: int
 
     model_config = {"from_attributes": True}
 
@@ -251,6 +260,17 @@ def apply_upgrade(user: User, db: Session, key: str) -> User:
     db.refresh(user)
     return user
 
+
+def current_market_rate(user: Optional[User] = None) -> float:
+    base = MARKET_STATE["base_rate"]
+    sold = MARKET_STATE["sold_energy"]
+    drop = min(0.7, sold / 500)  # more supply sold => price drop
+    bonus = 1.0
+    if user:
+        bonus += (getattr(user, "supply_bonus", 0) or 0) * 0.05
+    rate = base * (1 - drop) * bonus
+    return max(0.1, rate)
+
 with SessionLocal() as db:
     create_default_generator_types(db)
 
@@ -318,10 +338,18 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
         raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.energy < payload.amount:
         raise HTTPException(status_code=400, detail="충분하지 않는 에너지입니다.")
+    rate = current_market_rate(user)
+    gained = int(payload.amount * rate)
     user.energy -= payload.amount
-    user.money += payload.amount
+    user.money += gained
+    MARKET_STATE["sold_energy"] += payload.amount
     db.commit()
-    return {"energy": user.energy, "money": user.money}
+    return {
+        "energy": user.energy,
+        "money": user.money,
+        "rate": rate,
+        "sold_energy": MARKET_STATE["sold_energy"],
+    }
 
 @app.post("/change/money2energy")
 async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
@@ -336,6 +364,12 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user.energy += payload.amount
     db.commit()
     return {"energy": user.energy, "money": user.money}
+
+@app.get("/market")
+async def market(auth=Depends(get_user_and_db)):
+    user, _, _ = auth
+    rate = current_market_rate(user)
+    return {"rate": rate, "sold_energy": MARKET_STATE["sold_energy"]}
 
 @app.get("/rank")
 async def rank(db: Session = Depends(get_db)):
@@ -430,6 +464,12 @@ async def upgrade_tolerance(auth=Depends(get_user_and_db)):
 async def upgrade_max_generators(auth=Depends(get_user_and_db)):
     user, db, _ = auth
     upgraded_user = apply_upgrade(user, db, "max_generators")
+    return UserOut.model_validate(upgraded_user)
+
+@app.post("/upgrade/supply")
+async def upgrade_supply(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_upgrade(user, db, "supply")
     return UserOut.model_validate(upgraded_user)
 
 # --- 서버 실행

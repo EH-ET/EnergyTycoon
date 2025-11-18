@@ -24,7 +24,8 @@ const upgrades = [
   {"이름": "전체 생산량 증가", "endpoint": "production", "field": "production_bonus", "설명": "모든 발전기의 생산량을 늘립니다.", "baseCost": 100, "priceGrowth": 1.25},
   {"이름": "발열 감소", "endpoint": "heat_reduction", "field": "heat_reduction", "설명": "발전기의 발열을 줄입니다.", "baseCost": 100, "priceGrowth": 1.15},
   {"이름": "내열한계 증가", "endpoint": "tolerance", "field": "tolerance_bonus", "설명": "발전기의 내열한계를 높입니다.", "baseCost": 100, "priceGrowth": 1.2},
-  {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 150, "priceGrowth": 1.3}
+  {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 150, "priceGrowth": 1.3},
+  {"이름": "공급 증가", "endpoint": "supply", "field": "supply_bonus", "설명": "시장 공급을 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 120, "priceGrowth": 1.2}
 ];
 
 // 이름 -> generator_type 정보 매핑을 저장
@@ -397,14 +398,150 @@ function updateUserUI(user) {
   document.querySelector(".energy.text-bar.long p").textContent = user.energy;
   document.querySelector(".profile-modal .modal-line").innerHTML = `<strong>이름:</strong> ${user.username}`;
   // Generator count update, assume 0 for now
-  const count = document.querySelectorAll(".placed-generator").length;
+  const count = placedGenerators.length || document.querySelectorAll(".placed-generator").length;
   const max = 10 + user.max_generators_bonus * 5;
   document.querySelector(".generator.text-bar.generator-text-bar p").textContent = `${count}/${max}`;
 }
 
 // 플레이스홀더 모드들(간단한 자리 표시자)
 function tradeMode() {
-  contentArea.innerHTML = "<div style='padding:12px;color:#444;'>거래 모드(개발 중)</div>";
+  contentArea.innerHTML = "";
+  if (!currentUser) {
+    contentArea.innerHTML = "<div style='padding:12px;color:#f00;'>로그인 필요</div>";
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.style.display = "grid";
+  wrap.style.gridTemplateColumns = "1fr 1fr";
+  wrap.style.gap = "12px";
+  wrap.style.padding = "12px";
+
+  const panel = document.createElement("div");
+  panel.style.padding = "12px";
+  panel.style.border = "1px solid #444";
+  panel.style.background = "#0f0f0f";
+  panel.style.color = "#eaeaea";
+  panel.style.borderRadius = "8px";
+
+  const rateInfo = document.createElement("div");
+  rateInfo.style.marginBottom = "8px";
+  rateInfo.textContent = "시장 가격 로딩 중...";
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "1";
+  input.placeholder = "팔 에너지 (기본 1)";
+  input.value = "1";
+  input.style.width = "100%";
+  input.style.marginBottom = "8px";
+
+  const sellBtn = document.createElement("button");
+  sellBtn.textContent = "에너지 → 돈 교환";
+  sellBtn.style.width = "100%";
+  sellBtn.style.padding = "10px";
+  sellBtn.style.cursor = "pointer";
+
+  const supplyBtn = document.createElement("button");
+  supplyBtn.textContent = "공급 증가 업그레이드";
+  supplyBtn.style.width = "100%";
+  supplyBtn.style.padding = "10px";
+  supplyBtn.style.cursor = "pointer";
+  supplyBtn.style.marginTop = "8px";
+
+  const msg = document.createElement("div");
+  msg.style.marginTop = "8px";
+  msg.style.fontSize = "13px";
+  msg.style.color = "#a8ff8e";
+
+  panel.appendChild(rateInfo);
+  panel.appendChild(input);
+  panel.appendChild(sellBtn);
+  panel.appendChild(supplyBtn);
+  panel.appendChild(msg);
+
+  const chartBox = document.createElement("div");
+  chartBox.style.border = "1px solid #444";
+  chartBox.style.borderRadius = "8px";
+  chartBox.style.padding = "8px";
+  chartBox.style.background = "#0a0a0a";
+  chartBox.innerHTML = `
+    <svg width="100%" height="240" viewBox="0 0 240 240" style="background:#111;">
+      <line x1="30" y1="10" x2="30" y2="210" stroke="#666" stroke-width="1"/>
+      <line x1="30" y1="210" x2="230" y2="210" stroke="#666" stroke-width="1"/>
+      <text x="10" y="20" fill="#888" font-size="12">가격</text>
+      <text x="200" y="230" fill="#888" font-size="12">수량</text>
+      <polyline points="40,40 220,200" stroke="#4caf50" fill="none" stroke-width="2"></polyline>
+      <polyline points="40,200 200,40" stroke="#f44336" fill="none" stroke-width="2"></polyline>
+      <text x="60" y="55" fill="#4caf50" font-size="12">수요</text>
+      <text x="140" y="60" fill="#f44336" font-size="12">공급</text>
+    </svg>
+  `;
+
+  wrap.appendChild(panel);
+  wrap.appendChild(chartBox);
+  contentArea.appendChild(wrap);
+
+  async function refreshRate() {
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/market`, { headers: { "Authorization": `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      rateInfo.textContent = `현재 교환비: 1 에너지 → ${data.rate.toFixed(2)} 돈 (누적 판매: ${data.sold_energy})`;
+    } catch (e) {
+      rateInfo.textContent = "시장 가격 불러오기 실패";
+    }
+  }
+
+  sellBtn.onclick = async () => {
+    const amount = Number(input.value) || 1;
+    if (amount <= 0) return alert("1 이상 입력하세요");
+    const token = localStorage.getItem("access_token");
+    try {
+      const beforeMoney = currentUser.money;
+      const res = await fetch(`${API_BASE}/change/energy2money`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ user_id: currentUser.user_id, amount })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "교환 실패");
+      currentUser.energy = data.energy;
+      currentUser.money = data.money;
+      localStorage.setItem("user", JSON.stringify(currentUser));
+      updateUserUI(currentUser);
+      const gained = data.money - beforeMoney;
+      msg.textContent = `성공: ${amount} 에너지 → ${gained} 돈 (rate ${data.rate?.toFixed?.(2) || "?"})`;
+      await refreshRate();
+    } catch (e) {
+      alert(e.message || e);
+    }
+  };
+
+  supplyBtn.onclick = async () => {
+    const token = localStorage.getItem("access_token");
+    try {
+      const res = await fetch(`${API_BASE}/upgrade/supply`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "업그레이드 실패");
+      currentUser = data;
+      localStorage.setItem("user", JSON.stringify(data));
+      updateUserUI(currentUser);
+      msg.textContent = `공급 증가 레벨이 ${data.supply_bonus}가 되었습니다.`;
+      await refreshRate();
+    } catch (e) {
+      alert(e.message || e);
+    }
+  };
+
+  refreshRate();
 }
 function upgradeMode() {
   if (!currentUser) {
@@ -612,6 +749,7 @@ function loadUserData() {
   if (userStr) {
     currentUser = JSON.parse(userStr);
     updateUserUI(currentUser);
+    startEnergyTimer();
   }
 }
 
