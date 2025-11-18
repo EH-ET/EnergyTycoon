@@ -3,17 +3,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 시스템 의존성(필요시 추가)
-RUN apt-get update && apt-get install -y gcc build-essential --no-install-recommends \
+# 시스템 의존성
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc build-essential libsqlite3-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# 파이썬 의존성 복사(빌드시 requirements.txt 필요)
+# 복사 및 의존성 설치
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# 코드 복사(로컬 마운트할 경우 optional)
+# 애플리케이션 복사
 COPY . /app
 
+# 데이터 디렉토리(컨테이너 내부) 생성 및 권한
+RUN mkdir -p /app/data && chmod 777 /app/data
+
+ENV DATABASE_URL="sqlite:///./data/energy_tycoon.db"
+ENV FRONTEND_ORIGINS="*"
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

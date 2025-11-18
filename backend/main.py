@@ -3,6 +3,8 @@ import uuid
 import hashlib
 import time
 from typing import Optional, List
+import pathlib
+import sys
 
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +12,40 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 
-# --- DB 설정
-dataBase_url = os.getenv("DATABASE_URL", "sqlite:///./energy_tycoon.db")
+# --- DB 설정 (디렉터리 자동 생성 보장)
+def _ensure_sqlite_dir(database_url: str):
+    """
+    sqlite:///relative/path.db or sqlite:////absolute/path.db
+    에서 파일 경로 부분을 추출하여 부모 디렉터리를 생성하고 쓰기 권한을 시도합니다.
+    """
+    if not database_url:
+        return
+    if not database_url.startswith("sqlite"):
+        return
+    # sqlite:///./data/energy_tycoon.db  또는 sqlite:////absolute/path.db
+    path_part = database_url.split("sqlite:///", 1)[-1]
+    # 만약 앞에 //로 시작하면 절대경로 처리 (sqlite:////abs/path)
+    if path_part.startswith("/"):
+        db_path = "/" + path_part.lstrip("/")
+    else:
+        db_path = os.path.join(os.getcwd(), path_part)
+    parent = os.path.dirname(db_path) or os.getcwd()
+    try:
+        os.makedirs(parent, exist_ok=True)
+        try:
+            os.chmod(parent, 0o777)
+        except Exception:
+            # 권한 변경 실패해도 진행
+            pass
+    except Exception as e:
+        print(f"경고: 데이터베이스 디렉터리 생성 실패: {parent} -> {e}", file=sys.stderr)
+
+# 환경 변수 읽기
+dataBase_url = os.getenv("DATABASE_URL", "sqlite:///./data/energy_tycoon.db")
+# 디렉터리 존재 보장
+_ensure_sqlite_dir(dataBase_url)
+
+# 이제 엔진 생성
 engine = create_engine(dataBase_url, connect_args={"check_same_thread": False} if dataBase_url.startswith("sqlite") else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -43,8 +77,14 @@ def hash_pw(pw: str) -> str:
 # --- 상수
 CASCADE_OPTION = "all, delete-orphan"
 ERR_ID_MISMATCH = "아이디가 일치하지 않습니다."
+UPGRADE_CONFIG = {
+    "production": {"field": "production_bonus", "base_cost": 100, "price_growth": 1.25},
+    "heat_reduction": {"field": "heat_reduction", "base_cost": 100, "price_growth": 1.15},
+    "tolerance": {"field": "tolerance_bonus", "base_cost": 100, "price_growth": 1.2},
+    "max_generators": {"field": "max_generators_bonus", "base_cost": 150, "price_growth": 1.3},
+}
 
-# --- 모델 (table.txt 기준)
+# --- 모델
 class User(Base):
     __tablename__ = "users"
 
@@ -52,7 +92,11 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
     energy = Column(Integer, default=0, nullable=False)
-    money = Column(Integer, default=0, nullable=False)
+    money = Column(Integer, default=10, nullable=False)
+    production_bonus = Column(Integer, default=0, nullable=False)
+    heat_reduction = Column(Integer, default=0, nullable=False)
+    tolerance_bonus = Column(Integer, default=0, nullable=False)
+    max_generators_bonus = Column(Integer, default=0, nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade="all, delete-orphan")
@@ -99,7 +143,29 @@ class MapProgress(Base):
     __table_args__ = (UniqueConstraint('user_id', 'generator_id', name='_user_generator_uc'),)
 
 
+# 테이블 생성
 Base.metadata.create_all(bind=engine)
+
+def _ensure_user_upgrade_columns():
+    # SQLite에서는 기존 DB에 컬럼이 없을 수 있으므로, 부족한 컬럼을 추가
+    needed = [
+        ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
+        ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
+        ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
+        ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
+        ("money", "INTEGER NOT NULL DEFAULT 10"),
+    ]
+    with engine.begin() as conn:
+        existing = set()
+        rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
+        for r in rows:
+            # PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk
+            existing.add(r[1])
+        for col_name, col_def in needed:
+            if col_name not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+
+_ensure_user_upgrade_columns()
 
 # --- Pydantic 스키마
 class UserCreate(BaseModel):
@@ -112,6 +178,10 @@ class UserOut(BaseModel):
     username: str
     energy: int
     money: int
+    production_bonus: int
+    heat_reduction: int
+    tolerance_bonus: int
+    max_generators_bonus: int
 
     model_config = {"from_attributes": True}
 
@@ -133,7 +203,7 @@ class ProgressSaveIn(BaseModel):
     world_position: int
 
 
-# --- 간단한 토큰 스토어 (실환경에선 JWT 등으로 대체)
+# --- 간단한 토큰 스토어
 _token_store = {}
 
 # --- DB 의존성
@@ -155,6 +225,31 @@ def create_default_generator_types(db: Session):
         for t in default_types:
             db.add(GeneratorType(name=t["name"], description=t["description"], cost=t["cost"]))
         db.commit()
+
+
+def get_upgrade_meta(key: str):
+    meta = UPGRADE_CONFIG.get(key)
+    if not meta:
+        raise HTTPException(status_code=404, detail="업그레이드 구성이 없습니다.")
+    return meta
+
+
+def calculate_upgrade_cost(user: User, key: str) -> int:
+    meta = get_upgrade_meta(key)
+    current_level = getattr(user, meta["field"], 0) + 1  # 기본 1레벨
+    return int(meta["base_cost"] * (meta["price_growth"] ** current_level))
+
+
+def apply_upgrade(user: User, db: Session, key: str) -> User:
+    meta = get_upgrade_meta(key)
+    cost = calculate_upgrade_cost(user, key)
+    if user.money < cost:
+        raise HTTPException(status_code=400, detail="돈이 부족합니다.")
+    user.money -= cost
+    setattr(user, meta["field"], getattr(user, meta["field"], 0) + 1)
+    db.commit()
+    db.refresh(user)
+    return user
 
 with SessionLocal() as db:
     create_default_generator_types(db)
@@ -180,12 +275,12 @@ def get_user_and_db(token: str = Depends(get_token_from_header), db: Session = D
     user = require_user(token, db)
     return user, db, token
 
-# --- API 엔드포인트 (api.txt 기준 + 프론트엔드 필요 엔드포인트)
+# --- API 엔드포인트
 @app.post("/signup", response_model=UserOut)
 async def signup(payload: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter_by(username=payload.username).first():
         raise HTTPException(status_code=400, detail="username already exists")
-    u = User(username=payload.username, password=hash_pw(payload.password), energy=0, money=0)
+    u = User(username=payload.username, password=hash_pw(payload.password), energy=0, money=10)
     db.add(u)
     db.commit()
     db.refresh(u)
@@ -223,7 +318,6 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
         raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.energy < payload.amount:
         raise HTTPException(status_code=400, detail="충분하지 않는 에너지입니다.")
-    # 환율 1:1 기본
     user.energy -= payload.amount
     user.money += payload.amount
     db.commit()
@@ -251,11 +345,10 @@ async def rank(db: Session = Depends(get_db)):
     return {"user": UserOut.model_validate(u)}
 
 @app.get("/ranks")
-async def ranks(limit: int = 100, db: Session = Depends(get_db)):
+async def ranks(limit: int = 10, db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.money.desc()).limit(limit).all()
     return {"list": [UserOut.model_validate(u) for u in users]}
 
-# /progress : GET -> 불러오기, POST -> 저장
 @app.get("/progress")
 async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
     user, db, _ = auth
@@ -267,6 +360,7 @@ async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
         out.append({
             "generator_id": g.generator_id,
             "type": g.generator_type.name if g.generator_type else None,
+            "generator_type_id": g.generator_type_id,
             "x_position": g.x_position,
             "world_position": g.world_position,
             "level": g.level,
@@ -287,17 +381,60 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     db.add(g)
     db.commit()
     db.refresh(g)
-    # map progress 등록 (중복 방지 위해 try/except)
     try:
         mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
         db.add(mp)
+        db.commit()
     except Exception:
-        pass
+        # 중복 등 예외 무시
+        db.rollback()
     user.money -= gt.cost
     db.commit()
-    return {"ok": True, "generator_id": g.generator_id}
+    return {
+        "ok": True,
+        "generator": {
+            "generator_id": g.generator_id,
+            "generator_type_id": g.generator_type_id,
+            "type": gt.name,
+            "x_position": g.x_position,
+            "world_position": g.world_position,
+            "level": g.level,
+        },
+        "user": UserOut.model_validate(user)
+    }
 
 @app.get("/generator_types")
 async def generator_types(db: Session = Depends(get_db)):
     types = db.query(GeneratorType).all()
     return {"types": [{"id": t.generator_type_id, "name": t.name, "cost": t.cost, "description": t.description} for t in types]}
+
+@app.post("/upgrade/production")
+async def upgrade_production(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_upgrade(user, db, "production")
+    return UserOut.model_validate(upgraded_user)
+
+@app.post("/upgrade/heat_reduction")
+async def upgrade_heat_reduction(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_upgrade(user, db, "heat_reduction")
+    return UserOut.model_validate(upgraded_user)
+
+@app.post("/upgrade/tolerance")
+async def upgrade_tolerance(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_upgrade(user, db, "tolerance")
+    return UserOut.model_validate(upgraded_user)
+
+@app.post("/upgrade/max_generators")
+async def upgrade_max_generators(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_upgrade(user, db, "max_generators")
+    return UserOut.model_validate(upgraded_user)
+
+# --- 서버 실행
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host=host, port=port)
