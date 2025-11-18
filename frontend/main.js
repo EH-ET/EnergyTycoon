@@ -8,6 +8,39 @@ const username = document.querySelector(".username");
 let contentMode = "generator";
 let currentUser = null;
 
+function getStoredUser() {
+  const stored = localStorage.getItem("user");
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored);
+  } catch (err) {
+    console.warn("stored user parse failed", err);
+    return null;
+  }
+}
+
+function persistUser(user) {
+  currentUser = user;
+  localStorage.setItem("user", JSON.stringify(user));
+}
+
+function syncUserState(user) {
+  persistUser(user);
+  updateUserUI(user);
+}
+
+function getAuthToken() {
+  return localStorage.getItem("access_token");
+}
+
+function getAuthContext() {
+  const token = getAuthToken();
+  const user = currentUser || getStoredUser();
+  if (!token || !user) return null;
+  currentUser = user;
+  return { token, user };
+}
+
 // 변경: 백엔드 주소 설정 (개발 환경 기본: localhost:8000)
 const API_BASE = (function(){
   if (window.__API_BASE__) return window.__API_BASE__;
@@ -192,8 +225,7 @@ function startEnergyTimer() {
     const delta = computeEnergyPerSecond();
     if (delta <= 0) return;
     currentUser.energy = Math.round((Number(currentUser.energy) || 0) + delta);
-    localStorage.setItem("user", JSON.stringify(currentUser));
-    updateUserUI(currentUser);
+    syncUserState(currentUser);
   }, 1000);
 }
 
@@ -403,13 +435,16 @@ function updateUserUI(user) {
   document.querySelector(".generator.text-bar.generator-text-bar p").textContent = `${count}/${max}`;
 }
 
+function requireLoginForContent(message) {
+  if (currentUser) return true;
+  contentArea.innerHTML = `<div style='padding:12px;color:#f00;'>${message || "로그인 필요"}</div>`;
+  return false;
+}
+
 // 플레이스홀더 모드들(간단한 자리 표시자)
 function tradeMode() {
   contentArea.innerHTML = "";
-  if (!currentUser) {
-    contentArea.innerHTML = "<div style='padding:12px;color:#f00;'>로그인 필요</div>";
-    return;
-  }
+  if (!requireLoginForContent("로그인 필요")) return;
 
   const wrap = document.createElement("div");
   wrap.style.display = "grid";
@@ -484,7 +519,7 @@ function tradeMode() {
 
   async function refreshRate() {
     try {
-      const token = localStorage.getItem("access_token");
+      const token = getAuthToken();
       const res = await fetch(`${API_BASE}/market`, { headers: { "Authorization": `Bearer ${token}` } });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -497,7 +532,11 @@ function tradeMode() {
   sellBtn.onclick = async () => {
     const amount = Number(input.value) || 1;
     if (amount <= 0) return alert("1 이상 입력하세요");
-    const token = localStorage.getItem("access_token");
+    const token = getAuthToken();
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
     try {
       const beforeMoney = currentUser.money;
       const res = await fetch(`${API_BASE}/change/energy2money`, {
@@ -512,8 +551,7 @@ function tradeMode() {
       if (!res.ok) throw new Error(data.detail || "교환 실패");
       currentUser.energy = data.energy;
       currentUser.money = data.money;
-      localStorage.setItem("user", JSON.stringify(currentUser));
-      updateUserUI(currentUser);
+      syncUserState(currentUser);
       const gained = data.money - beforeMoney;
       msg.textContent = `성공: ${amount} 에너지 → ${gained} 돈 (rate ${data.rate?.toFixed?.(2) || "?"})`;
       await refreshRate();
@@ -523,7 +561,11 @@ function tradeMode() {
   };
 
   supplyBtn.onclick = async () => {
-    const token = localStorage.getItem("access_token");
+    const token = getAuthToken();
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/upgrade/supply`, {
         method: "POST",
@@ -531,9 +573,7 @@ function tradeMode() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "업그레이드 실패");
-      currentUser = data;
-      localStorage.setItem("user", JSON.stringify(data));
-      updateUserUI(currentUser);
+      syncUserState(data);
       msg.textContent = `공급 증가 레벨이 ${data.supply_bonus}가 되었습니다.`;
       await refreshRate();
     } catch (e) {
@@ -544,10 +584,7 @@ function tradeMode() {
   refreshRate();
 }
 function upgradeMode() {
-  if (!currentUser) {
-    contentArea.innerHTML = "<div style='padding:12px;color:#f00;'>로그인 필요</div>";
-    return;
-  }
+  if (!requireLoginForContent("로그인 필요")) return;
   contentArea.innerHTML = "";
   const grid = document.createElement("div");
   grid.className = "upgrade-grid";
@@ -581,7 +618,7 @@ function upgradeMode() {
     btn.style.cursor = "pointer";
     btn.onclick = async () => {
       if (!currentUser) return;
-      const token = localStorage.getItem("access_token");
+      const token = getAuthToken();
       if (!token) {
         alert("로그인 필요");
         return;
@@ -601,9 +638,7 @@ function upgradeMode() {
           return;
         }
         const newUser = await res.json();
-        currentUser = newUser;
-        localStorage.setItem("user", JSON.stringify(newUser));
-        updateUserUI(newUser);
+        syncUserState(newUser);
         upgradeMode();
       } catch (e) {
         alert(`오류: ${e.message}`);
@@ -620,10 +655,7 @@ function upgradeMode() {
 }
 function infoMode() {
   contentArea.innerHTML = "";
-  if (!currentUser) {
-    contentArea.innerHTML = "<div style='padding:12px;color:#f00;'>로그인 후 확인하세요.</div>";
-    return;
-  }
+  if (!requireLoginForContent("로그인 후 확인하세요.")) return;
   const sessionStart = ensureSessionStart();
   const playTime = formatPlayTime(Date.now() - sessionStart);
   const totalEnergy = currentUser.energy ?? 0;
@@ -679,24 +711,24 @@ function initDropHandlers() {
   mainArea.addEventListener("dragleave", (e) => {
     mainArea.classList.remove("drag-over");
   });
-mainArea.addEventListener("drop", async (e) => {
-  e.preventDefault();
-  mainArea.classList.remove("drag-over");
-  const idx = e.dataTransfer.getData("text/plain");
-  if (idx === "") return;
-  const rect = mainArea.getBoundingClientRect();
-  // 마우스 위치 기준으로 설치 좌표 계산
-  const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-  const gen = generators[Number(idx)];
-  if (!gen) return;
+  mainArea.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    mainArea.classList.remove("drag-over");
+    const idx = e.dataTransfer.getData("text/plain");
+    if (idx === "") return;
+    const rect = mainArea.getBoundingClientRect();
+    // 마우스 위치 기준으로 설치 좌표 계산
+    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const gen = generators[Number(idx)];
+    if (!gen) return;
 
-    const token = localStorage.getItem("access_token");
-    const userStr = localStorage.getItem("user");
-    if (!token || !userStr) {
+    const auth = getAuthContext();
+    if (!auth) {
       alert("설치하려면 로그인 필요합니다.");
       return;
     }
-    const user = JSON.parse(userStr);
+    const { token, user } = auth;
+
     // generator type 정보 확인 (id, cost)
     const genInfo = generatorTypeInfoMap[gen.이름];
     const genTypeId = genInfo ? genInfo.id : generatorTypeMap[gen.이름];
@@ -705,36 +737,32 @@ mainArea.addEventListener("drop", async (e) => {
       alert("서버에서 발전기 정보를 불러오지 못했습니다.");
       return;
     }
-  if (user.money < cost) {
-    alert("돈이 부족합니다.");
-    return;
-  }
-  // generator type id 확인 (서버에서 로드한 매핑 사용)
-  try {
-    const res = await saveProgress(user.user_id, genTypeId, Math.round(x), 0, token);
-    // 로컬 상태 업데이트: 서버 응답 기반
-    if (res.user) {
-      currentUser = res.user;
-      localStorage.setItem("user", JSON.stringify(res.user));
-      updateUserUI(res.user);
-    } else {
-      // fallback 차감
-      user.money = Math.max(0, user.money - cost);
-      currentUser = user;
-      localStorage.setItem("user", JSON.stringify(user));
-      updateUserUI(user);
+    if (user.money < cost) {
+      alert("돈이 부족합니다.");
+      return;
     }
-    const genName = res.generator && res.generator.type ? res.generator.type : gen.이름;
-    const idxByName = findGeneratorIndexByName(genName);
-    const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
-    placedGenerators.push({ x, name: genName, genIndex: idxByName });
-    placeGeneratorVisual(x, imgSrc, genName);
-    if (currentUser) updateUserUI(currentUser);
-    startEnergyTimer();
-  } catch (err) {
-    alert("설치 실패: " + (err.message || err));
-  }
-});
+    // generator type id 확인 (서버에서 로드한 매핑 사용)
+    try {
+      const res = await saveProgress(user.user_id, genTypeId, Math.round(x), 0, token);
+      // 로컬 상태 업데이트: 서버 응답 기반
+      if (res.user) {
+        syncUserState(res.user);
+      } else {
+        // fallback 차감
+        user.money = Math.max(0, user.money - cost);
+        syncUserState(user);
+      }
+      const genName = res.generator && res.generator.type ? res.generator.type : gen.이름;
+      const idxByName = findGeneratorIndexByName(genName);
+      const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
+      placedGenerators.push({ x, name: genName, genIndex: idxByName });
+      placeGeneratorVisual(x, imgSrc, genName);
+      if (currentUser) updateUserUI(currentUser);
+      startEnergyTimer();
+    } catch (err) {
+      alert("설치 실패: " + (err.message || err));
+    }
+  });
 }
 
 // 버튼에 모드 전환 및 렌더 호출 연결
@@ -745,17 +773,15 @@ infoBtn.addEventListener("click", () => { contentMode = "info"; renderContent();
 
 // 사용자 데이터 로드 및 UI 업데이트
 function loadUserData() {
-  const userStr = localStorage.getItem("user");
-  if (userStr) {
-    currentUser = JSON.parse(userStr);
-    updateUserUI(currentUser);
-    startEnergyTimer();
-  }
+  const stored = getStoredUser();
+  if (!stored) return;
+  syncUserState(stored);
+  startEnergyTimer();
 }
 
 async function hydrateProgress() {
   if (!currentUser) return;
-  const token = localStorage.getItem("access_token");
+  const token = getAuthToken();
   if (!token) return;
   try {
     clearPlacedGenerators();
