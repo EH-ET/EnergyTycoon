@@ -43,6 +43,7 @@ loginBtn.addEventListener('click', () => {
       // backend returns { access_token, user }
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('session_start_ts', String(Date.now()));
       window.location.href = "main.html";
     }).catch(error => showMessage(error.message || 'Error', 'red'))
 });
@@ -89,6 +90,7 @@ signupBtn.addEventListener('click', () => {
       if (!res.ok) throw new Error(data.detail || 'login after signup failed');
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('session_start_ts', String(Date.now()));
       window.location.href = "main.html";
     })
     .catch(error => showMessage(error.message || 'Error', 'red'))
