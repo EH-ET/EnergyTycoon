@@ -50,3 +50,4 @@ class MapProgress(Base):
     generator = relationship("Generator", back_populates="map_progresses")
 
     __table_args__ = (UniqueConstraint('user_id', 'generator_id', name='_user_generator_uc'),)
+ 
