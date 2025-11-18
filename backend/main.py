@@ -154,7 +154,7 @@ class MapProgress(Base):
 Base.metadata.create_all(bind=engine)
 
 def _ensure_user_upgrade_columns():
-    # SQLite에서는 기존 DB에 컬럼이 없을 수 있으므로, 부족한 컬럼을 추가
+    """Ensure legacy sqlite DBs contain the newest user upgrade columns."""
     needed = [
         ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
         ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
@@ -225,6 +225,7 @@ def get_db():
 
 # --- 초기 데이터
 def create_default_generator_types(db: Session):
+    """Seed default generator types if none exist."""
     if db.query(GeneratorType).count() == 0:
         default_types = [
             {"name": "광합성", "description": "태양을 이용해 에너지를 생산합니다. 낮에만 작동합니다.", "cost": 5},
@@ -261,6 +262,12 @@ def apply_upgrade(user: User, db: Session, key: str) -> User:
     return user
 
 
+def ensure_same_user(user: User, target_user_id: str):
+    """Validate payload ownership to prevent cross-account actions."""
+    if user.user_id != target_user_id:
+        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+
+
 def current_market_rate(user: Optional[User] = None) -> float:
     base = MARKET_STATE["base_rate"]
     sold = MARKET_STATE["sold_energy"]
@@ -276,6 +283,7 @@ with SessionLocal() as db:
 
 # --- 인증 헬퍼
 def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
+    """Extract bearer token or raise if header is missing."""
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header missing")
     if authorization.lower().startswith("bearer "):
@@ -283,6 +291,7 @@ def get_token_from_header(authorization: Optional[str] = Header(None)) -> str:
     return authorization
 
 def require_user(token: str, db: Session) -> User:
+    """Resolve a user from the in-memory token store."""
     data = _token_store.get(token)
     if not data or data.get("expiry", 0) < time.time():
         raise HTTPException(status_code=401, detail="유효하지 않은 토큰")
@@ -332,8 +341,7 @@ async def refresh(token: str = Depends(get_token_from_header)):
 @app.post("/change/energy2money")
 async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    if user.user_id != payload.user_id:
-        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+    ensure_same_user(user, payload.user_id)
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.energy < payload.amount:
@@ -354,8 +362,7 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 @app.post("/change/money2energy")
 async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    if user.user_id != payload.user_id:
-        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+    ensure_same_user(user, payload.user_id)
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="유효하지 않는 금액입니다.")
     if user.money < payload.amount:
@@ -386,8 +393,7 @@ async def ranks(limit: int = 10, db: Session = Depends(get_db)):
 @app.get("/progress")
 async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    if user.user_id != user_id:
-        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+    ensure_same_user(user, user_id)
     gens = db.query(Generator).filter_by(owner_id=user.user_id).all()
     out = []
     for g in gens:
@@ -404,8 +410,7 @@ async def load_progress(user_id: str, auth=Depends(get_user_and_db)):
 @app.post("/progress")
 async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    if user.user_id != payload.user_id:
-        raise HTTPException(status_code=403, detail=ERR_ID_MISMATCH)
+    ensure_same_user(user, payload.user_id)
     gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
     if not gt:
         raise HTTPException(status_code=404, detail="발전기가 존재하지 않습니다.")
