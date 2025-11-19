@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 
+# FastAPI 백엔드: 계정, 업그레이드, 시장, 진행도 저장을 다룹니다.
+
 # --- DB 설정 (디렉터리 자동 생성 보장)
 def _ensure_sqlite_dir(database_url: str):
     """
@@ -86,7 +88,7 @@ UPGRADE_CONFIG = {
 }
 
 MARKET_STATE = {
-    "sold_energy": 0,
+    "sold_energy": 0,  # 누적 판매량에 따라 환율이 내려감
     "base_rate": 1.0,
 }
 
@@ -212,7 +214,7 @@ class ProgressSaveIn(BaseModel):
     world_position: int
 
 
-# --- 간단한 토큰 스토어
+# --- 간단한 토큰 스토어 (메모리 기반; 서버 재시작 시 리셋됨)
 _token_store = {}
 
 # --- DB 의존성
