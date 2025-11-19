@@ -6,11 +6,16 @@ export async function loadGeneratorTypes(state) {
     const res = await fetch(`${API_BASE}/generator_types`);
     if (!res.ok) return;
     const data = await res.json();
-    if (!data.types) return;
-    data.types.forEach((t) => {
-      state.generatorTypeMap[t.name] = t.id;
-      state.generatorTypeInfoMap[t.name] = { id: t.id, cost: t.cost };
-      state.generatorTypeIdToName[t.id] = t.name;
+    const list = data.generator_types || data.types;
+    if (!list) return;
+    list.forEach((t) => {
+      const typeId = t.id || t.generator_type_id;
+      const typeName = t.name;
+      if (!typeId || !typeName) return;
+      state.generatorTypeMap[typeName] = typeId;
+      state.generatorTypeInfoMap[typeName] = { id: typeId, cost: t.cost };
+      state.generatorTypeIdToName[typeId] = typeName;
+      state.generatorTypesById[typeId] = { name: typeName, cost: t.cost };
     });
   } catch (e) {
     console.warn("generator_types load failed", e);
@@ -47,17 +52,26 @@ export async function loadProgress(userId, token) {
   return res.json();
 }
 
-export async function exchangeEnergy(token, userId, amount) {
+export async function exchangeEnergy(token, userId, amount, energy) {
   const res = await fetch(`${API_BASE}/change/energy2money`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ user_id: userId, amount }),
+    body: JSON.stringify({ user_id: userId, amount, energy }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "교환 실패");
+  return data;
+}
+
+export async function fetchExchangeRate(token) {
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/change/rate`, { headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "환율 조회 실패");
   return data;
 }
 
@@ -71,10 +85,13 @@ export async function upgradeSupply(token) {
   return data;
 }
 
-export async function postUpgrade(endpoint, token) {
+export async function postUpgrade(endpoint, token, energy) {
+  const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+  const body = energy != null ? JSON.stringify({ energy }) : "{}";
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
-    headers: { "Authorization": `Bearer ${token}` },
+    headers,
+    body,
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -83,16 +100,16 @@ export async function postUpgrade(endpoint, token) {
   return res.json();
 }
 
-export async function moneyToEnergy(token, userId, amount) {
-  const res = await fetch(`${API_BASE}/change/money2energy`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify({ user_id: userId, amount }),
+export async function moneyToEnergy() {
+  throw new Error("moneyToEnergy is deprecated");
+}
+
+export async function demolishGenerator(generatorId, token) {
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}`, {
+    method: "DELETE",
+    headers: { "Authorization": `Bearer ${token}` },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "교환 실패");
+  if (!res.ok) throw new Error(data.detail || "철거 실패");
   return data;
 }

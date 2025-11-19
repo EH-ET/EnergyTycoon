@@ -21,7 +21,7 @@ Object.assign(generatorModal.style, {
 document.body.appendChild(generatorModal);
 
 export function renderGeneratorTab() {
-  dom.contentArea.innerHTML = "";
+  dom.contentArea.replaceChildren();
 
   const grid = document.createElement("div");
   grid.className = "generator-grid";
@@ -58,12 +58,18 @@ export function renderGeneratorTab() {
 
     const stats = document.createElement("div");
     stats.className = "generator-stats";
-    stats.innerHTML = `
-      <p style="font-size:13px;color:#555; margin:0;">설치비용: ${gen.설치비용}</p>
-      <p style="font-size:13px;color:#555; margin:0;">설치시간: ${gen["설치시간(초)"]}s</p>
-      <p style="font-size:13px;color:#555; margin:0;">생산량: ${gen["생산량(에너지)"]}</p>
-      <p style="font-size:13px;color:#555; margin:0;">크기: ${gen.크기}</p>
-    `;
+    const appendStatLine = (label, value) => {
+      const line = document.createElement("p");
+      line.style.fontSize = "13px";
+      line.style.color = "#555";
+      line.style.margin = "0";
+      line.textContent = `${label}: ${value}`;
+      stats.appendChild(line);
+    };
+    appendStatLine("설치비용", gen.설치비용);
+    appendStatLine("설치시간", `${gen["설치시간(초)"]}s`);
+    appendStatLine("생산량", gen["생산량(에너지)"]);
+    appendStatLine("크기", gen.크기);
 
     info.appendChild(title);
     info.appendChild(stats);
@@ -99,15 +105,24 @@ export function renderGeneratorTab() {
 
     const showModal = () => {
       const rect = item.getBoundingClientRect();
-      const modalHtmlParts = [];
+      generatorModal.replaceChildren();
       if (gen.세부설명) {
-        modalHtmlParts.push(`<div style="margin-bottom:6px;">${escapeHtml(gen.세부설명)}</div>`);
+        const desc = document.createElement("div");
+        desc.style.marginBottom = "6px";
+        desc.textContent = gen.세부설명;
+        generatorModal.appendChild(desc);
       }
-      modalHtmlParts.push(`<p style="opacity:0.9;font-size:12px;">설치비용: ${gen.설치비용}</p>`);
-      modalHtmlParts.push(`<p style="opacity:0.9;font-size:12px;">설치시간: ${gen["설치시간(초)"]}s</p>`);
-      modalHtmlParts.push(`<p style="opacity:0.9;font-size:12px;">생산량: ${gen["생산량(에너지)"]}</p>`);
-      modalHtmlParts.push(`<p style="opacity:0.9;font-size:12px;">내열한계: ${gen.내열한계}</p>`);
-      generatorModal.innerHTML = modalHtmlParts.join("");
+      const appendModalLine = (label, value) => {
+        const p = document.createElement("p");
+        p.style.opacity = "0.9";
+        p.style.fontSize = "12px";
+        p.textContent = `${label}: ${value}`;
+        generatorModal.appendChild(p);
+      };
+      appendModalLine("설치비용", gen.설치비용);
+      appendModalLine("설치시간", `${gen["설치시간(초)"]}s`);
+      appendModalLine("생산량", gen["생산량(에너지)"]);
+      appendModalLine("내열한계", gen.내열한계);
       generatorModal.style.display = "block";
       positionModalNearRect(rect);
     };
@@ -145,18 +160,4 @@ function positionModalNearRect(rect) {
   }
   generatorModal.style.left = Math.max(8, left) + "px";
   generatorModal.style.top = Math.max(8, top) + "px";
-}
-
-function escapeHtml(str) {
-  if (typeof str !== "string") return str;
-  return str.replace(/[&<>"']/g, (s) => {
-    switch (s) {
-      case "&": return "&amp;";
-      case "<": return "&lt;";
-      case ">": return "&gt;";
-      case '"': return "&quot;";
-      case "'": return "&#39;";
-      default: return s;
-    }
-  });
 }

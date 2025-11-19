@@ -7,8 +7,10 @@ from ..auth_utils import (
     issue_access_token,
     issue_refresh_token,
     issue_token_pair,
+    password_needs_rehash,
     revoke_token,
     revoke_user_tokens,
+    verify_password,
 )
 from ..dependencies import get_db, get_refresh_user_and_db
 from ..models import User
@@ -33,8 +35,12 @@ async def login(payload: schemas.LoginIn, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(username=payload.username).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.password != hash_pw(payload.password):
+    if not verify_password(payload.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid password")
+    if password_needs_rehash(user.password):
+        user.password = hash_pw(payload.password)
+        db.commit()
+        db.refresh(user)
     access_token, refresh_token = issue_token_pair(user.user_id)
     return {"user": schemas.UserOut.model_validate(user), "access_token": access_token, "refresh_token": refresh_token}
 
