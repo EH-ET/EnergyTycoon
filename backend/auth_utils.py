@@ -1,10 +1,12 @@
 import hashlib
 import os
+import string
 import time
 import uuid
-from typing import Dict, Any
+from typing import Any, Dict
 
 from fastapi import HTTPException
+from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 
@@ -12,6 +14,13 @@ ACCESS_TOKEN_TTL = int(os.getenv("ACCESS_TOKEN_TTL", 3600))
 REFRESH_TOKEN_TTL = int(os.getenv("REFRESH_TOKEN_TTL", 86400 * 7))
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
+_LEGACY_HASH_LENGTH = 64
+_HEX_DIGITS = set(string.hexdigits.lower())
+
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256", "bcrypt"],
+    deprecated="auto",
+)
 
 _token_store: Dict[str, Dict[str, Any]] = {}
 
@@ -21,7 +30,34 @@ def generate_uuid() -> str:
 
 
 def hash_pw(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
+    return pwd_context.hash(pw)
+
+
+def _is_legacy_hash(hashed: str | None) -> bool:
+    if not hashed:
+        return False
+    if len(hashed) != _LEGACY_HASH_LENGTH:
+        return False
+    return all(ch in _HEX_DIGITS for ch in hashed.lower())
+
+
+def verify_password(plain: str, hashed: str | None) -> bool:
+    if not hashed:
+        return False
+    if _is_legacy_hash(hashed):
+        return hashlib.sha256(plain.encode()).hexdigest() == hashed
+    try:
+        return pwd_context.verify(plain, hashed)
+    except ValueError:
+        return False
+
+
+def password_needs_rehash(hashed: str | None) -> bool:
+    if not hashed:
+        return True
+    if _is_legacy_hash(hashed):
+        return True
+    return pwd_context.needs_update(hashed)
 
 
 def _store_token(user_id: str, token_type: str, ttl: int) -> str:

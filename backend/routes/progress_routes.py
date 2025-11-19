@@ -9,10 +9,21 @@ from ..schemas import ProgressSaveIn, UserOut
 
 router = APIRouter()
 
+MAX_GENERATOR_BASE = 10
+MAX_GENERATOR_STEP = 5
+DEMOLISH_COST_RATE = 0.5
+
 
 def _ensure_same_user(user: User, target_user_id: Optional[str]):
     if target_user_id and user.user_id != target_user_id:
         raise HTTPException(status_code=403, detail="User mismatch")
+
+
+def _max_generators_allowed(user: User) -> int:
+    bonus = getattr(user, "max_generators_bonus", 0) or 0
+    return MAX_GENERATOR_BASE + bonus * MAX_GENERATOR_STEP
+def _demolish_cost(generator_type: GeneratorType) -> int:
+    return max(1, int(generator_type.cost * DEMOLISH_COST_RATE))
 
 
 @router.get("/progress")
@@ -38,7 +49,7 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
                 "heat": g.heat,
             }
         )
-    return {"user_id": user.user_id, "generators": out}
+    return {"user_id": user.user_id, "generators": out, "user": UserOut.model_validate(user)}
 
 
 @router.post("/progress")
@@ -52,6 +63,9 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
+    current_count = db.query(MapProgress).filter_by(user_id=user.user_id).count()
+    if current_count >= _max_generators_allowed(user):
+        raise HTTPException(status_code=400, detail="Generator limit reached")
     existing = (
         db.query(Generator)
         .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
@@ -94,3 +108,29 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
         },
         "user": UserOut.model_validate(user),
     }
+
+
+@router.delete("/progress/{generator_id}")
+async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    gen = (
+        db.query(Generator)
+        .filter(Generator.generator_id == generator_id, Generator.owner_id == user.user_id)
+        .first()
+    )
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generator not found")
+    gt = db.query(GeneratorType).filter_by(generator_type_id=gen.generator_type_id).first()
+    if not gt:
+        raise HTTPException(status_code=404, detail="Generator type not found")
+    cost = _demolish_cost(gt)
+    if user.money < cost:
+        raise HTTPException(status_code=400, detail="Not enough money to demolish")
+    mp = db.query(MapProgress).filter_by(user_id=user.user_id, generator_id=generator_id).first()
+    if mp:
+        db.delete(mp)
+    db.delete(gen)
+    user.money -= cost
+    db.commit()
+    db.refresh(user)
+    return {"user": UserOut.model_validate(user), "demolished": {"generator_id": generator_id, "cost": cost}}

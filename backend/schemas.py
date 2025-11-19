@@ -30,6 +30,7 @@ class LoginIn(BaseModel):
 class ExchangeIn(BaseModel):
     user_id: Optional[str] = None
     amount: int
+    energy: Optional[int] = None
 
 
 class ProgressSaveIn(BaseModel):
@@ -42,3 +43,4 @@ class ProgressSaveIn(BaseModel):
 
 class UpgradeRequest(BaseModel):
     amount: int = Field(1, ge=1)
+    energy: Optional[int] = Field(default=None, ge=0)
