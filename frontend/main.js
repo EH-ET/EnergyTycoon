@@ -3,7 +3,7 @@ import { dom, updateUserUI } from "./js/ui.js";
 import { renderGeneratorTab } from "./js/generatorTab.js";
 import { renderTradeTab } from "./js/tradeTab.js";
 import { renderUpgradeTab } from "./js/upgradeTab.js";
-import { renderInfoTab } from "./js/infoTab.js";
+import { renderInfoTab, destroyInfoTab } from "./js/infoTab.js";
 import { loadGeneratorTypes, loadProgress } from "./js/apiClient.js";
 import { clearPlacedGeneratorVisuals, renderSavedGenerators } from "./js/generatorHelpers.js";
 import { initDropHandlers } from "./js/dropHandlers.js";
@@ -15,9 +15,11 @@ import {
   syncUserState,
   getAuthToken,
   registerUserChangeHandler,
+  ensureSessionStart,
 } from "./js/state.js";
 
 function renderContent() {
+  destroyInfoTab();
   switch (state.contentMode) {
     case "generator":
       renderGeneratorTab();
@@ -32,7 +34,7 @@ function renderContent() {
       renderInfoTab();
       break;
     default:
-      dom.contentArea.innerHTML = "";
+      dom.contentArea.replaceChildren();
   }
 }
 
@@ -40,6 +42,7 @@ function loadUserData() {
   const stored = getStoredUser();
   if (!stored) return;
   syncUserState(stored);
+  ensureSessionStart();
   startEnergyTimer();
 }
 
@@ -50,6 +53,9 @@ async function hydrateProgress() {
   try {
     clearPlacedGeneratorVisuals();
     const res = await loadProgress(state.currentUser.user_id, token);
+    if (res.user) {
+      syncUserState(res.user);
+    }
     renderSavedGenerators(res.generators);
     updateUserUI(state.currentUser, state.placedGenerators.length);
     startEnergyTimer();

@@ -6,6 +6,7 @@ export const state = {
   generatorTypeMap: {},
   generatorTypeInfoMap: {},
   generatorTypeIdToName: {},
+  generatorTypesById: {},
   energyTimer: null,
 };
 

@@ -5,7 +5,7 @@ import { state } from "./state.js";
 
 export function defaultPlacementY() {
   const height = dom.mainArea ? dom.mainArea.clientHeight : 0;
-  return Math.max(16, height - 96);
+  return Math.max(32, height - 160);
 }
 
 export function makeImageSrcByIndex(idx) {
@@ -28,19 +28,23 @@ export function clearPlacedGeneratorVisuals() {
   document.querySelectorAll(".placed-generator").forEach((el) => el.remove());
 }
 
-export function placeGeneratorVisual(x, imgSrc, name) {
-  if (!dom.mainArea) return;
+export function placeGeneratorVisual(x, imgSrc, name, generatorId) {
+  if (!dom.mainArea) return null;
   if (getComputedStyle(dom.mainArea).position === "static") {
     dom.mainArea.style.position = "relative";
   }
   const el = document.createElement("div");
   el.className = "placed-generator";
+  if (generatorId) {
+    el.dataset.generatorId = generatorId;
+  }
   Object.assign(el.style, {
     position: "absolute",
     left: `${x}px`,
     top: `${defaultPlacementY()}px`,
     transform: "translate(-50%, 0)",
-    pointerEvents: "none",
+    pointerEvents: "auto",
+    cursor: "pointer",
     textAlign: "center"
   });
   const img = document.createElement("img");
@@ -56,6 +60,7 @@ export function placeGeneratorVisual(x, imgSrc, name) {
   el.appendChild(img);
   el.appendChild(lbl);
   dom.mainArea.appendChild(el);
+  return el;
 }
 
 export function renderSavedGenerators(list) {
@@ -64,7 +69,13 @@ export function renderSavedGenerators(list) {
     const name = g.type || state.generatorTypeIdToName[g.generator_type_id] || "";
     const idx = findGeneratorIndexByName(name);
     const imgSrc = idx >= 0 ? makeImageSrcByIndex(idx) : placeholderDataUrl();
-    state.placedGenerators.push({ x: g.x_position, name, genIndex: idx });
-    placeGeneratorVisual(g.x_position, imgSrc, name || "발전기");
+    state.placedGenerators.push({
+      x: g.x_position,
+      name,
+      genIndex: idx,
+      generator_id: g.generator_id,
+      generator_type_id: g.generator_type_id,
+    });
+    placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
   });
 }

@@ -16,7 +16,7 @@ function getUpgradeCost(user, upgrade) {
 
 export function renderUpgradeTab() {
   if (!requireLoginForContent(state.currentUser, "로그인 필요")) return;
-  dom.contentArea.innerHTML = "";
+  dom.contentArea.replaceChildren();
   const grid = document.createElement("div");
   grid.className = "upgrade-grid";
   grid.style.display = "grid";
@@ -50,6 +50,7 @@ export function renderUpgradeTab() {
     level.textContent = `현재 레벨: ${levelValue}`;
 
     const btn = document.createElement("button");
+    btn.type = "button";
     btn.textContent = "업그레이드";
     btn.style.padding = "8px 12px";
     btn.style.cursor = "pointer";
@@ -64,8 +65,9 @@ export function renderUpgradeTab() {
         return;
       }
       try {
-        const newUser = await postUpgrade(upgrade.endpoint, token);
-        syncUserState(newUser);
+        const newUser = await postUpgrade(upgrade.endpoint, token, state.currentUser.energy);
+        const mergedUser = { ...newUser, energy: state.currentUser.energy };
+        syncUserState(mergedUser);
         renderUpgradeTab();
       } catch (e) {
         alert(e.message);

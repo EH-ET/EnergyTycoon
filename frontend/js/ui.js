@@ -17,17 +17,28 @@ export const dom = {
 
 export function updateUserUI(user, placedCountOverride) {
   if (!user) return;
-  dom.username.textContent = user.username;
-  dom.moneyBar.textContent = user.money;
-  dom.energyBar.textContent = user.energy;
-  dom.profileName.innerHTML = `<strong>이름:</strong> ${user.username}`;
+  if (dom.username) dom.username.textContent = user.username;
+  if (dom.moneyBar) dom.moneyBar.textContent = user.money;
+  if (dom.energyBar) dom.energyBar.textContent = user.energy;
+  if (dom.profileName) {
+    const strong = document.createElement("strong");
+    strong.textContent = "이름:";
+    dom.profileName.replaceChildren(strong, document.createTextNode(` ${user.username}`));
+  }
   const count = placedCountOverride ?? state.placedGenerators.length ?? 0;
   const max = 10 + (user.max_generators_bonus || 0) * 5;
-  dom.generatorBar.textContent = `${count}/${max}`;
+  if (dom.generatorBar) dom.generatorBar.textContent = `${count}/${max}`;
 }
 
 export function requireLoginForContent(user, message) {
   if (user) return true;
-  dom.contentArea.innerHTML = `<div style='padding:12px;color:#f00;'>${message || "로그인 필요"}</div>`;
+  if (dom.contentArea) {
+    dom.contentArea.replaceChildren();
+    const warning = document.createElement("div");
+    warning.style.padding = "12px";
+    warning.style.color = "#f00";
+    warning.textContent = message || "로그인 필요";
+    dom.contentArea.appendChild(warning);
+  }
   return false;
 }
