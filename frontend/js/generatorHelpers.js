@@ -5,7 +5,7 @@ import { state } from "./state.js";
 
 export function defaultPlacementY() {
   const height = dom.mainArea ? dom.mainArea.clientHeight : 0;
-  return Math.max(16, height - 96);
+  return Math.max(32, height - 160);
 }
 
 export function makeImageSrcByIndex(idx) {

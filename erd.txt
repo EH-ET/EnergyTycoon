@@ -1,0 +1,53 @@
+Table users {
+  user_id              varchar [pk]
+  username             varchar [unique, not null]
+  password             varchar [not null]
+  energy               int     [not null, default: 0]
+  money                int     [not null, default: 10]
+  production_bonus     int     [not null, default: 0]
+  heat_reduction       int     [not null, default: 0]
+  tolerance_bonus      int     [not null, default: 0]
+  max_generators_bonus int     [not null, default: 0]
+  supply_bonus         int     [not null, default: 0]
+
+  indexes {
+    username [unique]
+  }
+}
+
+Table generator_types {
+  generator_type_id varchar [pk]
+  name              varchar [unique, not null]
+  description       varchar [not null]
+  cost              int     [not null]
+
+  indexes {
+    name [unique]
+  }
+}
+
+Table generators {
+  generator_id       varchar [pk]
+  generator_type_id  varchar [not null]
+  owner_id           varchar [not null]
+  level              int     [not null, default: 1]
+  x_position         int     [not null]
+  world_position     int     [not null]
+  isdeveloping       bool    [not null, default: false]
+  heat               int     [not null, default: 0]
+}
+
+Table map_progress {
+  map_progress_id varchar [pk]
+  user_id         varchar [not null]
+  generator_id    varchar [not null]
+
+  indexes {
+    (user_id, generator_id) [unique, name: "_user_generator_uc"]
+  }
+}
+
+Ref: generators.owner_id > users.user_id
+Ref: generators.generator_type_id > generator_types.generator_type_id
+Ref: map_progress.user_id > users.user_id
+Ref: map_progress.generator_id > generators.generator_id

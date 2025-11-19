@@ -1,4 +1,4 @@
-// 에너지 생산량 계산 및 타이머
+// 에너지 생산량 계산 및 타이머 (서버 저장은 progress 저장 시 함께 처리)
 import { generators } from "./data.js";
 import { state, syncUserState } from "./state.js";
 
