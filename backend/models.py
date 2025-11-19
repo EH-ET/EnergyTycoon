@@ -1,3 +1,12 @@
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+from .database import Base
+from .auth_utils import generate_uuid
+
+CASCADE_OPTION = "all, delete-orphan"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -5,10 +14,15 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
     energy = Column(Integer, default=0, nullable=False)
-    money = Column(Integer, default=0, nullable=False)
+    money = Column(Integer, default=10, nullable=False)
+    production_bonus = Column(Integer, default=0, nullable=False)
+    heat_reduction = Column(Integer, default=0, nullable=False)
+    tolerance_bonus = Column(Integer, default=0, nullable=False)
+    max_generators_bonus = Column(Integer, default=0, nullable=False)
+    supply_bonus = Column(Integer, default=0, nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
-    map_progresses = relationship("MapProgress", back_populates="user", cascade="all, delete-orphan")
+    map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)
 
 
 class GeneratorType(Base):
@@ -49,5 +63,4 @@ class MapProgress(Base):
     user = relationship("User", back_populates="map_progresses")
     generator = relationship("Generator", back_populates="map_progresses")
 
-    __table_args__ = (UniqueConstraint('user_id', 'generator_id', name='_user_generator_uc'),)
- 
+    __table_args__ = (UniqueConstraint("user_id", "generator_id", name="_user_generator_uc"),)

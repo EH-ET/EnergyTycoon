@@ -47,7 +47,7 @@ export function initDropHandlers() {
       return;
     }
     try {
-      const res = await saveProgress(user.user_id, genTypeId, Math.round(x), 0, token);
+      const res = await saveProgress(user.user_id, genTypeId, Math.round(x), 0, token, state.currentUser.energy);
       if (res.user) {
         syncUserState(res.user);
       } else {

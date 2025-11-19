@@ -17,8 +17,11 @@ export async function loadGeneratorTypes(state) {
   }
 }
 
-export async function saveProgress(userId, generatorTypeId, x_position, world_position, token) {
+export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
   const payload = { user_id: userId, generator_type_id: generatorTypeId, x_position, world_position };
+  if (typeof energy === "number") {
+    payload.energy = energy;
+  }
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress`, {
@@ -41,12 +44,6 @@ export async function loadProgress(userId, token) {
     const txt = await res.text();
     throw new Error(`진행도 불러오기 실패 ${res.status} ${txt}`);
   }
-  return res.json();
-}
-
-export async function fetchMarketRate(token) {
-  const res = await fetch(`${API_BASE}/market`, { headers: { "Authorization": `Bearer ${token}` } });
-  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
@@ -84,4 +81,18 @@ export async function postUpgrade(endpoint, token) {
     throw new Error(`업그레이드 실패: ${txt}`);
   }
   return res.json();
+}
+
+export async function moneyToEnergy(token, userId, amount) {
+  const res = await fetch(`${API_BASE}/change/money2energy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ user_id: userId, amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "교환 실패");
+  return data;
 }
