@@ -113,3 +113,26 @@ export async function demolishGenerator(generatorId, token) {
   if (!res.ok) throw new Error(data.detail || "철거 실패");
   return data;
 }
+
+export async function fetchMyRank(token) {
+  if (!token) throw new Error("토큰이 없습니다.");
+  const res = await fetch(`${API_BASE}/rank`, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "랭크 조회 실패");
+  return data;
+}
+
+export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
+  if (!token) throw new Error("토큰이 없습니다.");
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "랭킹 목록 조회 실패");
+  return data;
+}

@@ -12,7 +12,8 @@ export const dom = {
   moneyBar: document.querySelector(".money.text-bar.long p"),
   energyBar: document.querySelector(".energy.text-bar.long p"),
   generatorBar: document.querySelector(".generator.text-bar.generator-text-bar p"),
-  profileName: document.querySelector(".profile-modal .modal-line"),
+  profileName: document.querySelector(".profile-modal .modal-line.profile-name"),
+  profileRank: document.querySelector(".profile-modal .modal-line.profile-rank"),
 };
 
 export function updateUserUI(user, placedCountOverride) {
@@ -24,6 +25,12 @@ export function updateUserUI(user, placedCountOverride) {
     const strong = document.createElement("strong");
     strong.textContent = "이름:";
     dom.profileName.replaceChildren(strong, document.createTextNode(` ${user.username}`));
+  }
+  if (dom.profileRank) {
+    const strong = document.createElement("strong");
+    strong.textContent = "랭킹:";
+    const rankText = typeof user.rank === "number" ? `${user.rank}위` : "-";
+    dom.profileRank.replaceChildren(strong, document.createTextNode(` ${rankText}`));
   }
   const count = placedCountOverride ?? state.placedGenerators.length ?? 0;
   const max = 10 + (user.max_generators_bonus || 0) * 5;
