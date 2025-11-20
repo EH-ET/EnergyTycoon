@@ -1,6 +1,6 @@
 import { dom } from "./ui.js";
 import { state } from "./state.js";
-import { stopAutosaveTimer } from "./autosave.js";
+// import { stopAutosaveTimer } from "./autosave.js";
 import { updateRankFromServer } from "./rank.js";
 
 const AUDIO_PREF_KEY = "audio_preferences";
@@ -111,6 +111,8 @@ function clearAuthState() {
   localStorage.removeItem("et_u");
   localStorage.removeItem("et_ss");
   sessionStorage.removeItem("et_tp");
+  sessionStorage.removeItem("et_at");
+  sessionStorage.removeItem("et_rt");
   localStorage.removeItem("access_token"); // legacy cleanup
   sessionStorage.removeItem("access_token"); // legacy cleanup
   state.currentUser = null;
@@ -119,7 +121,6 @@ function clearAuthState() {
     clearInterval(state.energyTimer);
     state.energyTimer = null;
   }
-  stopAutosaveTimer();
 }
 
 function handleLogout() {
