@@ -15,6 +15,8 @@ const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
   trap: "et_tp",
+  access: "et_at",
+  refresh: "et_rt",
 };
 
 function storeUser(user) {
@@ -32,6 +34,7 @@ function setSessionStart() {
   }
 }
 
+// Cookie handling disabled
 function readTrapCookie() {
   const cookie = document.cookie || "";
   const entries = cookie.split(";").map((c) => c.trim());
@@ -46,6 +49,11 @@ function readTrapCookie() {
 function persistTrapMarker() {
   const trap = readTrapCookie();
   if (trap) sessionStorage.setItem(STORAGE_KEYS.trap, trap);
+}
+
+function storeTokens({ access_token, refresh_token }) {
+  if (access_token) sessionStorage.setItem(STORAGE_KEYS.access, access_token);
+  if (refresh_token) sessionStorage.setItem(STORAGE_KEYS.refresh, refresh_token);
 }
 
 function showMessage(msg, color = 'green') {
@@ -75,6 +83,7 @@ loginBtn.addEventListener('click', () => {
     .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'login failed');
+      storeTokens(data);
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();
@@ -115,6 +124,7 @@ signupBtn.addEventListener('click', () => {
     .then(async (res) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'login after signup failed');
+      storeTokens(data);
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();

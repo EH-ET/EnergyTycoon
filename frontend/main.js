@@ -1,5 +1,5 @@
 // 엔트리 포인트: 탭 전환, 초기 데이터 로드, 진행도 하이드레이션
-import { dom, updateUserUI /*, updateExchangeRateUI, updateEnergyRateUI */ } from "./js/ui.js";
+import { dom, updateUserUI, updateExchangeRateUI, updateEnergyRateUI } from "./js/ui.js";
 import { renderGeneratorTab } from "./js/generatorTab.js";
 import { renderTradeTab } from "./js/tradeTab.js";
 import { renderUpgradeTab } from "./js/upgradeTab.js";
@@ -13,6 +13,7 @@ import {
   setContentMode,
   getStoredUser,
   syncUserState,
+  getAuthToken,
   registerUserChangeHandler,
   ensureSessionStart,
   initTrapGuard,
@@ -53,9 +54,10 @@ function loadUserData() {
 
 async function hydrateProgress() {
   if (!state.currentUser) return;
+  const token = getAuthToken();
   try {
     clearPlacedGeneratorVisuals();
-    const res = await loadProgress(state.currentUser.user_id, null);
+    const res = await loadProgress(state.currentUser.user_id, token);
     if (res.user) {
       syncUserState(res.user);
     }
@@ -84,7 +86,7 @@ function startExchangeRateWatcher() {
   const fetchRate = async () => {
     if (!state.currentUser) return;
     try {
-      const data = await fetchExchangeRate(null);
+      const data = await fetchExchangeRate(getAuthToken());
       state.exchangeRate = data.rate;
       updateExchangeRateUI(state.exchangeRate);
     } catch (e) {
@@ -102,8 +104,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadGeneratorTypes(state);
   loadUserData();
   renderContent();
-  // updateExchangeRateUI(state.exchangeRate);
-  // updateEnergyRateUI(0);
+  updateExchangeRateUI(state.exchangeRate);
+  updateEnergyRateUI(0);
   initDropHandlers();
   wireModeButtons();
   initProfileControls();

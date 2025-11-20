@@ -1,7 +1,7 @@
 import { requireLoginForContent, dom } from "./ui.js";
 import { fetchRanks } from "./apiClient.js";
 import { updateRankFromServer } from "./rank.js";
-import { state, ensureSessionStart } from "./state.js";
+import { state, ensureSessionStart, getAuthToken } from "./state.js";
 
 let playTimeTimer = null;
 
@@ -119,7 +119,7 @@ export function renderInfoTab() {
       return;
     }
     try {
-      const data = await fetchRanks(null, { limit: 10, offset: 0 });
+      const data = await fetchRanks(getAuthToken(), { limit: 10, offset: 0 });
       const ranks = data.ranks || [];
       renderLeaderboard(ranks);
       if (ranks.length) {

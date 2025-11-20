@@ -1,7 +1,7 @@
 // 교환소 탭 렌더링
-import { requireLoginForContent, dom /* , updateExchangeRateUI */ } from "./ui.js";
+import { requireLoginForContent, dom, updateExchangeRateUI } from "./ui.js";
 import { exchangeEnergy, fetchExchangeRate } from "./apiClient.js";
-import { state, syncUserState } from "./state.js";
+import { state, syncUserState, getAuthToken } from "./state.js";
 
 export function renderTradeTab() {
   if (!requireLoginForContent(state.currentUser, "로그인 필요")) return;
@@ -140,10 +140,10 @@ export function renderTradeTab() {
       return;
     }
     try {
-      const data = await fetchExchangeRate(null);
+      const data = await fetchExchangeRate(getAuthToken());
       lastRate = data.rate;
       state.exchangeRate = lastRate;
-      // updateExchangeRateUI(lastRate);
+      updateExchangeRateUI(lastRate);
       updatePreview();
       updateRateMessage(lastRate);
     } catch (e) {
@@ -165,7 +165,7 @@ export function renderTradeTab() {
       setBusy(true);
       const beforeMoney = state.currentUser.money;
       const data = await exchangeEnergy(
-        null,
+        getAuthToken(),
         state.currentUser.user_id,
         amount,
         state.currentUser.energy,
@@ -177,7 +177,7 @@ export function renderTradeTab() {
       const gained = nextUser.money - beforeMoney;
       lastRate = data.rate ?? lastRate;
       state.exchangeRate = lastRate;
-      // updateExchangeRateUI(lastRate);
+      updateExchangeRateUI(lastRate);
       updateRateMessage(lastRate);
       updatePreview();
       const rateText = lastRate ? ` (rate ${lastRate.toFixed(2)})` : "";
