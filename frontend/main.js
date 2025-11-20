@@ -17,6 +17,7 @@ import {
   registerUserChangeHandler,
   ensureSessionStart,
 } from "./js/state.js";
+import { updateRankFromServer } from "./js/rank.js";
 
 function renderContent() {
   destroyInfoTab();
@@ -79,4 +80,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   initDropHandlers();
   wireModeButtons();
   await hydrateProgress();
+  try {
+    await updateRankFromServer();
+  } catch (e) {
+    console.warn("rank fetch failed", e);
+  }
 });
