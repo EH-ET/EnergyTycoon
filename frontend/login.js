@@ -3,7 +3,50 @@ const signupBtn = document.getElementById('signupBtn');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const messageBox = document.getElementById('messageBox');
-const backendUrl = window.backendUrl || "http://localhost:8000"; // 변경: 실제 backend URL 또는 환경에서 주입
+const backendUrl = (() => {
+  if (window.backendUrl) return window.backendUrl;
+  const { protocol, hostname, port } = window.location || {};
+  if (port === "5500") return "http://127.0.0.1:8000";
+  if (protocol === "http:" || protocol === "https:") return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+  return "http://127.0.0.1:8000";
+})();
+
+const STORAGE_KEYS = {
+  user: "et_u",
+  sessionTs: "et_ss",
+  trap: "et_tp",
+};
+
+function storeUser(user) {
+  try {
+    const encoded = btoa(JSON.stringify(user));
+    localStorage.setItem(STORAGE_KEYS.user, encoded);
+  } catch (e) {
+    console.warn("storeUser failed", e);
+  }
+}
+
+function setSessionStart() {
+  if (!localStorage.getItem(STORAGE_KEYS.sessionTs)) {
+    localStorage.setItem(STORAGE_KEYS.sessionTs, String(Date.now()));
+  }
+}
+
+function readTrapCookie() {
+  const cookie = document.cookie || "";
+  const entries = cookie.split(";").map((c) => c.trim());
+  for (const entry of entries) {
+    if (!entry) continue;
+    const [k, ...rest] = entry.split("=");
+    if (k === "abtkn") return rest.join("=");
+  }
+  return null;
+}
+
+function persistTrapMarker() {
+  const trap = readTrapCookie();
+  if (trap) sessionStorage.setItem(STORAGE_KEYS.trap, trap);
+}
 
 function showMessage(msg, color = 'green') {
   messageBox.textContent = msg;
@@ -23,29 +66,21 @@ loginBtn.addEventListener('click', () => {
     return;
   }
 
-  const object = {
-    body: JSON.stringify({username, password}),
+  fetch(`${backendUrl}/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    }
-  };
-
-  // 로그인 백엔드
-    fetch(`${backendUrl}/login`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({username, password})
-    })
-    .then(async response => {
+    headers: {"Content-Type": "application/json"},
+    credentials: "include",
+    body: JSON.stringify({username, password})
+  })
+    .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'login failed');
-      // backend returns { access_token, user }
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('session_start_ts', String(Date.now()));
+      storeUser(data.user);
+      setSessionStart();
+      persistTrapMarker();
       window.location.href = "main.html";
-    }).catch(error => showMessage(error.message || 'Error', 'red'))
+    })
+    .catch((error) => showMessage(error.message || 'Error', 'red'));
 });
 
 signupBtn.addEventListener('click', () => {
@@ -61,37 +96,29 @@ signupBtn.addEventListener('click', () => {
     return;
   }
 
-  const object = {
-    body: JSON.stringify({username, password}),
+  fetch(`${backendUrl}/signup`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    }
-  };
-
-  // 회원가입 백엔드
-    fetch(`${backendUrl}/signup`, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({username, password})
-    })
-    .then(async response => {
+    headers: {"Content-Type": "application/json"},
+    credentials: "include",
+    body: JSON.stringify({username, password})
+  })
+    .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'signup failed');
-      // after signup, auto-login: set a trivial token by re-calling login endpoint
       return fetch(`${backendUrl}/login`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
+        credentials: "include",
         body: JSON.stringify({username, password})
-      })
+      });
     })
-    .then(async res => {
+    .then(async (res) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'login after signup failed');
-      localStorage.setItem('access_token', data.access_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('session_start_ts', String(Date.now()));
+      storeUser(data.user);
+      setSessionStart();
+      persistTrapMarker();
       window.location.href = "main.html";
     })
-    .catch(error => showMessage(error.message || 'Error', 'red'))
+    .catch((error) => showMessage(error.message || 'Error', 'red'));
 });

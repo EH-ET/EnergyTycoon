@@ -18,10 +18,27 @@ from backend.routes import auth_routes, change_routes, generator_routes, progres
 app = FastAPI()
 
 _origins_env = os.getenv("FRONTEND_ORIGINS")
-if not _origins_env or _origins_env.strip() == "*":
-    origins = ["*"]
+if _origins_env:
+    if _origins_env.strip() == "*":
+        origins = [
+            "http://localhost:4173",
+            "http://127.0.0.1:4173",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+        ]
+    else:
+        origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
 else:
-    origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+    origins = [
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
 
 app.add_middleware(
     CORSMiddleware,

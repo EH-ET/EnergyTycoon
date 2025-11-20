@@ -1,5 +1,5 @@
 import { fetchMyRank } from "./apiClient.js";
-import { getAuthToken, state, syncUserState } from "./state.js";
+import { state, syncUserState } from "./state.js";
 
 /**
  * Fetches the authenticated user's rank from the backend and updates local state.
@@ -7,9 +7,7 @@ import { getAuthToken, state, syncUserState } from "./state.js";
  */
 export async function updateRankFromServer() {
   if (!state.currentUser) return null;
-  const token = getAuthToken();
-  if (!token) return null;
-  const data = await fetchMyRank(token);
+  const data = await fetchMyRank(null);
   const nextUser = {
     ...state.currentUser,
     rank: data.rank,

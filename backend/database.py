@@ -21,10 +21,6 @@ def _ensure_sqlite_dir(database_url: str):
     parent = os.path.dirname(db_path) or os.getcwd()
     try:
         os.makedirs(parent, exist_ok=True)
-        try:
-            os.chmod(parent, 0o777)
-        except Exception:
-            pass
     except Exception as e:
         print(f"경고: 데이터베이스 디렉터리 생성 실패: {parent} -> {e}", file=sys.stderr)
 

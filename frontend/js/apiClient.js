@@ -32,6 +32,7 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
   const res = await fetch(`${API_BASE}/progress`, {
     method: "POST",
     headers,
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
@@ -44,7 +45,10 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
 export async function loadProgress(userId, token) {
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, { headers });
+  const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, {
+    headers,
+    credentials: "include",
+  });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`진행도 불러오기 실패 ${res.status} ${txt}`);
@@ -59,6 +63,7 @@ export async function exchangeEnergy(token, userId, amount, energy) {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify({ user_id: userId, amount, energy }),
   });
   const data = await res.json();
@@ -69,7 +74,7 @@ export async function exchangeEnergy(token, userId, amount, energy) {
 export async function fetchExchangeRate(token) {
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/change/rate`, { headers });
+  const res = await fetch(`${API_BASE}/change/rate`, { headers, credentials: "include" });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "환율 조회 실패");
   return data;
@@ -79,6 +84,7 @@ export async function upgradeSupply(token) {
   const res = await fetch(`${API_BASE}/upgrade/supply`, {
     method: "POST",
     headers: { "Authorization": `Bearer ${token}` },
+    credentials: "include",
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "업그레이드 실패");
@@ -91,6 +97,7 @@ export async function postUpgrade(endpoint, token, energy) {
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
     headers,
+    credentials: "include",
     body,
   });
   if (!res.ok) {
@@ -108,6 +115,7 @@ export async function demolishGenerator(generatorId, token) {
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}`, {
     method: "DELETE",
     headers: { "Authorization": `Bearer ${token}` },
+    credentials: "include",
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "철거 실패");
@@ -115,9 +123,9 @@ export async function demolishGenerator(generatorId, token) {
 }
 
 export async function fetchMyRank(token) {
-  if (!token) throw new Error("토큰이 없습니다.");
   const res = await fetch(`${API_BASE}/rank`, {
-    headers: { "Authorization": `Bearer ${token}` },
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    credentials: "include",
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "랭크 조회 실패");
@@ -125,14 +133,33 @@ export async function fetchMyRank(token) {
 }
 
 export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
-  if (!token) throw new Error("토큰이 없습니다.");
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
-    headers: { "Authorization": `Bearer ${token}` },
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    credentials: "include",
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "랭킹 목록 조회 실패");
+  return data;
+}
+
+export async function autosaveProgress(token, { energy, money }) {
+  const body = {};
+  if (typeof energy === "number") body.energy = energy;
+  if (typeof money === "number") body.money = money;
+  if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
+  const res = await fetch(`${API_BASE}/progress/autosave`, {
+    method: "POST",
+    headers: {
+      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "자동 저장 실패");
   return data;
 }
