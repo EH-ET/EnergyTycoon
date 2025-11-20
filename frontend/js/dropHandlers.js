@@ -152,7 +152,8 @@ export function initDropHandlers() {
     const idx = e.dataTransfer.getData("text/plain");
     if (idx === "") return;
     const rect = dom.mainArea.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const screenX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const worldX = Math.max(0, Math.round(screenX - (Number(state.userOffsetX) || 0)));
     const gen = generators[Number(idx)];
     if (!gen) return;
 
@@ -182,7 +183,7 @@ export function initDropHandlers() {
       const res = await saveProgress(
         user.user_id,
         genTypeId,
-        Math.round(x),
+        worldX,
         0,
         token,
         state.currentUser.energy,
@@ -197,14 +198,14 @@ export function initDropHandlers() {
       const idxByName = findGeneratorIndexByName(genName);
       const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
       const entry = {
-        x,
+        x: worldX,
         name: genName,
         genIndex: idxByName,
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
       };
       state.placedGenerators.push(entry);
-      placeGeneratorVisual(x, imgSrc, genName, res.generator.generator_id);
+      placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       syncUserState(state.currentUser);
       startEnergyTimer();
     } catch (err) {

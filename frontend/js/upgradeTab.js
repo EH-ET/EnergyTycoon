@@ -1,7 +1,7 @@
 // 업그레이드 탭 렌더링
 import { upgrades } from "./data.js";
 import { requireLoginForContent, dom } from "./ui.js";
-import { state, getAuthToken, syncUserState } from "./state.js";
+import { state, syncUserState } from "./state.js";
 import { postUpgrade } from "./apiClient.js";
 
 function getUpgradeLevel(user, upgrade) {
@@ -55,17 +55,12 @@ export function renderUpgradeTab() {
     btn.style.padding = "8px 12px";
     btn.style.cursor = "pointer";
     btn.onclick = async () => {
-      const token = getAuthToken();
-      if (!token) {
-        alert("로그인 필요");
-        return;
-      }
       if (state.currentUser.money < costValue) {
         alert("돈이 부족합니다.");
         return;
       }
       try {
-        const newUser = await postUpgrade(upgrade.endpoint, token, state.currentUser.energy);
+        const newUser = await postUpgrade(upgrade.endpoint, null, state.currentUser.energy);
         const mergedUser = { ...newUser, energy: state.currentUser.energy };
         syncUserState(mergedUser);
         renderUpgradeTab();

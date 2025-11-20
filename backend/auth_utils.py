@@ -3,9 +3,9 @@ import os
 import string
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,14 @@ ACCESS_TOKEN_TTL = int(os.getenv("ACCESS_TOKEN_TTL", 3600))
 REFRESH_TOKEN_TTL = int(os.getenv("REFRESH_TOKEN_TTL", 86400 * 7))
 TOKEN_TYPE_ACCESS = "access"
 TOKEN_TYPE_REFRESH = "refresh"
+ACCESS_COOKIE_NAME = os.getenv("ACCESS_COOKIE_NAME", "ec9db4eab1b820ebb3b5ed98b8ed9994ed9598eb8ba4eb8b88")
+# Cookie names cannot contain "=", so we default to an obfuscated, cookie-safe variant.
+REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "yeCuXMndsYC3kMnAPw__")
+TRAP_COOKIE_NAME = os.getenv("TRAP_COOKIE_NAME", "abtkn")
+COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
+
 _LEGACY_HASH_LENGTH = 64
 _HEX_DIGITS = set(string.hexdigits.lower())
 
@@ -100,3 +108,38 @@ def require_user_from_token(token: str, db: Session, expected_type: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+def _cookie_params(ttl: int, http_only: bool = True) -> Dict[str, Any]:
+    params: Dict[str, Any] = {
+        "max_age": ttl,
+        "httponly": http_only,
+        "secure": COOKIE_SECURE,
+        "samesite": COOKIE_SAMESITE,
+        "path": "/",
+    }
+    if COOKIE_DOMAIN:
+        params["domain"] = COOKIE_DOMAIN
+    return params
+
+
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(ACCESS_COOKIE_NAME, access_token, **_cookie_params(ACCESS_TOKEN_TTL, http_only=True))
+    response.set_cookie(REFRESH_COOKIE_NAME, refresh_token, **_cookie_params(REFRESH_TOKEN_TTL, http_only=True))
+
+
+def set_trap_cookie(response: Response) -> None:
+    trap_token = generate_uuid()
+    response.set_cookie(TRAP_COOKIE_NAME, trap_token, **_cookie_params(REFRESH_TOKEN_TTL, http_only=False))
+
+
+def clear_auth_cookies(response: Response, *, keep_trap: bool = False) -> None:
+    response.delete_cookie(ACCESS_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
+    if not keep_trap:
+        response.delete_cookie(TRAP_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
+    # Remove any legacy user_id cookie exposure
+    response.delete_cookie("user_id", path="/", domain=COOKIE_DOMAIN)
+    # Remove legacy cookie names that may remain in browsers
+    response.delete_cookie("access_token", path="/", domain=COOKIE_DOMAIN)
+    response.delete_cookie("refresh_token", path="/", domain=COOKIE_DOMAIN)

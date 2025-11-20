@@ -1,7 +1,10 @@
 // 공통 상수와 하드코딩된 기본 데이터
 export const API_BASE = (() => {
   if (window.__API_BASE__) return window.__API_BASE__;
-  return "http://localhost:8000";
+  const { protocol, hostname, port } = window.location || {};
+  if (port === "5500") return "http://127.0.0.1:8000";
+  if (protocol === "http:" || protocol === "https:") return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+  return "http://127.0.0.1:8000";
 })();
 
 export const generators = [

@@ -1,7 +1,7 @@
 import { requireLoginForContent, dom } from "./ui.js";
 import { fetchRanks } from "./apiClient.js";
 import { updateRankFromServer } from "./rank.js";
-import { state, ensureSessionStart, getAuthToken } from "./state.js";
+import { state, ensureSessionStart } from "./state.js";
 
 let playTimeTimer = null;
 
@@ -114,13 +114,12 @@ export function renderInfoTab() {
   };
 
   const loadLeaderboard = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    if (!state.currentUser) {
       leaderboardStatus.textContent = "로그인이 필요합니다.";
       return;
     }
     try {
-      const data = await fetchRanks(token, { limit: 10, offset: 0 });
+      const data = await fetchRanks(null, { limit: 10, offset: 0 });
       const ranks = data.ranks || [];
       renderLeaderboard(ranks);
       if (ranks.length) {

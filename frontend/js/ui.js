@@ -14,6 +14,10 @@ export const dom = {
   generatorBar: document.querySelector(".generator.text-bar.generator-text-bar p"),
   profileName: document.querySelector(".profile-modal .modal-line.profile-name"),
   profileRank: document.querySelector(".profile-modal .modal-line.profile-rank"),
+  profileRoot: document.querySelector(".profile"),
+  profileTrigger: document.querySelector(".profile-trigger"),
+  moneyRate: document.querySelector(".money-rate"),
+  energyRate: document.querySelector(".energy-rate"),
 };
 
 export function updateUserUI(user, placedCountOverride) {
@@ -35,6 +39,24 @@ export function updateUserUI(user, placedCountOverride) {
   const count = placedCountOverride ?? state.placedGenerators.length ?? 0;
   const max = 10 + (user.max_generators_bonus || 0) * 5;
   if (dom.generatorBar) dom.generatorBar.textContent = `${count}/${max}`;
+}
+
+export function updateExchangeRateUI(rate) {
+  if (!dom.moneyRate) return;
+  if (typeof rate === "number" && Number.isFinite(rate)) {
+    dom.moneyRate.textContent = rate.toFixed(2);
+  } else {
+    dom.moneyRate.textContent = "-";
+  }
+}
+
+export function updateEnergyRateUI(rate) {
+  if (!dom.energyRate) return;
+  if (typeof rate === "number" && Number.isFinite(rate)) {
+    dom.energyRate.textContent = rate.toFixed(2);
+  } else {
+    dom.energyRate.textContent = "0";
+  }
 }
 
 export function requireLoginForContent(user, message) {

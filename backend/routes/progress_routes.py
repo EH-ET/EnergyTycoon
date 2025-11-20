@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import Generator, GeneratorType, MapProgress, User
-from ..schemas import ProgressSaveIn, UserOut
+from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut
 
 router = APIRouter()
 
@@ -22,6 +22,8 @@ def _ensure_same_user(user: User, target_user_id: Optional[str]):
 def _max_generators_allowed(user: User) -> int:
     bonus = getattr(user, "max_generators_bonus", 0) or 0
     return MAX_GENERATOR_BASE + bonus * MAX_GENERATOR_STEP
+
+
 def _demolish_cost(generator_type: GeneratorType) -> int:
     return max(1, int(generator_type.cost * DEMOLISH_COST_RATE))
 
@@ -56,10 +58,6 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
 async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     _ensure_same_user(user, payload.user_id)
-    if payload.energy is not None:
-        if payload.energy < 0:
-            raise HTTPException(status_code=400, detail="Energy cannot be negative")
-        user.energy = payload.energy
     gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
@@ -134,3 +132,20 @@ async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
     db.commit()
     db.refresh(user)
     return {"user": UserOut.model_validate(user), "demolished": {"generator_id": generator_id, "cost": cost}}
+
+
+@router.post("/progress/autosave")
+async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    updated = False
+    if payload.energy is not None:
+        user.energy = payload.energy
+        updated = True
+    if payload.money is not None:
+        user.money = payload.money
+        updated = True
+    if not updated:
+        raise HTTPException(status_code=400, detail="No fields provided to autosave")
+    db.commit()
+    db.refresh(user)
+    return {"user": UserOut.model_validate(user)}

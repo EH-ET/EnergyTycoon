@@ -18,11 +18,17 @@ export function computeEnergyPerSecond() {
 
 export function startEnergyTimer() {
   if (state.energyTimer) clearInterval(state.energyTimer);
-  state.energyTimer = setInterval(() => {
-    if (!state.currentUser) return;
+  const tick = () => {
+    if (!state.currentUser) {
+      // updateEnergyRateUI(0);
+      return;
+    }
     const delta = computeEnergyPerSecond();
+    // updateEnergyRateUI(delta);
     if (delta <= 0) return;
     state.currentUser.energy = Math.round((Number(state.currentUser.energy) || 0) + delta);
-    syncUserState(state.currentUser);
-  }, 1000);
+    syncUserState(state.currentUser, { persist: false });
+  };
+  tick();
+  state.energyTimer = setInterval(tick, 1000);
 }
