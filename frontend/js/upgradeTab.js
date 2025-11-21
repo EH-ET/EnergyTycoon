@@ -1,7 +1,13 @@
 // 업그레이드 탭 렌더링
 import { upgrades } from "./data.js";
 import { requireLoginForContent, dom } from "./ui.js";
-import { state, syncUserState, getAuthToken, beginTrapGuardGracePeriod } from "./state.js";
+import {
+  state,
+  syncUserState,
+  getAuthToken,
+  beginTrapGuardGracePeriod,
+  touchTrapMarker,
+} from "./state.js";
 import { postUpgrade } from "./apiClient.js";
 
 function getUpgradeLevel(user, upgrade) {
@@ -64,6 +70,7 @@ export function renderUpgradeTab() {
         const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), state.currentUser.energy);
         const mergedUser = { ...newUser, energy: state.currentUser.energy };
         syncUserState(mergedUser);
+        touchTrapMarker();
         renderUpgradeTab();
       } catch (e) {
         alert(e.message);

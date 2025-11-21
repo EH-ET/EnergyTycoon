@@ -8,7 +8,13 @@ import {
 } from "./generatorHelpers.js";
 import { saveProgress, demolishGenerator } from "./apiClient.js";
 import { dom } from "./ui.js";
-import { state, getAuthContext, syncUserState, beginTrapGuardGracePeriod } from "./state.js";
+import {
+  state,
+  getAuthContext,
+  syncUserState,
+  beginTrapGuardGracePeriod,
+  touchTrapMarker,
+} from "./state.js";
 import { startEnergyTimer } from "./energy.js";
 
 const BASE_MAX_GENERATORS = 10;
@@ -115,6 +121,7 @@ function showGeneratorModal(entry, element) {
       }
       if (res.user) {
         syncUserState(res.user);
+        touchTrapMarker();
       }
     } catch (err) {
       alert(err.message || "철거 실패");
@@ -209,6 +216,7 @@ export function initDropHandlers() {
       state.placedGenerators.push(entry);
       placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       syncUserState(state.currentUser);
+      touchTrapMarker();
       startEnergyTimer();
     } catch (err) {
       alert("설치 실패: " + (err.message || err));

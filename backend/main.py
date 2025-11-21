@@ -4,6 +4,7 @@ import pathlib
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request, HTTPException
 
 # Ensure package imports work even when run as a script (python backend/main.py)
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -47,6 +48,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Origin check middleware for state-changing requests (basic CSRF guard)
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+@app.middleware("http")
+async def enforce_origin(request: Request, call_next):
+    if request.method not in SAFE_METHODS:
+        origin = request.headers.get("origin")
+        if origin and origin not in origins:
+            raise HTTPException(status_code=403, detail="Origin not allowed")
+    return await call_next(request)
 
 # DB setup and seeding
 Base.metadata.create_all(bind=engine)
