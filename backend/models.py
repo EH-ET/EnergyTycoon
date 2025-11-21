@@ -50,6 +50,7 @@ class Generator(Base):
     x_position = Column(Integer, nullable=False)
     world_position = Column(Integer, nullable=False)
     isdeveloping = Column(Boolean, default=False, nullable=False)
+    build_complete_ts = Column(Integer, nullable=True)
     heat = Column(Integer, default=0, nullable=False)
 
     owner = relationship("User", back_populates="generators")
