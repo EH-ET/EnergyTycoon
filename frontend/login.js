@@ -30,9 +30,24 @@ const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
   trap: "et_tp",
-  access: "et_at",
-  refresh: "et_rt",
 };
+
+const CSRF_COOKIE_NAME = "csrf_token";
+
+function getCsrfToken() {
+  const cookie = document.cookie || "";
+  const entries = cookie.split(";").map((c) => c.trim());
+  for (const entry of entries) {
+    if (!entry) continue;
+    const [k, ...rest] = entry.split("=");
+    if (k === CSRF_COOKIE_NAME) return rest.join("=");
+  }
+  const token = (crypto?.randomUUID?.() || `csrf_${Date.now()}`);
+  const d = new Date();
+  d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
+  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  return token;
+}
 
 function sanitizeInput(value) {
   if (typeof value !== "string") return "";
@@ -78,11 +93,6 @@ function persistTrapMarker() {
   if (trap) sessionStorage.setItem(STORAGE_KEYS.trap, trap);
 }
 
-function storeTokens({ access_token, refresh_token }) {
-  if (access_token) sessionStorage.setItem(STORAGE_KEYS.access, access_token);
-  if (refresh_token) sessionStorage.setItem(STORAGE_KEYS.refresh, refresh_token);
-}
-
 function showMessage(msg, color = 'green') {
   messageBox.textContent = msg;
   messageBox.style.color = color;
@@ -103,14 +113,13 @@ loginBtn.addEventListener('click', () => {
 
   fetch(`${backendUrl}/login`, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: {"Content-Type": "application/json", "X-CSRF-Token": getCsrfToken()},
     credentials: "include",
     body: JSON.stringify({username, password})
   })
     .then(async (response) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'login failed');
-      storeTokens(data);
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();
@@ -134,7 +143,7 @@ signupBtn.addEventListener('click', () => {
 
   fetch(`${backendUrl}/signup`, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: {"Content-Type": "application/json", "X-CSRF-Token": getCsrfToken()},
     credentials: "include",
     body: JSON.stringify({username, password})
   })
@@ -151,7 +160,6 @@ signupBtn.addEventListener('click', () => {
     .then(async (res) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'login after signup failed');
-      storeTokens(data);
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();

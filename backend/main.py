@@ -1,10 +1,11 @@
 import os
 import sys
 import pathlib
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Header
 
 # Ensure package imports work even when run as a script (python backend/main.py)
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -15,6 +16,7 @@ from backend import models  # noqa: F401 - ensure models are registered
 from backend.database import Base, SessionLocal, engine
 from backend.init_db import create_default_generator_types, ensure_user_upgrade_columns
 from backend.routes import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes
+from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
@@ -57,8 +59,20 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 async def enforce_origin(request: Request, call_next):
     if request.method not in SAFE_METHODS:
         origin = request.headers.get("origin")
-        if origin and origin not in origins:
+        referer = request.headers.get("referer")
+        def _allow(url: str | None) -> bool:
+            if not url:
+                return False
+            parsed = urlparse(url)
+            candidate = f"{parsed.scheme}://{parsed.netloc}"
+            return candidate in origins
+
+        if not (_allow(origin) or _allow(referer)):
             raise HTTPException(status_code=403, detail="Origin not allowed")
+        csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+        csrf_header = request.headers.get(CSRF_HEADER_NAME)
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
     return await call_next(request)
 
 # DB setup and seeding

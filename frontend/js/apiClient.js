@@ -1,6 +1,35 @@
 // 서버와 통신하는 함수 모음
 import { API_BASE } from "./data.js";
 
+const CSRF_COOKIE_NAME = "csrf_token";
+
+function readCookie(name) {
+  const cookie = document.cookie || "";
+  const entries = cookie.split(";").map((c) => c.trim());
+  for (const entry of entries) {
+    if (!entry) continue;
+    const [k, ...rest] = entry.split("=");
+    if (k === name) return rest.join("=");
+  }
+  return null;
+}
+
+function ensureCsrfToken() {
+  let token = readCookie(CSRF_COOKIE_NAME);
+  if (!token) {
+    token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
+    const d = new Date();
+    d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
+    document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  }
+  return token;
+}
+
+function attachCsrf(headers = {}) {
+  const token = ensureCsrfToken();
+  return { ...headers, "X-CSRF-Token": token };
+}
+
 export async function loadGeneratorTypes(state) {
   try {
     const res = await fetch(`${API_BASE}/generator_types`);
@@ -27,8 +56,7 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
   if (typeof energy === "number") {
     payload.energy = energy;
   }
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const headers = attachCsrf({ "Content-Type": "application/json" });
   const res = await fetch(`${API_BASE}/progress`, {
     method: "POST",
     headers,
@@ -44,7 +72,6 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
 
 export async function loadProgress(userId, token) {
   const headers = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, {
     headers,
     credentials: "include",
@@ -59,10 +86,7 @@ export async function loadProgress(userId, token) {
 export async function exchangeEnergy(token, userId, amount, energy) {
   const res = await fetch(`${API_BASE}/change/energy2money`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
+    headers: attachCsrf({ "Content-Type": "application/json" }),
     credentials: "include",
     body: JSON.stringify({ user_id: userId, amount, energy }),
   });
@@ -73,7 +97,6 @@ export async function exchangeEnergy(token, userId, amount, energy) {
 
 export async function fetchExchangeRate(token) {
   const headers = {};
-  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/change/rate`, { headers, credentials: "include" });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "환율 조회 실패");
@@ -83,7 +106,7 @@ export async function fetchExchangeRate(token) {
 export async function upgradeSupply(token) {
   const res = await fetch(`${API_BASE}/upgrade/supply`, {
     method: "POST",
-    headers: { "Authorization": `Bearer ${token}` },
+    headers: attachCsrf({}),
     credentials: "include",
   });
   const data = await res.json();
@@ -92,7 +115,7 @@ export async function upgradeSupply(token) {
 }
 
 export async function postUpgrade(endpoint, token, energy) {
-  const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
+  const headers = attachCsrf({ "Content-Type": "application/json" });
   const body = energy != null ? JSON.stringify({ energy }) : "{}";
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
@@ -114,7 +137,7 @@ export async function moneyToEnergy() {
 export async function demolishGenerator(generatorId, token) {
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}`, {
     method: "DELETE",
-    headers: { "Authorization": `Bearer ${token}` },
+    headers: attachCsrf({}),
     credentials: "include",
   });
   const data = await res.json();
@@ -124,7 +147,7 @@ export async function demolishGenerator(generatorId, token) {
 
 export async function fetchMyRank(token) {
   const res = await fetch(`${API_BASE}/rank`, {
-    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    headers: {},
     credentials: "include",
   });
   const data = await res.json();
@@ -137,7 +160,7 @@ export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
-    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    headers: {},
     credentials: "include",
   });
   const data = await res.json();
@@ -152,10 +175,9 @@ export async function autosaveProgress(token, { energy, money }) {
   if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
   const res = await fetch(`${API_BASE}/progress/autosave`, {
     method: "POST",
-    headers: {
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    headers: attachCsrf({
       "Content-Type": "application/json",
-    },
+    }),
     credentials: "include",
     body: JSON.stringify(body),
   });
