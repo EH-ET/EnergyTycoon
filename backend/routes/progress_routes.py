@@ -6,12 +6,15 @@ from sqlalchemy.orm import Session
 from ..dependencies import get_user_and_db
 from ..models import Generator, GeneratorType, MapProgress, User
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut
+import os
 
 router = APIRouter()
 
 MAX_GENERATOR_BASE = 10
 MAX_GENERATOR_STEP = 5
 DEMOLISH_COST_RATE = 0.5
+MAX_ENERGY_VALUE = int(os.getenv("MAX_ENERGY_VALUE", 1_000_000_000_000))
+MAX_MONEY_VALUE = int(os.getenv("MAX_MONEY_VALUE", 1_000_000_000_000))
 
 
 def _ensure_same_user(user: User, target_user_id: Optional[str]):
@@ -143,11 +146,15 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     if payload.energy is not None:
         if payload.energy < 0:
             raise HTTPException(status_code=400, detail="Energy cannot be negative")
+        if payload.energy > MAX_ENERGY_VALUE:
+            raise HTTPException(status_code=400, detail="Energy value too large")
         user.energy = payload.energy
         updated = True
     if payload.money is not None:
         if payload.money < 0:
             raise HTTPException(status_code=400, detail="Money cannot be negative")
+        if payload.money > MAX_MONEY_VALUE:
+            raise HTTPException(status_code=400, detail="Money value too large")
         user.money = payload.money
         updated = True
     if not updated:

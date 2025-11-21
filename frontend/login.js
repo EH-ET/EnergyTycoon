@@ -3,13 +3,28 @@ const signupBtn = document.getElementById('signupBtn');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const messageBox = document.getElementById('messageBox');
+const DEPLOY_FRONTEND_URL = "NotExistYet-URL---------FRONT";
+const DEPLOY_BACKEND_URL = "NotExistYet-URL--------BACK";
+const frontendBase = (() => {
+  if (window.frontendUrl) return window.frontendUrl;
+  const { hostname } = window.location || {};
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (isLocalHost) return "";
+  return DEPLOY_FRONTEND_URL.endsWith("/") ? DEPLOY_FRONTEND_URL.slice(0, -1) : DEPLOY_FRONTEND_URL;
+})();
 const backendUrl = (() => {
   if (window.backendUrl) return window.backendUrl;
   const { protocol, hostname, port } = window.location || {};
-  if (port === "5500") return "http://127.0.0.1:8000";
-  if (protocol === "http:" || protocol === "https:") return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (isLocalHost || port === "5500") return "http://127.0.0.1:8000";
+  if (protocol === "http:" || protocol === "https:") return DEPLOY_BACKEND_URL;
   return "http://127.0.0.1:8000";
 })();
+
+function toFrontendPath(path) {
+  const normalized = frontendBase && frontendBase.endsWith("/") ? frontendBase.slice(0, -1) : frontendBase;
+  return normalized ? `${normalized}/${path}` : path;
+}
 
 const STORAGE_KEYS = {
   user: "et_u",
@@ -99,7 +114,7 @@ loginBtn.addEventListener('click', () => {
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();
-      window.location.href = "main.html";
+      window.location.href = toFrontendPath("main.html");
     })
     .catch((error) => showMessage(error.message || 'Error', 'red'));
 });
@@ -140,7 +155,7 @@ signupBtn.addEventListener('click', () => {
       storeUser(data.user);
       setSessionStart();
       persistTrapMarker();
-      window.location.href = "main.html";
+      window.location.href = toFrontendPath("main.html");
     })
     .catch((error) => showMessage(error.message || 'Error', 'red'));
 });

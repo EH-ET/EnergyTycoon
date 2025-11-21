@@ -1,6 +1,6 @@
 import { dom } from "./ui.js";
 import { state } from "./state.js";
-import { API_BASE } from "./data.js";
+import { API_BASE, toFrontendPath } from "./data.js";
 // import { stopAutosaveTimer } from "./autosave.js";
 import { updateRankFromServer } from "./rank.js";
 
@@ -129,7 +129,7 @@ function handleLogout() {
     .catch((err) => console.warn("server logout failed", err))
     .finally(() => {
       clearAuthState();
-      window.location.href = "index.html";
+      window.location.href = toFrontendPath("index.html");
     });
 }
 

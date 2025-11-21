@@ -1,3 +1,5 @@
+import { toFrontendPath } from "./data.js";
+
 // 전역 상태와 인증/저장 유틸
 const STORAGE_KEYS = {
   user: "et_u",
@@ -10,7 +12,8 @@ const STORAGE_KEYS = {
 const TRAP_COOKIE_NAME = "abtkn";
 // Toggle trap guard; when false, related functions become no-ops
 const TRAP_GUARD_ENABLED = true;
-const TRAP_COOKIE_AGE_DAYS = 7;
+const TRAP_GRACE_MS = 10000;
+const TRAP_TAMPER_LIMIT = 5;
 
 export const state = {
   contentMode: "generator",
@@ -32,6 +35,7 @@ let userChangeHandler = null;
 let trapGuardInterval = null;
 let trapGuardCooldownUntil = 0;
 let fetchGuardInstalled = false;
+let trapTamperCount = 0;
 
 export function registerUserChangeHandler(fn) {
   userChangeHandler = fn;
@@ -102,12 +106,6 @@ function readCookie(name) {
   return null;
 }
 
-function writeCookie(name, value, days = TRAP_COOKIE_AGE_DAYS) {
-  const d = new Date();
-  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-}
-
 function clearClientSession() {
   state.currentUser = null;
   state.placedGenerators = [];
@@ -130,26 +128,24 @@ function trapCookieValue() {
 
 function ensureTrapPresence() {
   if (!TRAP_GUARD_ENABLED) return;
-  let current = trapCookieValue();
-  let stored = sessionStorage.getItem(STORAGE_KEYS.trap);
-  if (!current && stored) {
-    writeCookie(TRAP_COOKIE_NAME, stored);
-    current = stored;
-  } else if (current && !stored) {
+  const current = trapCookieValue();
+  if (current) {
     sessionStorage.setItem(STORAGE_KEYS.trap, current);
-    stored = current;
-  }
-  if (!current && !stored) {
-    const fallback = (globalThis.crypto?.randomUUID?.() || `tp_${Date.now()}`);
-    writeCookie(TRAP_COOKIE_NAME, fallback);
-    sessionStorage.setItem(STORAGE_KEYS.trap, fallback);
+  } else {
+    sessionStorage.removeItem(STORAGE_KEYS.trap);
   }
 }
 
-function trapMismatchDetected() {
+function trapMismatchDetected(current) {
   if (!TRAP_GUARD_ENABLED) return;
+  trapTamperCount += 1;
+  if (trapTamperCount < TRAP_TAMPER_LIMIT) {
+    console.warn("Trap token mismatch auto-healed", { count: trapTamperCount });
+    if (current) sessionStorage.setItem(STORAGE_KEYS.trap, current);
+    return;
+  }
   clearClientSession();
-  window.location.href = "index.html";
+  window.location.href = toFrontendPath("index.html");
 }
 
 function syncTrapMarker(force = false) {
@@ -178,23 +174,26 @@ function syncTrapMarker(force = false) {
       sessionStorage.setItem(STORAGE_KEYS.trap, current);
       return;
     }
-    // Auto-heal mismatches instead of forcing navigation to prevent refresh loops
-    sessionStorage.setItem(STORAGE_KEYS.trap, current);
+    trapMismatchDetected(current);
+  } else {
+    trapTamperCount = 0;
   }
 }
 
 export function touchTrapMarker() {
+  if (!TRAP_GUARD_ENABLED) return;
+  trapTamperCount = 0;
   syncTrapMarker(true);
 }
 
-function markTrapGuardCooldown(ms = 4000) {
+function markTrapGuardCooldown(ms = TRAP_GRACE_MS) {
   if (!TRAP_GUARD_ENABLED) return;
   trapGuardCooldownUntil = Date.now() + ms;
 }
 
-export function beginTrapGuardGracePeriod(ms = 4000) {
+export function beginTrapGuardGracePeriod(ms = TRAP_GRACE_MS) {
   markTrapGuardCooldown(ms);
-  syncTrapMarker(true);
+  touchTrapMarker();
 }
 
 export function initTrapGuard() {
