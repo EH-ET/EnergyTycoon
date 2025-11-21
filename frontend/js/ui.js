@@ -1,5 +1,6 @@
 // DOM 참조와 화면 갱신 유틸
 import { state } from "./state.js";
+import { formatResourceValue } from "./bigValue.js";
 
 export const dom = {
   generatorBtn: document.querySelector(".generator-btn"),
@@ -23,8 +24,8 @@ export const dom = {
 export function updateUserUI(user, placedCountOverride) {
   if (!user) return;
   if (dom.username) dom.username.textContent = user.username;
-  if (dom.moneyBar) dom.moneyBar.textContent = user.money;
-  if (dom.energyBar) dom.energyBar.textContent = user.energy;
+  if (dom.moneyBar) dom.moneyBar.textContent = user.money_view ? formatResourceValue(user.money_view) : user.money;
+  if (dom.energyBar) dom.energyBar.textContent = user.energy_view ? formatResourceValue(user.energy_view) : user.energy;
   if (dom.profileName) {
     const strong = document.createElement("strong");
     strong.textContent = "이름:";

@@ -1,5 +1,16 @@
 import { autosaveProgress } from "./apiClient.js";
-import { state, syncUserState, getAuthToken, touchTrapMarker, beginTrapGuardGracePeriod } from "./state.js";
+import {
+  state,
+  syncUserState,
+  getAuthToken,
+  touchTrapMarker,
+  beginTrapGuardGracePeriod,
+  getEnergyValue,
+  getMoneyValue,
+  toEnergyServerPayload,
+  toMoneyServerPayload,
+} from "./state.js";
+import { toPlainValue } from "./bigValue.js";
 
 // Autosave will debounce after changes instead of fixed interval spam
 const AUTOSAVE_INTERVAL_MS = 60 * 1000;
@@ -12,8 +23,8 @@ let lastSavedMoney = null;
 
 function hasMeaningfulChange() {
   if (!state.currentUser) return false;
-  const e = typeof state.currentUser.energy === "number" ? state.currentUser.energy : 0;
-  const m = typeof state.currentUser.money === "number" ? state.currentUser.money : 0;
+  const e = toPlainValue(getEnergyValue());
+  const m = toPlainValue(getMoneyValue());
   if (lastSavedEnergy === null || lastSavedMoney === null) return true;
   return e !== lastSavedEnergy || m !== lastSavedMoney;
 }
@@ -26,17 +37,23 @@ async function performAutosave() {
   if (!hasMeaningfulChange()) return;
   try {
     beginTrapGuardGracePeriod();
+    const energyPayload = toEnergyServerPayload();
+    const moneyPayload = toMoneyServerPayload();
     const payload = {
-      energy: typeof state.currentUser.energy === "number" ? state.currentUser.energy : 0,
-      money: typeof state.currentUser.money === "number" ? state.currentUser.money : 0,
+      energy_data: energyPayload.data,
+      energy_high: energyPayload.high,
+      energy: toPlainValue(getEnergyValue()),
+      money_data: moneyPayload.data,
+      money_high: moneyPayload.high,
+      money: toPlainValue(getMoneyValue()),
     };
     touchTrapMarker();
     const data = await autosaveProgress(token, payload);
     touchTrapMarker();
     if (data.user) {
       syncUserState(data.user);
-      lastSavedEnergy = data.user.energy;
-      lastSavedMoney = data.user.money;
+      lastSavedEnergy = toPlainValue(getEnergyValue());
+      lastSavedMoney = toPlainValue(getMoneyValue());
     } else {
       lastSavedEnergy = payload.energy;
       lastSavedMoney = payload.money;

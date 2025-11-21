@@ -14,7 +14,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from backend import models  # noqa: F401 - ensure models are registered
 from backend.database import Base, SessionLocal, engine
-from backend.init_db import create_default_generator_types, ensure_user_upgrade_columns
+from backend.init_db import create_default_generator_types, ensure_user_upgrade_columns, ensure_big_value_columns
 from backend.routes import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes
 from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
@@ -78,6 +78,7 @@ async def enforce_origin(request: Request, call_next):
 # DB setup and seeding
 Base.metadata.create_all(bind=engine)
 ensure_user_upgrade_columns()
+ensure_big_value_columns()
 with SessionLocal() as db:
     create_default_generator_types(db)
 

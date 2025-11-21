@@ -5,6 +5,16 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import Generator, GeneratorType, MapProgress, User
+from ..bigvalue import (
+    get_user_money_value,
+    set_user_money_value,
+    get_user_energy_value,
+    set_user_energy_value,
+    compare_plain,
+    subtract_plain,
+    from_payload,
+    to_plain,
+)
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut
 import os
 
@@ -79,7 +89,8 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     )
     if existing:
         raise HTTPException(status_code=400, detail="Generator already exists in this position")
-    if user.money < gt.cost:
+    money_value = get_user_money_value(user)
+    if compare_plain(money_value, gt.cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     g = Generator(
         generator_type_id=gt.generator_type_id,
@@ -90,7 +101,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
         heat=0,
     )
     db.add(g)
-    user.money -= gt.cost
+    set_user_money_value(user, subtract_plain(money_value, gt.cost))
     db.commit()
     db.refresh(g)
     db.add(MapProgress(user_id=user.user_id, generator_id=g.generator_id))
@@ -125,13 +136,14 @@ async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
     cost = _demolish_cost(gt)
-    if user.money < cost:
+    money_value = get_user_money_value(user)
+    if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money to demolish")
     mp = db.query(MapProgress).filter_by(user_id=user.user_id, generator_id=generator_id).first()
     if mp:
         db.delete(mp)
     db.delete(gen)
-    user.money -= cost
+    set_user_money_value(user, subtract_plain(money_value, cost))
     db.commit()
     db.refresh(user)
     return {"user": UserOut.model_validate(user), "demolished": {"generator_id": generator_id, "cost": cost}}
@@ -143,19 +155,19 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     if payload is None:
         raise HTTPException(status_code=400, detail="No payload provided")
     updated = False
-    if payload.energy is not None:
-        if payload.energy < 0:
-            raise HTTPException(status_code=400, detail="Energy cannot be negative")
-        if payload.energy > MAX_ENERGY_VALUE:
+    energy_value = from_payload(payload.energy_data, payload.energy_high, payload.energy)
+    if energy_value is not None:
+        energy_plain = to_plain(energy_value)
+        if energy_plain > MAX_ENERGY_VALUE:
             raise HTTPException(status_code=400, detail="Energy value too large")
-        user.energy = payload.energy
+        set_user_energy_value(user, energy_value)
         updated = True
-    if payload.money is not None:
-        if payload.money < 0:
-            raise HTTPException(status_code=400, detail="Money cannot be negative")
-        if payload.money > MAX_MONEY_VALUE:
+    money_value = from_payload(payload.money_data, payload.money_high, payload.money)
+    if money_value is not None:
+        money_plain = to_plain(money_value)
+        if money_plain > MAX_MONEY_VALUE:
             raise HTTPException(status_code=400, detail="Money value too large")
-        user.money = payload.money
+        set_user_money_value(user, money_value)
         updated = True
     if not updated:
         raise HTTPException(status_code=400, detail="No fields provided to autosave")
