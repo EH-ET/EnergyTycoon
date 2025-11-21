@@ -15,6 +15,8 @@ const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
   trap: "et_tp",
+  access: "et_at",
+  refresh: "et_rt",
 };
 
 function sanitizeInput(value) {
@@ -61,8 +63,10 @@ function persistTrapMarker() {
   if (trap) sessionStorage.setItem(STORAGE_KEYS.trap, trap);
 }
 
-// 인증 토큰은 HttpOnly 쿠키로만 보관해 클라이언트 스토리지 노출을 막는다.
-function storeTokens() {}
+function storeTokens({ access_token, refresh_token }) {
+  if (access_token) sessionStorage.setItem(STORAGE_KEYS.access, access_token);
+  if (refresh_token) sessionStorage.setItem(STORAGE_KEYS.refresh, refresh_token);
+}
 
 function showMessage(msg, color = 'green') {
   messageBox.textContent = msg;
