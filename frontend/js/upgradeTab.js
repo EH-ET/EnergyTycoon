@@ -7,6 +7,7 @@ import {
   getAuthToken,
   beginTrapGuardGracePeriod,
   touchTrapMarker,
+  compareMoneyWith,
 } from "./state.js";
 import { postUpgrade } from "./apiClient.js";
 
@@ -61,15 +62,14 @@ export function renderUpgradeTab() {
     btn.style.padding = "8px 12px";
     btn.style.cursor = "pointer";
     btn.onclick = async () => {
-      if (state.currentUser.money < costValue) {
+      if (compareMoneyWith(costValue) < 0) {
         alert("돈이 부족합니다.");
         return;
       }
       try {
         beginTrapGuardGracePeriod();
-        const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), state.currentUser.energy);
-        const mergedUser = { ...newUser, energy: state.currentUser.energy };
-        syncUserState(mergedUser);
+        const newUser = await postUpgrade(upgrade.endpoint, getAuthToken());
+        syncUserState(newUser);
         touchTrapMarker();
         renderUpgradeTab();
       } catch (e) {

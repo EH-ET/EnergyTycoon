@@ -2,6 +2,7 @@ import { requireLoginForContent, dom } from "./ui.js";
 import { fetchRanks } from "./apiClient.js";
 import { updateRankFromServer } from "./rank.js";
 import { state, ensureSessionStart, getAuthToken } from "./state.js";
+import { formatResourceValue } from "./bigValue.js";
 
 let playTimeTimer = null;
 
@@ -42,11 +43,13 @@ export function renderInfoTab() {
   container.appendChild(playLine);
 
   const energyLine = document.createElement("p");
-  energyLine.textContent = `얻은 총 에너지량: ${state.currentUser.energy ?? 0}`;
+  const formattedEnergy = state.currentUser.energy_view ? formatResourceValue(state.currentUser.energy_view) : state.currentUser.energy ?? 0;
+  energyLine.textContent = `얻은 총 에너지량: ${formattedEnergy}`;
   container.appendChild(energyLine);
 
   const moneyLine = document.createElement("p");
-  moneyLine.textContent = `얻은 총 돈: ${state.currentUser.money ?? 0}`;
+  const formattedMoney = state.currentUser.money_view ? formatResourceValue(state.currentUser.money_view) : state.currentUser.money ?? 0;
+  moneyLine.textContent = `얻은 총 돈: ${formattedMoney}`;
   container.appendChild(moneyLine);
 
   const rankLine = document.createElement("p");

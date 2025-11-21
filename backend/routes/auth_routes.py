@@ -21,6 +21,7 @@ from ..auth_utils import (
 )
 from ..dependencies import get_db, get_refresh_user_and_db
 from ..models import User
+from ..bigvalue import from_plain, set_user_money_value, set_user_energy_value, ensure_user_big_values
 
 router = APIRouter()
 
@@ -83,9 +84,12 @@ async def signup(
     if db.query(User).filter_by(username=payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     u = User(username=payload.username, password=hash_pw(payload.password), energy=0, money=10)
+    set_user_money_value(u, from_plain(10))
+    set_user_energy_value(u, from_plain(0))
     db.add(u)
     db.commit()
     db.refresh(u)
+    ensure_user_big_values(u, db)
     access_token, refresh_token = issue_token_pair(u.user_id)
     if response:
         clear_auth_cookies(response)
@@ -113,6 +117,7 @@ async def login(
         user.password = hash_pw(payload.password)
         db.commit()
         db.refresh(user)
+    ensure_user_big_values(user, db)
     access_token, refresh_token = issue_token_pair(user.user_id)
     if response:
         clear_auth_cookies(response)

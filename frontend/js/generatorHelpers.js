@@ -2,6 +2,9 @@
 import { generators } from "./data.js";
 import { dom } from "./ui.js";
 import { state } from "./state.js";
+import { formatResourceValue, fromPlainValue } from "./bigValue.js";
+
+const BUILD_OVERLAY_SRC = "./generator/build.png";
 
 export function defaultPlacementY() {
   const height = dom.mainArea ? dom.mainArea.clientHeight : 0;
@@ -11,7 +14,7 @@ export function defaultPlacementY() {
 export function makeImageSrcByIndex(idx) {
   const num = Number(idx);
   if (Number.isNaN(num)) return placeholderDataUrl();
-  return `/frontend/generator/${num + 1}.png`;
+  return `generator/${num + 1}.png`;
 }
 
 export function findGeneratorIndexByName(name) {
@@ -23,7 +26,16 @@ export function placeholderDataUrl() {
   return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
 }
 
+function cleanupEntry(entry) {
+  if (!entry) return;
+  if (entry.buildTimer) {
+    clearTimeout(entry.buildTimer);
+    entry.buildTimer = null;
+  }
+}
+
 export function clearPlacedGeneratorVisuals() {
+  state.placedGenerators.forEach((entry) => cleanupEntry(entry));
   state.placedGenerators.length = 0;
   document.querySelectorAll(".placed-generator").forEach((el) => el.remove());
 }
@@ -73,14 +85,22 @@ export function renderSavedGenerators(list) {
     const name = g.type || state.generatorTypeIdToName[g.generator_type_id] || "";
     const idx = findGeneratorIndexByName(name);
     const imgSrc = idx >= 0 ? makeImageSrcByIndex(idx) : placeholderDataUrl();
-    state.placedGenerators.push({
+    const typeInfo = state.generatorTypesById[g.generator_type_id] || {};
+    const entry = {
       x: g.x_position,
       name,
       genIndex: idx,
       generator_id: g.generator_id,
       generator_type_id: g.generator_type_id,
-    });
-    placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
+      level: g.level || 1,
+      baseCost: g.cost || typeInfo.cost || 0,
+      isDeveloping: Boolean(g.isdeveloping),
+      buildCompleteTs: g.build_complete_ts ? g.build_complete_ts * 1000 : null,
+      buildTimer: null,
+    };
+    entry.element = placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
+    state.placedGenerators.push(entry);
+    applyBuildOverlay(entry);
   });
 }
 
@@ -91,4 +111,87 @@ export function updateGeneratorPositions() {
     const worldX = Number.isFinite(base) ? base : 0;
     el.style.left = `${worldX + offset}px`;
   });
+}
+
+function ensureBuildOverlayElement(element) {
+  let overlay = element.querySelector(".build-overlay");
+  if (!overlay) {
+    overlay = document.createElement("img");
+    overlay.className = "build-overlay";
+    overlay.src = BUILD_OVERLAY_SRC;
+    overlay.style.position = "absolute";
+    overlay.style.top = "-20px";
+    overlay.style.left = "50%";
+    overlay.style.transform = "translate(-50%, 0)";
+    overlay.style.width = "48px";
+    overlay.style.pointerEvents = "none";
+    element.appendChild(overlay);
+  }
+  return overlay;
+}
+
+function clearBuildOverlay(entry) {
+  if (!entry || !entry.element) return;
+  const overlay = entry.element.querySelector(".build-overlay");
+  if (overlay) overlay.remove();
+  if (entry.buildTimer) {
+    clearTimeout(entry.buildTimer);
+    entry.buildTimer = null;
+  }
+}
+
+function applyBuildOverlay(entry) {
+  if (!entry || !entry.element) return;
+  if (!entry.isDeveloping) {
+    clearBuildOverlay(entry);
+    return;
+  }
+  const overlay = ensureBuildOverlayElement(entry.element);
+  overlay.style.display = "block";
+  const remaining = Math.max(0, (entry.buildCompleteTs || Date.now()) - Date.now());
+  if (entry.buildTimer) {
+    clearTimeout(entry.buildTimer);
+    entry.buildTimer = null;
+  }
+  if (remaining <= 0) {
+    entry.isDeveloping = false;
+    entry.buildCompleteTs = null;
+    clearBuildOverlay(entry);
+    return;
+  }
+  entry.buildTimer = window.setTimeout(() => {
+    entry.isDeveloping = false;
+    entry.buildCompleteTs = null;
+    clearBuildOverlay(entry);
+  }, remaining);
+}
+
+export function syncEntryBuildState(entry, generator) {
+  if (!entry) return;
+  if (generator) {
+    entry.level = generator.level || entry.level || 1;
+    if (generator.cost != null) entry.baseCost = generator.cost;
+    entry.isDeveloping = Boolean(generator.isdeveloping);
+    entry.buildCompleteTs = generator.build_complete_ts ? generator.build_complete_ts * 1000 : null;
+  }
+  applyBuildOverlay(entry);
+}
+
+export function computeSkipCost(entry) {
+  if (!entry || !entry.isDeveloping) return 0;
+  const remainingSeconds = Math.max(0, Math.ceil(((entry.buildCompleteTs || Date.now()) - Date.now()) / 1000));
+  const baseCost = entry.baseCost || 0;
+  return Math.max(1, Math.ceil((remainingSeconds || 1) * baseCost / 10));
+}
+
+export function formatPlainValue(amount) {
+  return formatResourceValue(fromPlainValue(amount));
+}
+
+export function cleanupGeneratorEntry(entry) {
+  cleanupEntry(entry);
+  if (entry.element) {
+    const overlay = entry.element.querySelector(".build-overlay");
+    if (overlay) overlay.remove();
+  }
 }

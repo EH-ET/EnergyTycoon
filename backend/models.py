@@ -15,6 +15,10 @@ class User(Base):
     password = Column(String, nullable=False)
     energy = Column(Integer, default=0, nullable=False)
     money = Column(Integer, default=10, nullable=False)
+    energy_data = Column(Integer, default=0, nullable=False)
+    energy_high = Column(Integer, default=0, nullable=False)
+    money_data = Column(Integer, default=0, nullable=False)
+    money_high = Column(Integer, default=0, nullable=False)
     production_bonus = Column(Integer, default=0, nullable=False)
     heat_reduction = Column(Integer, default=0, nullable=False)
     tolerance_bonus = Column(Integer, default=0, nullable=False)
@@ -46,6 +50,7 @@ class Generator(Base):
     x_position = Column(Integer, nullable=False)
     world_position = Column(Integer, nullable=False)
     isdeveloping = Column(Boolean, default=False, nullable=False)
+    build_complete_ts = Column(Integer, nullable=True)
     heat = Column(Integer, default=0, nullable=False)
 
     owner = relationship("User", back_populates="generators")
