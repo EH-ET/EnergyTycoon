@@ -1,5 +1,7 @@
 import time
-from fastapi import APIRouter, Depends, HTTPException, Response
+from collections import defaultdict
+
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -13,6 +15,7 @@ from ..auth_utils import (
     revoke_token,
     revoke_user_tokens,
     set_auth_cookies,
+    set_csrf_cookie,
     set_trap_cookie,
     verify_password,
 )
@@ -25,6 +28,9 @@ LOGIN_COOLDOWN_SECONDS = 1.0
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 _login_backoff: dict[str, float] = {}
+_ip_buckets = defaultdict(list)
+IP_MAX_ATTEMPTS = 10
+IP_WINDOW_SECONDS = 60
 
 
 def _validate_password_strength(pw: str):
@@ -58,8 +64,21 @@ def _clear_login_failure(username: str | None):
         _login_backoff.pop(username, None)
 
 
+def _check_ip_rate(request: Request):
+    ip = request.client.host if request and request.client else "unknown"
+    now = time.time()
+    recent = [ts for ts in _ip_buckets[ip] if ts > now - IP_WINDOW_SECONDS]
+    if len(recent) >= IP_MAX_ATTEMPTS:
+        raise HTTPException(status_code=429, detail="Too many attempts. Please wait.")
+    recent.append(now)
+    _ip_buckets[ip] = recent
+
+
 @router.post("/signup")
-async def signup(response: Response, payload: schemas.UserCreate, db: Session = Depends(get_db)):
+async def signup(
+    request: Request, response: Response, payload: schemas.UserCreate, db: Session = Depends(get_db)
+):
+    _check_ip_rate(request)
     _validate_password_strength(payload.password)
     if db.query(User).filter_by(username=payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -72,11 +91,15 @@ async def signup(response: Response, payload: schemas.UserCreate, db: Session = 
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
-    return {"user": schemas.UserOut.model_validate(u), "access_token": access_token, "refresh_token": refresh_token}
+        set_csrf_cookie(response)
+    return {"user": schemas.UserOut.model_validate(u)}
 
 
 @router.post("/login")
-async def login(response: Response, payload: schemas.LoginIn, db: Session = Depends(get_db)):
+async def login(
+    request: Request, response: Response, payload: schemas.LoginIn, db: Session = Depends(get_db)
+):
+    _check_ip_rate(request)
     _enforce_login_cooldown(payload.username)
     user = db.query(User).filter_by(username=payload.username).first()
     if not user:
@@ -95,7 +118,8 @@ async def login(response: Response, payload: schemas.LoginIn, db: Session = Depe
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
-    return {"user": schemas.UserOut.model_validate(user), "access_token": access_token, "refresh_token": refresh_token}
+        set_csrf_cookie(response)
+    return {"user": schemas.UserOut.model_validate(user)}
 
 
 @router.post("/logout")
@@ -116,7 +140,8 @@ async def refresh_access(response: Response, auth=Depends(get_refresh_user_and_d
         revoke_token(refresh_token_used)
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, new_refresh)
-    return {"access_token": access_token}
+        set_csrf_cookie(response)
+    return {"detail": "access token refreshed"}
 
 
 @router.post("/refresh/refresh")
@@ -128,4 +153,5 @@ async def refresh_refresh(response: Response, auth=Depends(get_refresh_user_and_
     if response:
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, refresh_token)
-    return {"access_token": access_token, "refresh_token": refresh_token}
+        set_csrf_cookie(response)
+    return {"detail": "token pair refreshed"}

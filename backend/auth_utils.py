@@ -3,8 +3,10 @@ import os
 import string
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
+import jwt
 from fastapi import HTTPException, Response
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -18,9 +20,13 @@ ACCESS_COOKIE_NAME = os.getenv("ACCESS_COOKIE_NAME", "ec9db4eab1b820ebb3b5ed98b8
 # Cookie names cannot contain "=", so we default to an obfuscated, cookie-safe variant.
 REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "yeCuXMndsYC3kMnAPw__")
 TRAP_COOKIE_NAME = os.getenv("TRAP_COOKIE_NAME", "abtkn")
+CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME", "csrf_token")
+CSRF_HEADER_NAME = os.getenv("CSRF_HEADER_NAME", "x-csrf-token")
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "strict")
+JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "change-me"))
+JWT_ALG = "HS256"
 
 _LEGACY_HASH_LENGTH = 64
 _HEX_DIGITS = set(string.hexdigits.lower())
@@ -30,7 +36,8 @@ pwd_context = CryptContext(
     deprecated="auto",
 )
 
-_token_store: Dict[str, Dict[str, Any]] = {}
+# Refresh 토큰 회전을 위한 간단 화이트리스트 (프로세스 메모리 상)
+_refresh_whitelist: Dict[str, str] = {}
 
 
 def generate_uuid() -> str:
@@ -68,18 +75,30 @@ def password_needs_rehash(hashed: str | None) -> bool:
     return pwd_context.needs_update(hashed)
 
 
-def _store_token(user_id: str, token_type: str, ttl: int) -> str:
-    token = generate_uuid()
-    _token_store[token] = {"user_id": user_id, "expiry": time.time() + ttl, "type": token_type}
-    return token
+def _encode_token(payload: Dict[str, Any], ttl: int) -> str:
+    exp = datetime.now(timezone.utc) + timedelta(seconds=ttl)
+    payload = {**payload, "exp": exp, "iat": datetime.now(timezone.utc)}
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
 
 def issue_access_token(user_id: str) -> str:
-    return _store_token(user_id, TOKEN_TYPE_ACCESS, ACCESS_TOKEN_TTL)
+    payload = {
+        "sub": user_id,
+        "typ": TOKEN_TYPE_ACCESS,
+        "jti": generate_uuid(),
+    }
+    return _encode_token(payload, ACCESS_TOKEN_TTL)
 
 
 def issue_refresh_token(user_id: str) -> str:
-    return _store_token(user_id, TOKEN_TYPE_REFRESH, REFRESH_TOKEN_TTL)
+    jti = generate_uuid()
+    _refresh_whitelist[user_id] = jti
+    payload = {
+        "sub": user_id,
+        "typ": TOKEN_TYPE_REFRESH,
+        "jti": jti,
+    }
+    return _encode_token(payload, REFRESH_TOKEN_TTL)
 
 
 def issue_token_pair(user_id: str) -> tuple[str, str]:
@@ -87,24 +106,44 @@ def issue_token_pair(user_id: str) -> tuple[str, str]:
 
 
 def revoke_token(token: str) -> None:
-    _token_store.pop(token, None)
+    try:
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+    except jwt.PyJWTError:
+        return
+        # If the token is invalid, there's nothing to revoke
+    if decoded.get("typ") == TOKEN_TYPE_REFRESH:
+        user_id = decoded.get("sub")
+        jti = decoded.get("jti")
+        if user_id and _refresh_whitelist.get(user_id) == jti:
+            _refresh_whitelist.pop(user_id, None)
 
 
 def revoke_user_tokens(user_id: str) -> None:
-    for key, data in list(_token_store.items()):
-        if data.get("user_id") == user_id:
-            _token_store.pop(key, None)
+    _refresh_whitelist.pop(user_id, None)
 
 
 def require_user_from_token(token: str, db: Session, expected_type: str):
     from .models import User
 
-    data = _token_store.get(token)
-    if not data or data.get("expiry", 0) < time.time():
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    if data.get("type") != expected_type:
+    try:
+        data = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if data.get("typ") != expected_type:
         raise HTTPException(status_code=403, detail="Invalid token type")
-    user = db.query(User).filter_by(user_id=data["user_id"]).first()
+
+    user_id = data.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token subject")
+
+    if expected_type == TOKEN_TYPE_REFRESH:
+        jti = data.get("jti")
+        if not jti or _refresh_whitelist.get(user_id) != jti:
+            raise HTTPException(status_code=401, detail="Refresh token revoked or invalid")
+    user = db.query(User).filter_by(user_id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -133,9 +172,16 @@ def set_trap_cookie(response: Response) -> None:
     response.set_cookie(TRAP_COOKIE_NAME, trap_token, **_cookie_params(REFRESH_TOKEN_TTL, http_only=False))
 
 
+def set_csrf_cookie(response: Response) -> str:
+    token = generate_uuid()
+    response.set_cookie(CSRF_COOKIE_NAME, token, **_cookie_params(REFRESH_TOKEN_TTL, http_only=False))
+    return token
+
+
 def clear_auth_cookies(response: Response, *, keep_trap: bool = False) -> None:
     response.delete_cookie(ACCESS_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
     response.delete_cookie(REFRESH_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
+    response.delete_cookie(CSRF_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
     if not keep_trap:
         response.delete_cookie(TRAP_COOKIE_NAME, path="/", domain=COOKIE_DOMAIN)
     # Remove any legacy user_id cookie exposure
