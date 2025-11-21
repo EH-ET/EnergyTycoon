@@ -1,7 +1,32 @@
 // 공통 상수와 하드코딩된 기본 데이터
+const DEPLOY_FRONTEND_URL = "NotExistYet-URL---------FRONT";
+const DEPLOY_BACKEND_URL = "NotExistYet-URL--------BACK";
+
+function trimTrailingSlash(url) {
+  if (!url) return url;
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+export const FRONTEND_BASE = (() => {
+  if (window.__FRONTEND_BASE__) return window.__FRONTEND_BASE__;
+  const { hostname } = window.location || {};
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (isLocalHost) return "";
+  return trimTrailingSlash(DEPLOY_FRONTEND_URL);
+})();
+
+export function toFrontendPath(path) {
+  const base = trimTrailingSlash(FRONTEND_BASE);
+  return base ? `${base}/${path}` : path;
+}
+
 export const API_BASE = (() => {
   if (window.__API_BASE__) return window.__API_BASE__;
-  return "http://localhost:8000";
+  const { protocol, hostname, port } = window.location || {};
+  const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
+  if (isLocalHost || port === "5500") return "http://127.0.0.1:8000";
+  if (protocol === "http:" || protocol === "https:") return trimTrailingSlash(DEPLOY_BACKEND_URL);
+  return "http://127.0.0.1:8000";
 })();
 
 export const generators = [

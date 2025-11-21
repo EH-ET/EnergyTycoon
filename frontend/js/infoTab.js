@@ -114,13 +114,12 @@ export function renderInfoTab() {
   };
 
   const loadLeaderboard = async () => {
-    const token = getAuthToken();
-    if (!token) {
+    if (!state.currentUser) {
       leaderboardStatus.textContent = "로그인이 필요합니다.";
       return;
     }
     try {
-      const data = await fetchRanks(token, { limit: 10, offset: 0 });
+      const data = await fetchRanks(getAuthToken(), { limit: 10, offset: 0 });
       const ranks = data.ranks || [];
       renderLeaderboard(ranks);
       if (ranks.length) {

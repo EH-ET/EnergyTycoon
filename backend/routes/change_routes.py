@@ -18,10 +18,6 @@ def _ensure_same_user(user: User, target_user_id: str | None):
 async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     _ensure_same_user(user, payload.user_id)
-    if payload.energy is not None:
-        if payload.energy < 0:
-            raise HTTPException(status_code=400, detail="Energy cannot be negative")
-        user.energy = payload.energy
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
     if user.energy < payload.amount:

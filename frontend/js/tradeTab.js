@@ -1,7 +1,13 @@
 // 교환소 탭 렌더링
-import { requireLoginForContent, dom } from "./ui.js";
+import { requireLoginForContent, dom, updateExchangeRateUI } from "./ui.js";
 import { exchangeEnergy, fetchExchangeRate } from "./apiClient.js";
-import { getAuthToken, state, syncUserState } from "./state.js";
+import {
+  state,
+  syncUserState,
+  getAuthToken,
+  beginTrapGuardGracePeriod,
+  touchTrapMarker,
+} from "./state.js";
 
 export function renderTradeTab() {
   if (!requireLoginForContent(state.currentUser, "로그인 필요")) return;
@@ -110,19 +116,6 @@ export function renderTradeTab() {
     sellBtn.disabled = busy;
   };
 
-  const ensureAuth = () => {
-    const token = getAuthToken();
-    if (!token) {
-      alert("로그인이 필요합니다.");
-      return null;
-    }
-    if (!state.currentUser) {
-      alert("사용자 정보를 불러올 수 없습니다.");
-      return null;
-    }
-    return token;
-  };
-
   const updateRateMessage = (rate) => {
     if (typeof rate === "number") {
       rateInfo.textContent = `최근 환율: 1 에너지 → ${rate.toFixed(2)} 돈`;
@@ -148,11 +141,15 @@ export function renderTradeTab() {
   sellInput.addEventListener("change", updatePreview);
 
   const loadRate = async () => {
-    const token = ensureAuth();
-    if (!token) return;
+    if (!state.currentUser) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
     try {
-      const data = await fetchExchangeRate(token);
+      const data = await fetchExchangeRate(getAuthToken());
       lastRate = data.rate;
+      state.exchangeRate = lastRate;
+      updateExchangeRateUI(lastRate);
       updatePreview();
       updateRateMessage(lastRate);
     } catch (e) {
@@ -166,13 +163,16 @@ export function renderTradeTab() {
     const amount = Number(sellInput.value) || 1;
     if (amount <= 0) return alert("1 이상 입력하세요");
     if (inFlight) return;
-    const token = ensureAuth();
-    if (!token) return;
+    if (!state.currentUser) {
+      alert("로그인이 필요합니다.");
+      return;
+    }
     try {
       setBusy(true);
+      beginTrapGuardGracePeriod();
       const beforeMoney = state.currentUser.money;
       const data = await exchangeEnergy(
-        token,
+        getAuthToken(),
         state.currentUser.user_id,
         amount,
         state.currentUser.energy,
@@ -183,8 +183,11 @@ export function renderTradeTab() {
       syncUserState(nextUser);
       const gained = nextUser.money - beforeMoney;
       lastRate = data.rate ?? lastRate;
+      state.exchangeRate = lastRate;
+      updateExchangeRateUI(lastRate);
       updateRateMessage(lastRate);
       updatePreview();
+      touchTrapMarker();
       const rateText = lastRate ? ` (rate ${lastRate.toFixed(2)})` : "";
       msg.textContent = `성공: ${amount} 에너지 → ${gained} 돈${rateText}`;
     } catch (e) {

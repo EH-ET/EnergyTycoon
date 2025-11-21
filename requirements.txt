@@ -1,7 +1,10 @@
 fastapi==0.110.0
 uvicorn[standard]==0.27.1
-sqlalchemy==2.0.24
-pydantic==2.7.0
+# SQLAlchemy(latest 2.0.x) for Python 3.13 compatibility
+sqlalchemy==2.0.37
+# pydantic 2.10.4 pulls a 3.13-compatible pydantic-core automatically
+pydantic==2.10.4
 python-dotenv==1.0.0
 aiosqlite==0.19.0
 passlib[bcrypt]==1.7.4
+PyJWT==2.8.0

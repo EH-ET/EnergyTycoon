@@ -44,3 +44,8 @@ class ProgressSaveIn(BaseModel):
 class UpgradeRequest(BaseModel):
     amount: int = Field(1, ge=1)
     energy: Optional[int] = Field(default=None, ge=0)
+
+
+class ProgressAutoSaveIn(BaseModel):
+    energy: Optional[int] = Field(default=None, ge=0)
+    money: Optional[int] = Field(default=None, ge=0)

@@ -8,7 +8,13 @@ import {
 } from "./generatorHelpers.js";
 import { saveProgress, demolishGenerator } from "./apiClient.js";
 import { dom } from "./ui.js";
-import { state, getAuthContext, syncUserState } from "./state.js";
+import {
+  state,
+  getAuthContext,
+  syncUserState,
+  beginTrapGuardGracePeriod,
+  touchTrapMarker,
+} from "./state.js";
 import { startEnergyTimer } from "./energy.js";
 
 const BASE_MAX_GENERATORS = 10;
@@ -104,6 +110,7 @@ function showGeneratorModal(entry, element) {
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
   modal.demolishBtn.onclick = async () => {
     try {
+      beginTrapGuardGracePeriod();
       const token = auth.token;
       const res = await demolishGenerator(entry.generator_id, token);
       state.placedGenerators = state.placedGenerators.filter(
@@ -114,6 +121,7 @@ function showGeneratorModal(entry, element) {
       }
       if (res.user) {
         syncUserState(res.user);
+        touchTrapMarker();
       }
     } catch (err) {
       alert(err.message || "철거 실패");
@@ -152,7 +160,8 @@ export function initDropHandlers() {
     const idx = e.dataTransfer.getData("text/plain");
     if (idx === "") return;
     const rect = dom.mainArea.getBoundingClientRect();
-    const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const screenX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const worldX = Math.max(0, Math.round(screenX - (Number(state.userOffsetX) || 0)));
     const gen = generators[Number(idx)];
     if (!gen) return;
 
@@ -179,10 +188,11 @@ export function initDropHandlers() {
       return;
     }
     try {
+      beginTrapGuardGracePeriod();
       const res = await saveProgress(
         user.user_id,
         genTypeId,
-        Math.round(x),
+        worldX,
         0,
         token,
         state.currentUser.energy,
@@ -197,15 +207,16 @@ export function initDropHandlers() {
       const idxByName = findGeneratorIndexByName(genName);
       const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
       const entry = {
-        x,
+        x: worldX,
         name: genName,
         genIndex: idxByName,
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
       };
       state.placedGenerators.push(entry);
-      placeGeneratorVisual(x, imgSrc, genName, res.generator.generator_id);
+      placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       syncUserState(state.currentUser);
+      touchTrapMarker();
       startEnergyTimer();
     } catch (err) {
       alert("설치 실패: " + (err.message || err));

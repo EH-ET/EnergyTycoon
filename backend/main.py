@@ -1,9 +1,11 @@
 import os
 import sys
 import pathlib
+from urllib.parse import urlparse
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request, HTTPException, Header
 
 # Ensure package imports work even when run as a script (python backend/main.py)
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -14,14 +16,32 @@ from backend import models  # noqa: F401 - ensure models are registered
 from backend.database import Base, SessionLocal, engine
 from backend.init_db import create_default_generator_types, ensure_user_upgrade_columns
 from backend.routes import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes
+from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
 _origins_env = os.getenv("FRONTEND_ORIGINS")
-if not _origins_env or _origins_env.strip() == "*":
-    origins = ["*"]
+if _origins_env:
+    if _origins_env.strip() == "*":
+        origins = [
+            "http://localhost:4173",
+            "http://127.0.0.1:4173",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+        ]
+    else:
+        origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
 else:
-    origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+    origins = [
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +50,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Origin check middleware for state-changing requests (basic CSRF guard)
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+@app.middleware("http")
+async def enforce_origin(request: Request, call_next):
+    if request.method not in SAFE_METHODS:
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        def _allow(url: str | None) -> bool:
+            if not url:
+                return False
+            parsed = urlparse(url)
+            candidate = f"{parsed.scheme}://{parsed.netloc}"
+            return candidate in origins
+
+        if not (_allow(origin) or _allow(referer)):
+            raise HTTPException(status_code=403, detail="Origin not allowed")
+        csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+        csrf_header = request.headers.get(CSRF_HEADER_NAME)
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+    return await call_next(request)
 
 # DB setup and seeding
 Base.metadata.create_all(bind=engine)

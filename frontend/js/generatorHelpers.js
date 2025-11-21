@@ -33,14 +33,18 @@ export function placeGeneratorVisual(x, imgSrc, name, generatorId) {
   if (getComputedStyle(dom.mainArea).position === "static") {
     dom.mainArea.style.position = "relative";
   }
+  const offset = Number(state.userOffsetX) || 0;
+  const worldX = Number(x) || 0;
+  const screenX = worldX + offset;
   const el = document.createElement("div");
   el.className = "placed-generator";
   if (generatorId) {
     el.dataset.generatorId = generatorId;
   }
+  el.dataset.worldX = String(worldX);
   Object.assign(el.style, {
     position: "absolute",
-    left: `${x}px`,
+    left: `${screenX}px`,
     top: `${defaultPlacementY()}px`,
     transform: "translate(-50%, 0)",
     pointerEvents: "auto",
@@ -77,5 +81,14 @@ export function renderSavedGenerators(list) {
       generator_type_id: g.generator_type_id,
     });
     placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
+  });
+}
+
+export function updateGeneratorPositions() {
+  const offset = Number(state.userOffsetX) || 0;
+  document.querySelectorAll(".placed-generator").forEach((el) => {
+    const base = Number(el.dataset.worldX);
+    const worldX = Number.isFinite(base) ? base : 0;
+    el.style.left = `${worldX + offset}px`;
   });
 }
