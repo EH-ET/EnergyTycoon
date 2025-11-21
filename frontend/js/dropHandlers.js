@@ -8,7 +8,7 @@ import {
 } from "./generatorHelpers.js";
 import { saveProgress, demolishGenerator } from "./apiClient.js";
 import { dom } from "./ui.js";
-import { state, getAuthContext, syncUserState } from "./state.js";
+import { state, getAuthContext, syncUserState, beginTrapGuardGracePeriod } from "./state.js";
 import { startEnergyTimer } from "./energy.js";
 
 const BASE_MAX_GENERATORS = 10;
@@ -104,6 +104,7 @@ function showGeneratorModal(entry, element) {
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
   modal.demolishBtn.onclick = async () => {
     try {
+      beginTrapGuardGracePeriod();
       const token = auth.token;
       const res = await demolishGenerator(entry.generator_id, token);
       state.placedGenerators = state.placedGenerators.filter(
@@ -180,6 +181,7 @@ export function initDropHandlers() {
       return;
     }
     try {
+      beginTrapGuardGracePeriod();
       const res = await saveProgress(
         user.user_id,
         genTypeId,

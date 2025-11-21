@@ -1,5 +1,5 @@
 import { autosaveProgress } from "./apiClient.js";
-import { state, syncUserState, getAuthToken } from "./state.js";
+import { state, syncUserState, getAuthToken, touchTrapMarker } from "./state.js";
 
 // Autosave will debounce after changes instead of fixed interval spam
 const AUTOSAVE_INTERVAL_MS = 60 * 1000;
@@ -29,7 +29,9 @@ async function performAutosave() {
       energy: typeof state.currentUser.energy === "number" ? state.currentUser.energy : 0,
       money: typeof state.currentUser.money === "number" ? state.currentUser.money : 0,
     };
+    touchTrapMarker();
     const data = await autosaveProgress(token, payload);
+    touchTrapMarker();
     if (data.user) {
       syncUserState(data.user);
       lastSavedEnergy = data.user.energy;

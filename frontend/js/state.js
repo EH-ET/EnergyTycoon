@@ -148,8 +148,8 @@ function ensureTrapPresence() {
 
 function trapMismatchDetected() {
   if (!TRAP_GUARD_ENABLED) return;
-  // Auto-heal instead of redirect to avoid refresh loops
-  ensureTrapPresence();
+  clearClientSession();
+  window.location.href = "index.html";
 }
 
 function syncTrapMarker(force = false) {
@@ -174,14 +174,27 @@ function syncTrapMarker(force = false) {
     return;
   }
   if (stored !== current) {
+    if (Date.now() <= trapGuardCooldownUntil) {
+      sessionStorage.setItem(STORAGE_KEYS.trap, current);
+      return;
+    }
     // Auto-heal mismatches instead of forcing navigation to prevent refresh loops
     sessionStorage.setItem(STORAGE_KEYS.trap, current);
   }
 }
 
+export function touchTrapMarker() {
+  syncTrapMarker(true);
+}
+
 function markTrapGuardCooldown(ms = 4000) {
   if (!TRAP_GUARD_ENABLED) return;
   trapGuardCooldownUntil = Date.now() + ms;
+}
+
+export function beginTrapGuardGracePeriod(ms = 4000) {
+  markTrapGuardCooldown(ms);
+  syncTrapMarker(true);
 }
 
 export function initTrapGuard() {
