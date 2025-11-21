@@ -5,8 +5,12 @@ import {
   makeImageSrcByIndex,
   findGeneratorIndexByName,
   placeholderDataUrl,
+  syncEntryBuildState,
+  computeSkipCost,
+  formatPlainValue,
+  cleanupGeneratorEntry,
 } from "./generatorHelpers.js";
-import { saveProgress, demolishGenerator } from "./apiClient.js";
+import { saveProgress, demolishGenerator, skipGeneratorBuild } from "./apiClient.js";
 import { dom } from "./ui.js";
 import {
   state,
@@ -55,10 +59,11 @@ function ensureModal() {
   desc.style.fontSize = "14px";
   box.appendChild(desc);
 
-  const btnRow = document.createElement("div");
-  btnRow.style.display = "flex";
-  btnRow.style.gap = "8px";
-  btnRow.style.marginTop = "12px";
+  const actions = document.createElement("div");
+  actions.className = "modal-actions";
+  actions.style.display = "flex";
+  actions.style.gap = "8px";
+  actions.style.marginTop = "12px";
 
   const cancelBtn = document.createElement("button");
   cancelBtn.type = "button";
@@ -74,9 +79,9 @@ function ensureModal() {
   demolishBtn.style.color = "#fff";
   demolishBtn.dataset.generatorId = "";
 
-  btnRow.appendChild(cancelBtn);
-  btnRow.appendChild(demolishBtn);
-  box.appendChild(btnRow);
+  actions.appendChild(cancelBtn);
+  actions.appendChild(demolishBtn);
+  box.appendChild(actions);
 
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) hideModal();
@@ -108,7 +113,46 @@ function showGeneratorModal(entry, element) {
   const demolishCost = Math.max(1, Math.round(baseCost * DEMOLISH_COST_RATE));
   modal.title.textContent = entry.name || "발전기";
   modal.desc.textContent = `철거 비용: ${demolishCost} 돈`;
+  const prevInfo = modal.overlay.querySelector(".build-info");
+  if (prevInfo) prevInfo.remove();
+  const actions = modal.overlay.querySelector(".modal-actions");
+  const prevSkip = actions.querySelector(".skip-button");
+  if (prevSkip) prevSkip.remove();
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
+  if (entry.isDeveloping) {
+    const remainingSeconds = Math.max(
+      0,
+      Math.ceil(((entry.buildCompleteTs || Date.now()) - Date.now()) / 1000),
+    );
+    const info = document.createElement("p");
+    info.style.margin = "6px 0";
+     info.className = "build-info";
+    info.textContent = `건설 중 (${remainingSeconds}초 남음)`;
+    modal.desc.insertAdjacentElement("afterend", info);
+    const skipCost = computeSkipCost(entry);
+    const skipBtn = document.createElement("button");
+    skipBtn.type = "button";
+    skipBtn.textContent = `즉시 완성 (${formatPlainValue(skipCost)})`;
+    skipBtn.style.flex = "1";
+    skipBtn.className = "skip-button";
+    skipBtn.onclick = async () => {
+      try {
+        beginTrapGuardGracePeriod();
+        const res = await skipGeneratorBuild(entry.generator_id);
+        touchTrapMarker();
+        if (res.user) {
+          syncUserState(res.user);
+        }
+        if (res.generator) {
+          syncEntryBuildState(entry, res.generator);
+        }
+        hideModal();
+      } catch (err) {
+        alert(err.message || "건설 스킵 실패");
+      }
+    };
+    actions.appendChild(skipBtn);
+  }
   modal.demolishBtn.onclick = async () => {
     try {
       beginTrapGuardGracePeriod();
@@ -213,9 +257,15 @@ export function initDropHandlers() {
         genIndex: idxByName,
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
+        level: res.generator.level || 1,
+        baseCost: cost,
+        isDeveloping: Boolean(res.generator.isdeveloping),
+        buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : null,
+        buildTimer: null,
       };
+      entry.element = placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       state.placedGenerators.push(entry);
-      placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
+      syncEntryBuildState(entry, res.generator);
       syncUserState(state.currentUser);
       touchTrapMarker();
       startEnergyTimer();

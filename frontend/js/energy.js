@@ -7,6 +7,7 @@ import { addPlainValue } from "./bigValue.js";
 export function computeEnergyPerSecond() {
   let total = 0;
   state.placedGenerators.forEach((pg) => {
+    if (pg.isDeveloping) return;
     if (pg.genIndex != null && pg.genIndex >= 0) {
       const g = generators[pg.genIndex];
       const base = g ? Number(g["생산량(에너지)"]) || 0 : 0;

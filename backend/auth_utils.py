@@ -24,7 +24,7 @@ CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME", "csrf_token")
 CSRF_HEADER_NAME = os.getenv("CSRF_HEADER_NAME", "x-csrf-token")
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "strict")
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
 JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "change-me"))
 JWT_ALG = "HS256"
 

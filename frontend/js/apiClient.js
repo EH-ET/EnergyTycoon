@@ -27,7 +27,7 @@ function ensureCsrfToken() {
 
 function attachCsrf(headers = {}) {
   const token = ensureCsrfToken();
-  return { ...headers, "X-CSRF-Token": token };
+  return { ...headers, "x-csrf-token": token };
 }
 
 export async function loadGeneratorTypes(state) {
@@ -150,6 +150,17 @@ export async function fetchMyRank(token) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "랭크 조회 실패");
+  return data;
+}
+
+export async function skipGeneratorBuild(generatorId) {
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/build/skip`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "건설 스킵 실패");
   return data;
 }
 

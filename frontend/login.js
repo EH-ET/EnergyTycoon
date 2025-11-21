@@ -152,7 +152,7 @@ signupBtn.addEventListener('click', () => {
       if (!response.ok) throw new Error(data.detail || 'signup failed');
       return fetch(`${backendUrl}/login`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: {"Content-Type": "application/json", "X-CSRF-Token": getCsrfToken()},
         credentials: "include",
         body: JSON.stringify({username, password})
       });

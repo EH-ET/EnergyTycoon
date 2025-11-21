@@ -38,6 +38,18 @@ def ensure_big_value_columns():
                 conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
 
 
+def ensure_generator_columns():
+    """Ensure legacy sqlite DBs contain the newest generator columns."""
+    needed = [
+        ("build_complete_ts", "INTEGER"),
+    ]
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('generators')")}
+        for col_name, col_def in needed:
+            if col_name not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE generators ADD COLUMN {col_name} {col_def}")
+
+
 def create_default_generator_types(db: Session):
     """Seed default generator types if none exist."""
     if db.query(GeneratorType).count() == 0:
