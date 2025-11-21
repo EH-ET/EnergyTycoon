@@ -20,7 +20,7 @@ REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "yeCuXMndsYC3kMnAPw__")
 TRAP_COOKIE_NAME = os.getenv("TRAP_COOKIE_NAME", "abtkn")
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
+COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "strict")
 
 _LEGACY_HASH_LENGTH = 64
 _HEX_DIGITS = set(string.hexdigits.lower())

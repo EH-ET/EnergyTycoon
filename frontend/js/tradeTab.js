@@ -1,7 +1,7 @@
 // 교환소 탭 렌더링
 import { requireLoginForContent, dom, updateExchangeRateUI } from "./ui.js";
 import { exchangeEnergy, fetchExchangeRate } from "./apiClient.js";
-import { state, syncUserState, getAuthToken } from "./state.js";
+import { state, syncUserState, getAuthToken, beginTrapGuardGracePeriod } from "./state.js";
 
 export function renderTradeTab() {
   if (!requireLoginForContent(state.currentUser, "로그인 필요")) return;
@@ -163,6 +163,7 @@ export function renderTradeTab() {
     }
     try {
       setBusy(true);
+      beginTrapGuardGracePeriod();
       const beforeMoney = state.currentUser.money;
       const data = await exchangeEnergy(
         getAuthToken(),

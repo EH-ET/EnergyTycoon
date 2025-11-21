@@ -1,5 +1,6 @@
 import { dom } from "./ui.js";
 import { state } from "./state.js";
+import { API_BASE } from "./data.js";
 // import { stopAutosaveTimer } from "./autosave.js";
 import { updateRankFromServer } from "./rank.js";
 
@@ -111,8 +112,6 @@ function clearAuthState() {
   localStorage.removeItem("et_u");
   localStorage.removeItem("et_ss");
   sessionStorage.removeItem("et_tp");
-  sessionStorage.removeItem("et_at");
-  sessionStorage.removeItem("et_rt");
   localStorage.removeItem("access_token"); // legacy cleanup
   sessionStorage.removeItem("access_token"); // legacy cleanup
   state.currentUser = null;
@@ -124,8 +123,12 @@ function clearAuthState() {
 }
 
 function handleLogout() {
-  clearAuthState();
-  window.location.href = "index.html";
+  fetch(`${API_BASE}/logout`, { method: "POST", credentials: "include" })
+    .catch((err) => console.warn("server logout failed", err))
+    .finally(() => {
+      clearAuthState();
+      window.location.href = "index.html";
+    });
 }
 
 function isProfileOpen() {

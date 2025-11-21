@@ -137,11 +137,17 @@ async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
 @router.post("/progress/autosave")
 async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
+    if payload is None:
+        raise HTTPException(status_code=400, detail="No payload provided")
     updated = False
     if payload.energy is not None:
+        if payload.energy < 0:
+            raise HTTPException(status_code=400, detail="Energy cannot be negative")
         user.energy = payload.energy
         updated = True
     if payload.money is not None:
+        if payload.money < 0:
+            raise HTTPException(status_code=400, detail="Money cannot be negative")
         user.money = payload.money
         updated = True
     if not updated:

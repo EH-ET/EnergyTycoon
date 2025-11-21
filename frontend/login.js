@@ -15,9 +15,19 @@ const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
   trap: "et_tp",
-  access: "et_at",
-  refresh: "et_rt",
 };
+
+function sanitizeInput(value) {
+  if (typeof value !== "string") return "";
+  // Remove characters commonly used in XSS payloads while preserving typical credentials
+  return value.replace(/[<>"'`]/g, "").trim();
+}
+
+function sanitizeUsername(value) {
+  if (typeof value !== "string") return "";
+  // Allow only ASCII letters and numbers for usernames
+  return value.replace(/[^A-Za-z0-9]/g, "").trim();
+}
 
 function storeUser(user) {
   try {
@@ -51,10 +61,8 @@ function persistTrapMarker() {
   if (trap) sessionStorage.setItem(STORAGE_KEYS.trap, trap);
 }
 
-function storeTokens({ access_token, refresh_token }) {
-  if (access_token) sessionStorage.setItem(STORAGE_KEYS.access, access_token);
-  if (refresh_token) sessionStorage.setItem(STORAGE_KEYS.refresh, refresh_token);
-}
+// 인증 토큰은 HttpOnly 쿠키로만 보관해 클라이언트 스토리지 노출을 막는다.
+function storeTokens() {}
 
 function showMessage(msg, color = 'green') {
   messageBox.textContent = msg;
@@ -62,8 +70,8 @@ function showMessage(msg, color = 'green') {
 }
 
 loginBtn.addEventListener('click', () => {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
+  const username = sanitizeUsername(usernameInput.value);
+  const password = sanitizeInput(passwordInput.value);
 
   if (!username) {
     showMessage('아이디를 입력해주세요.', 'red');
@@ -93,8 +101,8 @@ loginBtn.addEventListener('click', () => {
 });
 
 signupBtn.addEventListener('click', () => {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value.trim();
+  const username = sanitizeUsername(usernameInput.value);
+  const password = sanitizeInput(passwordInput.value);
 
   if (!username) {
     showMessage('회원가입을 위해 아이디를 입력해주세요.', 'red');

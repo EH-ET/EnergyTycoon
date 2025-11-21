@@ -34,7 +34,7 @@ async def signup(response: Response, payload: schemas.UserCreate, db: Session = 
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
-    return {"user": schemas.UserOut.model_validate(u), "access_token": access_token, "refresh_token": refresh_token}
+    return {"user": schemas.UserOut.model_validate(u)}
 
 
 @router.post("/login")
@@ -53,7 +53,7 @@ async def login(response: Response, payload: schemas.LoginIn, db: Session = Depe
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
-    return {"user": schemas.UserOut.model_validate(user), "access_token": access_token, "refresh_token": refresh_token}
+    return {"user": schemas.UserOut.model_validate(user)}
 
 
 @router.post("/logout")
@@ -74,7 +74,7 @@ async def refresh_access(response: Response, auth=Depends(get_refresh_user_and_d
         revoke_token(refresh_token_used)
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, new_refresh)
-    return {"access_token": access_token}
+    return {"detail": "access token refreshed"}
 
 
 @router.post("/refresh/refresh")
@@ -86,4 +86,4 @@ async def refresh_refresh(response: Response, auth=Depends(get_refresh_user_and_
     if response:
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, refresh_token)
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return {"detail": "token pair refreshed"}

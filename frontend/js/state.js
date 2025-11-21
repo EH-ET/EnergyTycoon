@@ -3,8 +3,6 @@ const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
   trap: "et_tp",
-  access: "et_at",
-  refresh: "et_rt",
 };
 
 const TRAP_COOKIE_NAME = "abtkn";
@@ -68,7 +66,8 @@ export function syncUserState(user, options = {}) {
 }
 
 export function getAuthToken() {
-  return sessionStorage.getItem(STORAGE_KEYS.access) || localStorage.getItem(STORAGE_KEYS.access);
+  // 토큰은 HttpOnly 쿠키로만 보관하므로 JS로 접근하지 않는다.
+  return null;
 }
 
 export function getAuthContext() {
@@ -116,8 +115,6 @@ function clearClientSession() {
   localStorage.removeItem(STORAGE_KEYS.user);
   localStorage.removeItem(SESSION_START_KEY);
   sessionStorage.removeItem(STORAGE_KEYS.trap);
-  sessionStorage.removeItem(STORAGE_KEYS.access);
-  sessionStorage.removeItem(STORAGE_KEYS.refresh);
   // Legacy token cleanup
   localStorage.removeItem("access_token");
   sessionStorage.removeItem("access_token");
