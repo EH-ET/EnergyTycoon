@@ -5,6 +5,15 @@ from ..dependencies import get_user_and_db
 from ..game_logic import current_market_rate, MARKET_STATE
 from ..schemas import ExchangeIn, UserOut
 from ..models import User
+from ..bigvalue import (
+    get_user_energy_value,
+    set_user_energy_value,
+    get_user_money_value,
+    set_user_money_value,
+    compare_plain,
+    subtract_plain,
+    add_plain,
+)
 
 router = APIRouter()
 
@@ -20,12 +29,15 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     _ensure_same_user(user, payload.user_id)
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
-    if user.energy < payload.amount:
+    energy_value = get_user_energy_value(user)
+    if compare_plain(energy_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough energy")
     rate = current_market_rate(user)
     gained = max(1, int(payload.amount * rate))
-    user.energy -= payload.amount
-    user.money += gained
+    energy_value = subtract_plain(energy_value, payload.amount)
+    money_value = add_plain(get_user_money_value(user), gained)
+    set_user_energy_value(user, energy_value)
+    set_user_money_value(user, money_value)
     MARKET_STATE["sold_energy"] += payload.amount
     db.commit()
     db.refresh(user)
@@ -43,11 +55,14 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     _ensure_same_user(user, payload.user_id)
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
-    if user.money < payload.amount:
+    money_value = get_user_money_value(user)
+    if compare_plain(money_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     rate = current_market_rate(user)
-    user.money -= payload.amount
-    user.energy += payload.amount
+    money_value = subtract_plain(money_value, payload.amount)
+    energy_value = add_plain(get_user_energy_value(user), payload.amount)
+    set_user_money_value(user, money_value)
+    set_user_energy_value(user, energy_value)
     db.commit()
     db.refresh(user)
     return {"energy": user.energy, "money": user.money, "rate": rate, "user": UserOut.model_validate(user)}

@@ -4,6 +4,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from .models import User
+from .bigvalue import (
+    get_user_money_value,
+    set_user_money_value,
+    compare_plain,
+    subtract_plain,
+)
 
 UPGRADE_CONFIG = {
     "production": {"field": "production_bonus", "base_cost": 100, "price_growth": 1.25},
@@ -52,9 +58,10 @@ def apply_upgrade(user: User, db: Session, key: str, amount: int) -> User:
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Increase amount must be at least 1")
     cost = calculate_upgrade_cost(user, key, amount)
-    if user.money < cost:
+    money_value = get_user_money_value(user)
+    if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
-    user.money -= cost
+    set_user_money_value(user, subtract_plain(money_value, cost))
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
     db.commit()
     db.refresh(user)

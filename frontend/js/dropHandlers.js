@@ -14,6 +14,7 @@ import {
   syncUserState,
   beginTrapGuardGracePeriod,
   touchTrapMarker,
+  compareMoneyWith,
 } from "./state.js";
 import { startEnergyTimer } from "./energy.js";
 
@@ -178,7 +179,7 @@ export function initDropHandlers() {
       alert("서버에서 발전기 정보를 불러오지 못했습니다.");
       return;
     }
-    if (user.money < cost) {
+    if (compareMoneyWith(cost) < 0) {
       alert("돈이 부족합니다.");
       return;
     }

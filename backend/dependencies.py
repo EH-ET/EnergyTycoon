@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .auth_utils import TOKEN_TYPE_ACCESS, TOKEN_TYPE_REFRESH, require_user_from_token
 from .database import get_db
 from .models import User
+from .bigvalue import ensure_user_big_values
 
 
 def _extract_auth_token(header_val: Optional[str], cookie_val: Optional[str]) -> str:
@@ -27,6 +28,7 @@ def get_token_from_header(
 
 def get_user_and_db(token: str = Depends(get_token_from_header), db: Session = Depends(get_db)):
     user = require_user_from_token(token, db, expected_type=TOKEN_TYPE_ACCESS)
+    ensure_user_big_values(user, db)
     return user, db, token
 
 

@@ -1,7 +1,8 @@
 // 에너지 생산량 계산 및 타이머 (서버 저장은 progress 저장 시 함께 처리)
 import { generators } from "./data.js";
-import { state, syncUserState } from "./state.js";
+import { state, syncUserState, getEnergyValue, setEnergyValue } from "./state.js";
 import { updateEnergyRateUI } from "./ui.js";
+import { addPlainValue } from "./bigValue.js";
 
 export function computeEnergyPerSecond() {
   let total = 0;
@@ -27,7 +28,8 @@ export function startEnergyTimer() {
     const delta = computeEnergyPerSecond();
     updateEnergyRateUI(delta);
     if (delta <= 0) return;
-    state.currentUser.energy = Math.round((Number(state.currentUser.energy) || 0) + delta);
+    const nextValue = addPlainValue(getEnergyValue(), delta);
+    setEnergyValue(nextValue);
     syncUserState(state.currentUser, { persist: false });
   };
   tick();
