@@ -10,7 +10,7 @@ import {
   formatPlainValue,
   cleanupGeneratorEntry,
 } from "./generatorHelpers.js";
-import { saveProgress, demolishGenerator, skipGeneratorBuild } from "./apiClient.js";
+import { saveProgress, demolishGenerator, skipGeneratorBuild, updateGeneratorState } from "./apiClient.js";
 import { dom } from "./ui.js";
 import {
   state,
@@ -25,6 +25,7 @@ import { startEnergyTimer } from "./energy.js";
 const BASE_MAX_GENERATORS = 10;
 const GENERATOR_STEP = 5;
 const DEMOLISH_COST_RATE = 0.5;
+const DEFAULT_TOLERANCE = 100;
 
 let generatorModal = null;
 
@@ -113,11 +114,22 @@ function showGeneratorModal(entry, element) {
   const demolishCost = Math.max(1, Math.round(baseCost * DEMOLISH_COST_RATE));
   modal.title.textContent = entry.name || "발전기";
   modal.desc.textContent = `철거 비용: ${demolishCost} 돈`;
+  modal.overlay.querySelectorAll(".heat-info").forEach((node) => node.remove());
+  const tolerance = entry.tolerance || DEFAULT_TOLERANCE;
+  const heatLine = document.createElement("p");
+  heatLine.className = "heat-info";
+  heatLine.style.margin = "4px 0";
+  const updateHeatLine = () => {
+    heatLine.textContent = `발열: ${Math.round(entry.heat || 0)} / ${tolerance}`;
+  };
+  updateHeatLine();
   const prevInfo = modal.overlay.querySelector(".build-info");
   if (prevInfo) prevInfo.remove();
   const actions = modal.overlay.querySelector(".modal-actions");
   const prevSkip = actions.querySelector(".skip-button");
   if (prevSkip) prevSkip.remove();
+  const prevToggle = actions.querySelector(".run-toggle");
+  if (prevToggle) prevToggle.remove();
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
   if (entry.isDeveloping) {
     const remainingSeconds = Math.max(
@@ -153,6 +165,36 @@ function showGeneratorModal(entry, element) {
     };
     actions.appendChild(skipBtn);
   }
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "run-toggle";
+  toggleBtn.textContent = entry.running === false ? "운영 재개" : "운영 중단";
+  toggleBtn.style.flex = "1";
+  toggleBtn.style.background = entry.running === false ? "#27ae60" : "#f39c12";
+  toggleBtn.style.color = "#fff";
+  toggleBtn.onclick = async () => {
+    try {
+      beginTrapGuardGracePeriod();
+      const res = await updateGeneratorState(entry.generator_id, {
+        running: entry.running === false,
+        heat: entry.heat,
+      });
+      if (res.generator) {
+        syncEntryBuildState(entry, res.generator);
+        entry.running = res.generator.running !== false;
+        entry.heat = typeof res.generator.heat === "number" ? res.generator.heat : entry.heat;
+        updateHeatLine();
+      }
+      if (res.user) syncUserState(res.user);
+      touchTrapMarker();
+      hideModal();
+    } catch (err) {
+      alert(err.message || "상태 변경 실패");
+    }
+  };
+  actions.appendChild(toggleBtn);
+
+  modal.desc.insertAdjacentElement("afterend", heatLine);
   modal.demolishBtn.onclick = async () => {
     try {
       beginTrapGuardGracePeriod();
@@ -251,17 +293,25 @@ export function initDropHandlers() {
       const genName = res.generator && res.generator.type ? res.generator.type : gen.이름;
       const idxByName = findGeneratorIndexByName(genName);
       const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
+      const tolerance = Number(gen.내열한계) || DEFAULT_TOLERANCE;
+      const heatRate = Number(gen.발열) || 0;
+      const level = res.generator.level || 1;
       const entry = {
         x: worldX,
         name: genName,
         genIndex: idxByName,
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
-        level: res.generator.level || 1,
+        level,
         baseCost: cost,
         isDeveloping: Boolean(res.generator.isdeveloping),
         buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : null,
+        buildDurationMs: Math.max(1000, 2 ** level * 1000),
         buildTimer: null,
+        running: res.generator.running !== false,
+        heat: typeof res.generator.heat === "number" ? res.generator.heat : 0,
+        tolerance,
+        heatRate,
       };
       entry.element = placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       state.placedGenerators.push(entry);

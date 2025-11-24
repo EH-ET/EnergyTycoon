@@ -42,6 +42,7 @@ def ensure_generator_columns():
     """Ensure legacy sqlite DBs contain the newest generator columns."""
     needed = [
         ("build_complete_ts", "INTEGER"),
+        ("running", "INTEGER NOT NULL DEFAULT 1"),
     ]
     with engine.begin() as conn:
         existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('generators')")}

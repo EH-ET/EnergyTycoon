@@ -198,3 +198,20 @@ export async function autosaveProgress(token, payload = {}) {
   if (!res.ok) throw new Error(data.detail || "자동 저장 실패");
   return data;
 }
+
+export async function updateGeneratorState(generatorId, payload = {}) {
+  const body = {};
+  if (payload.running != null) body.running = Boolean(payload.running);
+  if (typeof payload.heat === "number") body.heat = Math.max(0, Math.floor(payload.heat));
+  if (payload.explode) body.explode = true;
+  if (!Object.keys(body).length) throw new Error("변경할 내용이 없습니다.");
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/state`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "발전기 상태 업데이트 실패");
+  return data;
+}

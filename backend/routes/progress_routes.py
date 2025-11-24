@@ -17,17 +17,7 @@ from ..bigvalue import (
     from_payload,
     to_plain,
 )
-from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut
-from ..bigvalue import (
-    get_user_money_value,
-    set_user_money_value,
-    get_user_energy_value,
-    set_user_energy_value,
-    compare_plain,
-    subtract_plain,
-    from_payload,
-    to_plain,
-)
+from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate
 import os
 
 router = APIRouter()
@@ -65,6 +55,7 @@ def _maybe_complete_build(generator: Generator, now: Optional[int] = None) -> bo
     if generator.build_complete_ts and generator.build_complete_ts <= now:
         generator.isdeveloping = False
         generator.build_complete_ts = None
+        generator.running = True
         return True
     return False
 
@@ -81,6 +72,7 @@ def _serialize_generator(g: Generator, type_name: Optional[str] = None, cost: Op
         "isdeveloping": g.isdeveloping,
         "build_complete_ts": g.build_complete_ts,
         "heat": g.heat,
+        "running": getattr(g, "running", True),
     }
 
 
@@ -141,6 +133,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
         world_position=payload.world_position,
         isdeveloping=False,
         heat=0,
+        running=True,
     )
     db.add(g)
     set_user_money_value(user, subtract_plain(money_value, gt.cost))
@@ -183,6 +176,43 @@ async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
     db.commit()
     db.refresh(user)
     return {"user": UserOut.model_validate(user), "demolished": {"generator_id": generator_id, "cost": cost}}
+
+
+@router.post("/progress/{generator_id}/state")
+async def update_generator_state(generator_id: str, payload: GeneratorStateUpdate, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    gen = (
+        db.query(Generator)
+        .filter(Generator.generator_id == generator_id, Generator.owner_id == user.user_id)
+        .first()
+    )
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generator not found")
+    changed = False
+    if payload.heat is not None:
+        gen.heat = max(0, int(payload.heat))
+        changed = True
+    if payload.running is not None:
+        gen.running = bool(payload.running)
+        changed = True
+    if payload.explode:
+        gen.isdeveloping = True
+        gen.running = False
+        gen.heat = 0
+        gen.build_complete_ts = int(time.time() + _build_duration(gen.level))
+        changed = True
+    if not changed:
+        raise HTTPException(status_code=400, detail="No changes provided")
+    db.commit()
+    db.refresh(gen)
+    return {
+        "user": UserOut.model_validate(user),
+        "generator": _serialize_generator(
+            gen,
+            getattr(gen.generator_type, "name", None),
+            getattr(gen.generator_type, "cost", None),
+        ),
+    }
 
 
 @router.post("/progress/autosave")
@@ -242,6 +272,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     if remaining <= 0:
         gen.isdeveloping = False
         gen.build_complete_ts = None
+        gen.running = True
         db.commit()
         db.refresh(gen)
         return {
@@ -257,6 +288,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     set_user_money_value(user, subtract_plain(money_value, cost))
     gen.isdeveloping = False
     gen.build_complete_ts = None
+    gen.running = True
     db.commit()
     db.refresh(gen)
     return {

@@ -5,6 +5,12 @@ import { state } from "./state.js";
 import { formatResourceValue, fromPlainValue } from "./bigValue.js";
 
 const BUILD_OVERLAY_SRC = "./generator/build.png";
+const DEFAULT_TOLERANCE = 100;
+
+function buildDurationMs(level = 1) {
+  const lvl = Math.max(1, Number(level) || 1);
+  return Math.max(1000, 2 ** lvl * 1000);
+}
 
 export function defaultPlacementY() {
   const height = dom.mainArea ? dom.mainArea.clientHeight : 0;
@@ -86,6 +92,7 @@ export function renderSavedGenerators(list) {
     const idx = findGeneratorIndexByName(name);
     const imgSrc = idx >= 0 ? makeImageSrcByIndex(idx) : placeholderDataUrl();
     const typeInfo = state.generatorTypesById[g.generator_type_id] || {};
+    const meta = generators[idx] || {};
     const entry = {
       x: g.x_position,
       name,
@@ -96,7 +103,12 @@ export function renderSavedGenerators(list) {
       baseCost: g.cost || typeInfo.cost || 0,
       isDeveloping: Boolean(g.isdeveloping),
       buildCompleteTs: g.build_complete_ts ? g.build_complete_ts * 1000 : null,
+      buildDurationMs: buildDurationMs(g.level),
       buildTimer: null,
+      running: g.running !== false,
+      heat: Number(g.heat) || 0,
+      tolerance: Number(meta?.내열한계) || DEFAULT_TOLERANCE,
+      heatRate: Number(meta?.발열) || 0,
     };
     entry.element = placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
     state.placedGenerators.push(entry);
@@ -173,6 +185,9 @@ export function syncEntryBuildState(entry, generator) {
     if (generator.cost != null) entry.baseCost = generator.cost;
     entry.isDeveloping = Boolean(generator.isdeveloping);
     entry.buildCompleteTs = generator.build_complete_ts ? generator.build_complete_ts * 1000 : null;
+    entry.buildDurationMs = buildDurationMs(entry.level);
+    entry.running = generator.running !== false;
+    if (typeof generator.heat === "number") entry.heat = generator.heat;
   }
   applyBuildOverlay(entry);
 }
