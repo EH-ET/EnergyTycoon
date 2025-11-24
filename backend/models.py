@@ -65,6 +65,9 @@ class MapProgress(Base):
     map_progress_id = Column(String, primary_key=True, default=generate_uuid, index=True)
     user_id = Column(String, ForeignKey("users.user_id"), nullable=False)
     generator_id = Column(String, ForeignKey("generators.generator_id"), nullable=False)
+    production_upgrade = Column(Integer, default=0, nullable=False)
+    heat_reduction_upgrade = Column(Integer, default=0, nullable=False)
+    tolerance_upgrade = Column(Integer, default=0, nullable=False)
 
     user = relationship("User", back_populates="map_progresses")
     generator = relationship("Generator", back_populates="map_progresses")

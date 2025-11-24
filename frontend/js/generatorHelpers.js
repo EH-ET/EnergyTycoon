@@ -101,6 +101,8 @@ export function renderSavedGenerators(list) {
       generator_type_id: g.generator_type_id,
       level: g.level || 1,
       baseCost: g.cost || typeInfo.cost || 0,
+      cost_data: g.cost_data,
+      cost_high: g.cost_high,
       isDeveloping: Boolean(g.isdeveloping),
       buildCompleteTs: g.build_complete_ts ? g.build_complete_ts * 1000 : null,
       buildDurationMs: buildDurationMs(g.level),
@@ -108,7 +110,9 @@ export function renderSavedGenerators(list) {
       running: g.running !== false,
       heat: Number(g.heat) || 0,
       tolerance: Number(meta?.내열한계) || DEFAULT_TOLERANCE,
+      baseTolerance: Number(meta?.내열한계) || DEFAULT_TOLERANCE,
       heatRate: Number(meta?.발열) || 0,
+      upgrades: g.upgrades || { production: 0, heat_reduction: 0, tolerance: 0 },
     };
     entry.element = placeGeneratorVisual(g.x_position, imgSrc, name || "발전기", g.generator_id);
     state.placedGenerators.push(entry);
@@ -188,6 +192,7 @@ export function syncEntryBuildState(entry, generator) {
     entry.buildDurationMs = buildDurationMs(entry.level);
     entry.running = generator.running !== false;
     if (typeof generator.heat === "number") entry.heat = generator.heat;
+    if (generator.upgrades) entry.upgrades = generator.upgrades;
   }
   applyBuildOverlay(entry);
 }

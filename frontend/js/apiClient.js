@@ -215,3 +215,15 @@ export async function updateGeneratorState(generatorId, payload = {}) {
   if (!res.ok) throw new Error(data.detail || "발전기 상태 업데이트 실패");
   return data;
 }
+
+export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/upgrade`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify({ upgrade, amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "발전기 업그레이드 실패");
+  return data;
+}

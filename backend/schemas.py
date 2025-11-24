@@ -65,3 +65,8 @@ class GeneratorStateUpdate(BaseModel):
     running: Optional[bool] = None
     heat: Optional[int] = Field(default=None, ge=0)
     explode: Optional[bool] = False
+
+
+class GeneratorUpgradeRequest(BaseModel):
+    upgrade: str
+    amount: int = Field(1, ge=1)

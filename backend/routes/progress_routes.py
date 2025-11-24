@@ -16,8 +16,10 @@ from ..bigvalue import (
     subtract_plain,
     from_payload,
     to_plain,
+    from_plain,
+    to_payload,
 )
-from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate
+from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
 import os
 
 router = APIRouter()
@@ -27,6 +29,11 @@ MAX_GENERATOR_STEP = 5
 DEMOLISH_COST_RATE = 0.5
 MAX_ENERGY_VALUE = int(os.getenv("MAX_ENERGY_VALUE", 1_000_000_000_000))
 MAX_MONEY_VALUE = int(os.getenv("MAX_MONEY_VALUE", 1_000_000_000_000))
+GENERATOR_UPGRADE_CONFIG = {
+    "production": {"field": "production_upgrade", "base_cost_multiplier": 0.5, "price_growth": 1.25},
+    "heat_reduction": {"field": "heat_reduction_upgrade", "base_cost_multiplier": 0.4, "price_growth": 1.2},
+    "tolerance": {"field": "tolerance_upgrade", "base_cost_multiplier": 0.45, "price_growth": 1.2},
+}
 
 
 def _ensure_same_user(user: User, target_user_id: Optional[str]):
@@ -60,12 +67,21 @@ def _maybe_complete_build(generator: Generator, now: Optional[int] = None) -> bo
     return False
 
 
-def _serialize_generator(g: Generator, type_name: Optional[str] = None, cost: Optional[int] = None):
+def _serialize_generator(
+    g: Generator,
+    type_name: Optional[str] = None,
+    cost: Optional[int] = None,
+    mp: Optional[MapProgress] = None,
+):
+    cost_val = cost if cost is not None else getattr(getattr(g, "generator_type", None), "cost", None)
+    cost_payload = to_payload(from_plain(cost_val or 0))
     return {
         "generator_id": g.generator_id,
         "generator_type_id": g.generator_type_id,
         "type": type_name,
-        "cost": cost if cost is not None else getattr(getattr(g, "generator_type", None), "cost", None),
+        "cost": cost_val,
+        "cost_data": cost_payload["data"],
+        "cost_high": cost_payload["high"],
         "x_position": g.x_position,
         "world_position": g.world_position,
         "level": g.level,
@@ -73,6 +89,11 @@ def _serialize_generator(g: Generator, type_name: Optional[str] = None, cost: Op
         "build_complete_ts": g.build_complete_ts,
         "heat": g.heat,
         "running": getattr(g, "running", True),
+        "upgrades": {
+            "production": getattr(mp, "production_upgrade", 0) if mp else 0,
+            "heat_reduction": getattr(mp, "heat_reduction_upgrade", 0) if mp else 0,
+            "tolerance": getattr(mp, "tolerance_upgrade", 0) if mp else 0,
+        },
     }
 
 
@@ -81,23 +102,23 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
     user, db, _ = auth
     _ensure_same_user(user, user_id)
     gens = (
-        db.query(Generator)
+        db.query(Generator, MapProgress)
         .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
         .filter(MapProgress.user_id == user.user_id)
         .all()
     )
     now = int(time.time())
     updated = False
-    for g in gens:
+    for g, mp in gens:
         if _maybe_complete_build(g, now):
             updated = True
     if updated:
         db.commit()
     out = []
-    for g in gens:
+    for g, mp in gens:
         type_name = getattr(g.generator_type, "name", None)
         cost = getattr(g.generator_type, "cost", None)
-        out.append(_serialize_generator(g, type_name, cost))
+        out.append(_serialize_generator(g, type_name, cost, mp))
     return {"user_id": user.user_id, "generators": out, "user": UserOut.model_validate(user)}
 
 
@@ -142,11 +163,12 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     g.build_complete_ts = int(time.time() + build_duration)
     db.commit()
     db.refresh(g)
-    db.add(MapProgress(user_id=user.user_id, generator_id=g.generator_id))
+    mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
+    db.add(mp)
     db.commit()
     return {
         "ok": True,
-        "generator": _serialize_generator(g, gt.name, gt.cost),
+        "generator": _serialize_generator(g, gt.name, gt.cost, mp),
         "user": UserOut.model_validate(user),
     }
 
@@ -162,6 +184,7 @@ async def remove_generator(generator_id: str, auth=Depends(get_user_and_db)):
     if not gen:
         raise HTTPException(status_code=404, detail="Generator not found")
     gt = db.query(GeneratorType).filter_by(generator_type_id=gen.generator_type_id).first()
+    mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
     cost = _demolish_cost(gt)
@@ -188,6 +211,7 @@ async def update_generator_state(generator_id: str, payload: GeneratorStateUpdat
     )
     if not gen:
         raise HTTPException(status_code=404, detail="Generator not found")
+    mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
     changed = False
     if payload.heat is not None:
         gen.heat = max(0, int(payload.heat))
@@ -211,7 +235,69 @@ async def update_generator_state(generator_id: str, payload: GeneratorStateUpdat
             gen,
             getattr(gen.generator_type, "name", None),
             getattr(gen.generator_type, "cost", None),
+            mp,
         ),
+    }
+
+
+def _gen_upgrade_meta(key: str):
+    meta = GENERATOR_UPGRADE_CONFIG.get(key)
+    if not meta:
+        raise HTTPException(status_code=404, detail="Unknown upgrade")
+    return meta
+
+
+def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> int:
+    meta = _gen_upgrade_meta(key)
+    base_cost = getattr(gt, "cost", 10) or 10
+    current_level = getattr(mp, meta["field"], 0) or 0
+    total = 0
+    for i in range(amount):
+        level = current_level + i + 1
+        total += int(base_cost * meta["base_cost_multiplier"] * (meta["price_growth"] ** level))
+    return max(1, total)
+
+
+@router.post("/progress/{generator_id}/upgrade")
+async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    gen = (
+        db.query(Generator)
+        .filter(Generator.generator_id == generator_id, Generator.owner_id == user.user_id)
+        .first()
+    )
+    if not gen:
+        raise HTTPException(status_code=404, detail="Generator not found")
+    gt = db.query(GeneratorType).filter_by(generator_type_id=gen.generator_type_id).first()
+    if not gt:
+        raise HTTPException(status_code=404, detail="Generator type not found")
+    mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
+    if not mp:
+        raise HTTPException(status_code=404, detail="Progress not found")
+    amount = max(1, payload.amount or 1)
+    cost = _calc_generator_upgrade_cost(gt, mp, payload.upgrade, amount)
+    money_value = get_user_money_value(user)
+    if compare_plain(money_value, cost) < 0:
+        raise HTTPException(status_code=400, detail="Not enough money")
+    meta = _gen_upgrade_meta(payload.upgrade)
+    new_level = getattr(mp, meta["field"], 0) + amount
+    setattr(mp, meta["field"], new_level)
+    set_user_money_value(user, subtract_plain(money_value, cost))
+    db.commit()
+    db.refresh(user)
+    db.refresh(mp)
+    db.refresh(gen)
+    return {
+        "user": UserOut.model_validate(user),
+        "generator": _serialize_generator(
+            gen,
+            getattr(gt, "name", None),
+            getattr(gt, "cost", None),
+            mp,
+        ),
+        "cost": cost,
+        "cost_data": to_payload(from_plain(cost))["data"],
+        "cost_high": to_payload(from_plain(cost))["high"],
     }
 
 
@@ -261,12 +347,12 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         db.refresh(gen)
         return {
             "user": UserOut.model_validate(user),
-            "generator": _serialize_generator(gen, type_name, type_cost),
+            "generator": _serialize_generator(gen, type_name, type_cost, mp),
         }
     if not gen.isdeveloping or not gen.build_complete_ts:
         return {
             "user": UserOut.model_validate(user),
-            "generator": _serialize_generator(gen, type_name, type_cost),
+            "generator": _serialize_generator(gen, type_name, type_cost, mp),
         }
     remaining = max(0, gen.build_complete_ts - now)
     if remaining <= 0:
@@ -277,7 +363,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         db.refresh(gen)
         return {
             "user": UserOut.model_validate(user),
-            "generator": _serialize_generator(gen, type_name, type_cost),
+            "generator": _serialize_generator(gen, type_name, type_cost, mp),
         }
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
@@ -293,7 +379,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     db.refresh(gen)
     return {
         "user": UserOut.model_validate(user),
-        "generator": _serialize_generator(gen, type_name, type_cost),
+        "generator": _serialize_generator(gen, type_name, type_cost, mp),
         "skip_cost": cost,
         "remaining_seconds": remaining,
     }

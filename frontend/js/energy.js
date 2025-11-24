@@ -30,6 +30,20 @@ async function handleExplosion(entry) {
   }
 }
 
+function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
+  const level = upgrades[type] || 0;
+  if (!level) return baseValue;
+  const factor = 1 + 0.1 * level;
+  return baseValue * factor;
+}
+
+function applyHeatReduction(heatRate, upgrades = {}) {
+  const lvl = upgrades.heat_reduction || 0;
+  if (!lvl) return heatRate;
+  const factor = Math.max(0.1, 1 - 0.1 * lvl);
+  return heatRate * factor;
+}
+
 export function computeEnergyPerSecond(deltaSeconds = 1) {
   let baseTotal = 0;
   state.placedGenerators.forEach((pg) => {
@@ -40,12 +54,22 @@ export function computeEnergyPerSecond(deltaSeconds = 1) {
     if (pg.running === false) return;
     if (pg.genIndex != null && pg.genIndex >= 0) {
       const g = generators[pg.genIndex];
+      const upgrades = pg.upgrades || {};
       const base = g ? Number(g["생산량(에너지)"]) || 0 : 0;
-      baseTotal += base;
-      const heatRate = typeof pg.heatRate === "number" ? pg.heatRate : (g ? Number(g["발열"]) || 0 : 0);
+      const produced = applyUpgradeEffects(base, upgrades, { type: "production" });
+      baseTotal += produced;
+      let heatRate = typeof pg.heatRate === "number" ? pg.heatRate : (g ? Number(g["발열"]) || 0 : 0);
+      heatRate = applyHeatReduction(heatRate, upgrades);
+      // production 업그레이드 부가 발열
+      heatRate += (upgrades.production || 0) * 0.5;
       pg.heat = Math.max(0, (pg.heat || 0) + heatRate * deltaSeconds);
-      const tolerance = typeof pg.tolerance === "number" ? pg.tolerance : (g ? Number(g["내열한계"]) || 0 : 0);
-      if (tolerance > 0 && pg.heat > tolerance) {
+      const baseTolerance = typeof pg.baseTolerance === "number"
+        ? pg.baseTolerance
+        : typeof pg.tolerance === "number"
+          ? pg.tolerance
+          : (g ? Number(g["내열한계"]) || 0 : 0);
+      const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10;
+      if (toleranceBuff > 0 && pg.heat > toleranceBuff) {
         handleExplosion(pg);
       }
     }

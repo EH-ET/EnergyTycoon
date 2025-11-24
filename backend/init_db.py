@@ -51,6 +51,19 @@ def ensure_generator_columns():
                 conn.exec_driver_sql(f"ALTER TABLE generators ADD COLUMN {col_name} {col_def}")
 
 
+def ensure_map_progress_columns():
+    needed = [
+        ("production_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+        ("heat_reduction_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+        ("tolerance_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+    with engine.begin() as conn:
+        existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('map_progress')")}
+        for col_name, col_def in needed:
+            if col_name not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE map_progress ADD COLUMN {col_name} {col_def}")
+
+
 def create_default_generator_types(db: Session):
     """Seed default generator types if none exist."""
     if db.query(GeneratorType).count() == 0:
