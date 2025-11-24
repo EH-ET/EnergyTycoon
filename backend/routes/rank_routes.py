@@ -3,12 +3,13 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import User
+from ..bigvalue import get_user_money_value, to_plain
 
 router = APIRouter()
 
 
 def _user_score(u: User) -> int:
-    return u.money
+    return to_plain(get_user_money_value(u))
 
 
 @router.get("/rank")

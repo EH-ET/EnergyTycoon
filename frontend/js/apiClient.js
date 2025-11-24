@@ -27,7 +27,7 @@ function ensureCsrfToken() {
 
 function attachCsrf(headers = {}) {
   const token = ensureCsrfToken();
-  return { ...headers, "X-CSRF-Token": token };
+  return { ...headers, "x-csrf-token": token };
 }
 
 export async function loadGeneratorTypes(state) {
@@ -114,14 +114,12 @@ export async function upgradeSupply(token) {
   return data;
 }
 
-export async function postUpgrade(endpoint, token, energy) {
+export async function postUpgrade(endpoint, token) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
-  const body = energy != null ? JSON.stringify({ energy }) : "{}";
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
     headers,
     credentials: "include",
-    body,
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -155,6 +153,17 @@ export async function fetchMyRank(token) {
   return data;
 }
 
+export async function skipGeneratorBuild(generatorId) {
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/build/skip`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "건설 스킵 실패");
+  return data;
+}
+
 export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
@@ -168,10 +177,14 @@ export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
   return data;
 }
 
-export async function autosaveProgress(token, { energy, money }) {
+export async function autosaveProgress(token, payload = {}) {
   const body = {};
-  if (typeof energy === "number") body.energy = energy;
-  if (typeof money === "number") body.money = money;
+  if (typeof payload.energy === "number") body.energy = payload.energy;
+  if (typeof payload.money === "number") body.money = payload.money;
+  if (payload.energy_data != null) body.energy_data = payload.energy_data;
+  if (payload.energy_high != null) body.energy_high = payload.energy_high;
+  if (payload.money_data != null) body.money_data = payload.money_data;
+  if (payload.money_high != null) body.money_high = payload.money_high;
   if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
   const res = await fetch(`${API_BASE}/progress/autosave`, {
     method: "POST",
@@ -183,5 +196,34 @@ export async function autosaveProgress(token, { energy, money }) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "자동 저장 실패");
+  return data;
+}
+
+export async function updateGeneratorState(generatorId, payload = {}) {
+  const body = {};
+  if (payload.running != null) body.running = Boolean(payload.running);
+  if (typeof payload.heat === "number") body.heat = Math.max(0, Math.floor(payload.heat));
+  if (payload.explode) body.explode = true;
+  if (!Object.keys(body).length) throw new Error("변경할 내용이 없습니다.");
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/state`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "발전기 상태 업데이트 실패");
+  return data;
+}
+
+export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
+  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/upgrade`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify({ upgrade, amount }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "발전기 업그레이드 실패");
   return data;
 }

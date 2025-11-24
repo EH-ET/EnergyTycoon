@@ -7,8 +7,10 @@ import {
   getAuthToken,
   beginTrapGuardGracePeriod,
   touchTrapMarker,
+  compareMoneyWith,
 } from "./state.js";
 import { postUpgrade } from "./apiClient.js";
+import { fromPlainValue, formatResourceValue, toPlainValue } from "./bigValue.js";
 
 function getUpgradeLevel(user, upgrade) {
   const base = user ? Number(user[upgrade.field]) || 0 : 0;
@@ -17,7 +19,8 @@ function getUpgradeLevel(user, upgrade) {
 
 function getUpgradeCost(user, upgrade) {
   const level = getUpgradeLevel(user, upgrade);
-  return Math.round(upgrade.baseCost * Math.pow(upgrade.priceGrowth, level));
+  const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
+  return Math.round(baseCostPlain * Math.pow(upgrade.priceGrowth, level));
 }
 
 export function renderUpgradeTab() {
@@ -49,7 +52,8 @@ export function renderUpgradeTab() {
     desc.style.fontSize = "14px";
 
     const cost = document.createElement("p");
-    cost.textContent = `비용: ${costValue} 돈`;
+    const costValueDisplay = formatResourceValue(fromPlainValue(costValue));
+    cost.textContent = `비용: ${costValueDisplay} 돈`;
     cost.style.fontWeight = "bold";
 
     const level = document.createElement("p");
@@ -61,15 +65,14 @@ export function renderUpgradeTab() {
     btn.style.padding = "8px 12px";
     btn.style.cursor = "pointer";
     btn.onclick = async () => {
-      if (state.currentUser.money < costValue) {
+      if (compareMoneyWith(costValue) < 0) {
         alert("돈이 부족합니다.");
         return;
       }
       try {
         beginTrapGuardGracePeriod();
-        const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), state.currentUser.energy);
-        const mergedUser = { ...newUser, energy: state.currentUser.energy };
-        syncUserState(mergedUser);
+        const newUser = await postUpgrade(upgrade.endpoint, getAuthToken());
+        syncUserState(newUser);
         touchTrapMarker();
         renderUpgradeTab();
       } catch (e) {

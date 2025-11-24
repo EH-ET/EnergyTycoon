@@ -7,11 +7,15 @@ import {
   getAuthToken,
   beginTrapGuardGracePeriod,
   touchTrapMarker,
+  getMoneyValue,
 } from "./state.js";
+import { toPlainValue, fromPlainValue, formatResourceValue } from "./bigValue.js";
 
 export function renderTradeTab() {
   if (!requireLoginForContent(state.currentUser, "로그인 필요")) return;
   dom.contentArea.replaceChildren();
+
+  const formatPlain = (plain) => formatResourceValue(fromPlainValue(Math.max(0, Number(plain) || 0)));
 
   const wrap = document.createElement("div");
   wrap.style.display = "grid";
@@ -109,7 +113,7 @@ export function renderTradeTab() {
   dom.contentArea.appendChild(wrap);
 
   let inFlight = false;
-  let lastRate = null;
+  let lastRate = state.exchangeRate;
 
   const setBusy = (busy) => {
     inFlight = busy;
@@ -132,9 +136,13 @@ export function renderTradeTab() {
       rateLine.textContent = "환율을 불러오는 중...";
     }
     const amount = Number(sellInput.value) || 0;
-    const expected =
-      typeof lastRate === "number" ? Math.max(1, Math.floor(amount * lastRate)) : "-";
-    amountLine.textContent = `${amount} 에너지 → ${expected} 원 예상`;
+    const amountValue = formatPlain(amount);
+    if (typeof lastRate === "number") {
+      const expectedPlain = Math.max(1, Math.floor(amount * lastRate));
+      amountLine.textContent = `${amountValue} 에너지 → ${formatPlain(expectedPlain)} 돈 예상`;
+    } else {
+      amountLine.textContent = `${amountValue} 에너지 → -`;
+    }
   };
 
   sellInput.addEventListener("input", updatePreview);
@@ -157,6 +165,10 @@ export function renderTradeTab() {
     }
   };
 
+  // 초기 상태에 저장된 환율을 반영
+  updatePreview();
+  updateRateMessage(lastRate);
+
   sellBtn.addEventListener("click", async (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -170,26 +182,25 @@ export function renderTradeTab() {
     try {
       setBusy(true);
       beginTrapGuardGracePeriod();
-      const beforeMoney = state.currentUser.money;
+      const beforeMoney = toPlainValue(getMoneyValue());
       const data = await exchangeEnergy(
         getAuthToken(),
         state.currentUser.user_id,
         amount,
         state.currentUser.energy,
       );
-      const nextUser = data.user || { ...state.currentUser, energy: data.energy, money: data.money };
-      state.currentUser.energy = nextUser.energy;
-      state.currentUser.money = nextUser.money;
-      syncUserState(nextUser);
-      const gained = nextUser.money - beforeMoney;
+      touchTrapMarker();
+      if (data.user) {
+        syncUserState(data.user);
+      }
+      const gained = toPlainValue(getMoneyValue()) - beforeMoney;
       lastRate = data.rate ?? lastRate;
       state.exchangeRate = lastRate;
       updateExchangeRateUI(lastRate);
       updateRateMessage(lastRate);
       updatePreview();
-      touchTrapMarker();
       const rateText = lastRate ? ` (rate ${lastRate.toFixed(2)})` : "";
-      msg.textContent = `성공: ${amount} 에너지 → ${gained} 돈${rateText}`;
+      msg.textContent = `성공: ${amount} 에너지 → ${formatPlain(gained)} 돈${rateText}`;
     } catch (e) {
       alert(e.message || e);
     } finally {

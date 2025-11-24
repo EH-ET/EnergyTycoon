@@ -1,6 +1,8 @@
 import { toFrontendPath } from "./data.js";
 
 // 전역 상태와 인증/저장 유틸
+import { normalizeValue, toPlainValue, comparePlainValue, valueFromServer, valueToServer } from "./bigValue.js";
+
 const STORAGE_KEYS = {
   user: "et_u",
   sessionTs: "et_ss",
@@ -53,7 +55,8 @@ export function getStoredUser() {
 
 export function persistUser(user) {
   try {
-    const encoded = btoa(JSON.stringify(user));
+    const toStore = sanitizeUserForStorage(user);
+    const encoded = btoa(JSON.stringify(toStore));
     localStorage.setItem(STORAGE_KEYS.user, encoded);
     syncTrapMarker(true);
   } catch (e) {
@@ -64,6 +67,7 @@ export function persistUser(user) {
 export function syncUserState(user, options = {}) {
   const { persist = true } = options;
   state.currentUser = user;
+  applyResourceValues(state.currentUser);
   if (persist) persistUser(user);
   if (userChangeHandler) userChangeHandler(user);
   syncTrapMarker(true);
@@ -121,6 +125,32 @@ function clearClientSession() {
 function trapCookieValue() {
   if (!TRAP_GUARD_ENABLED) return null;
   return readCookie(TRAP_COOKIE_NAME);
+}
+
+function sanitizeUserForStorage(user) {
+  if (!user) return user;
+  const clone = { ...user };
+  delete clone.energy_view;
+  delete clone.money_view;
+  delete clone.energy_value;
+  delete clone.money_value;
+  return clone;
+}
+
+function applyResourceValues(user) {
+  if (!user) return;
+  const energyValue = valueFromServer(user.energy_data, user.energy_high, user.energy);
+  user.energy_value = energyValue;
+  user.energy_view = energyValue;
+  user.energy_data = energyValue.data;
+  user.energy_high = energyValue.high;
+  user.energy = toPlainValue(energyValue);
+  const moneyValue = valueFromServer(user.money_data, user.money_high, user.money);
+  user.money_value = moneyValue;
+  user.money_view = moneyValue;
+  user.money_data = moneyValue.data;
+  user.money_high = moneyValue.high;
+  user.money = toPlainValue(moneyValue);
 }
 
 function ensureTrapPresence() {
@@ -191,6 +221,58 @@ function markTrapGuardCooldown(ms = TRAP_GRACE_MS) {
 export function beginTrapGuardGracePeriod(ms = TRAP_GRACE_MS) {
   markTrapGuardCooldown(ms);
   touchTrapMarker();
+}
+
+export function getMoneyValue(user = state.currentUser) {
+  if (!user) return normalizeValue();
+  if (!user.money_value) {
+    user.money_value = valueFromServer(user.money_data, user.money_high, user.money);
+  }
+  return user.money_value;
+}
+
+export function getEnergyValue(user = state.currentUser) {
+  if (!user) return normalizeValue();
+  if (!user.energy_value) {
+    user.energy_value = valueFromServer(user.energy_data, user.energy_high, user.energy);
+  }
+  return user.energy_value;
+}
+
+export function compareMoneyWith(amount) {
+  return comparePlainValue(getMoneyValue(), amount);
+}
+
+export function compareEnergyWith(amount) {
+  return comparePlainValue(getEnergyValue(), amount);
+}
+
+export function setMoneyValue(value) {
+  if (!state.currentUser) return;
+  const normalized = normalizeValue(value);
+  state.currentUser.money_value = normalized;
+  state.currentUser.money_view = normalized;
+  state.currentUser.money_data = normalized.data;
+  state.currentUser.money_high = normalized.high;
+  state.currentUser.money = toPlainValue(normalized);
+}
+
+export function setEnergyValue(value) {
+  if (!state.currentUser) return;
+  const normalized = normalizeValue(value);
+  state.currentUser.energy_value = normalized;
+  state.currentUser.energy_view = normalized;
+  state.currentUser.energy_data = normalized.data;
+  state.currentUser.energy_high = normalized.high;
+  state.currentUser.energy = toPlainValue(normalized);
+}
+
+export function toMoneyServerPayload() {
+  return valueToServer(getMoneyValue());
+}
+
+export function toEnergyServerPayload() {
+  return valueToServer(getEnergyValue());
 }
 
 export function initTrapGuard() {
