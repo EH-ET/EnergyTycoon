@@ -10,6 +10,7 @@ import {
   compareMoneyWith,
 } from "./state.js";
 import { postUpgrade } from "./apiClient.js";
+import { fromPlainValue, formatResourceValue, toPlainValue } from "./bigValue.js";
 
 function getUpgradeLevel(user, upgrade) {
   const base = user ? Number(user[upgrade.field]) || 0 : 0;
@@ -18,7 +19,8 @@ function getUpgradeLevel(user, upgrade) {
 
 function getUpgradeCost(user, upgrade) {
   const level = getUpgradeLevel(user, upgrade);
-  return Math.round(upgrade.baseCost * Math.pow(upgrade.priceGrowth, level));
+  const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
+  return Math.round(baseCostPlain * Math.pow(upgrade.priceGrowth, level));
 }
 
 export function renderUpgradeTab() {
@@ -50,7 +52,8 @@ export function renderUpgradeTab() {
     desc.style.fontSize = "14px";
 
     const cost = document.createElement("p");
-    cost.textContent = `비용: ${costValue} 돈`;
+    const costValueDisplay = formatResourceValue(fromPlainValue(costValue));
+    cost.textContent = `비용: ${costValueDisplay} 돈`;
     cost.style.fontWeight = "bold";
 
     const level = document.createElement("p");

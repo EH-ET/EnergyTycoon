@@ -10,7 +10,7 @@ import {
   formatPlainValue,
   cleanupGeneratorEntry,
 } from "./generatorHelpers.js";
-import { saveProgress, demolishGenerator, skipGeneratorBuild, updateGeneratorState } from "./apiClient.js";
+import { saveProgress, demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGenerator } from "./apiClient.js";
 import { dom } from "./ui.js";
 import {
   state,
@@ -21,13 +21,20 @@ import {
   compareMoneyWith,
 } from "./state.js";
 import { startEnergyTimer } from "./energy.js";
+import { valueFromServer, formatResourceValue, fromPlainValue, toPlainValue } from "./bigValue.js";
 
 const BASE_MAX_GENERATORS = 10;
 const GENERATOR_STEP = 5;
 const DEMOLISH_COST_RATE = 0.5;
 const DEFAULT_TOLERANCE = 100;
+const UPGRADE_CONFIG = {
+  production: { label: "생산량 증가", desc: "에너지 생산 +10%/레벨, 발열 +0.5/레벨", baseMultiplier: 0.5, growth: 1.25 },
+  heat_reduction: { label: "발열 감소", desc: "발열 10% 감소/레벨", baseMultiplier: 0.4, growth: 1.2 },
+  tolerance: { label: "내열 증가", desc: "내열 +10/레벨", baseMultiplier: 0.45, growth: 1.2 },
+};
 
 let generatorModal = null;
+let upgradeModal = null;
 
 function ensureModal() {
   if (generatorModal) return generatorModal;
@@ -93,6 +100,119 @@ function ensureModal() {
   return generatorModal;
 }
 
+function ensureUpgradeModal() {
+  if (upgradeModal) return upgradeModal;
+  const overlay = document.createElement("div");
+  overlay.className = "upgrade-overlay";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    inset: "0",
+    background: "rgba(0,0,0,0.6)",
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: "11000",
+  });
+  const box = document.createElement("div");
+  Object.assign(box.style, {
+    background: "#0f0f0f",
+    color: "#f6f6f6",
+    padding: "18px",
+    borderRadius: "10px",
+    minWidth: "320px",
+    maxWidth: "420px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+  });
+  const title = document.createElement("h3");
+  title.textContent = "발전기 업그레이드";
+  title.style.marginTop = "0";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "닫기";
+  closeBtn.style.marginTop = "12px";
+  closeBtn.style.width = "100%";
+  closeBtn.onclick = () => (overlay.style.display = "none");
+  const list = document.createElement("div");
+  list.className = "upgrade-list";
+  list.style.display = "grid";
+  list.style.gap = "10px";
+  list.style.marginTop = "12px";
+  box.append(title, list, closeBtn);
+  overlay.appendChild(box);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) overlay.style.display = "none";
+  });
+  document.body.appendChild(overlay);
+  upgradeModal = { overlay, list, title };
+  return upgradeModal;
+}
+
+function computeUpgradeCost(entry, key, amount = 1) {
+  const cfg = UPGRADE_CONFIG[key];
+  if (!cfg) return 0;
+  const baseCost = toPlainValue(valueFromServer(entry.cost_data, entry.cost_high, entry.baseCost || 10)) || 10;
+  const current = entry.upgrades?.[key] || 0;
+  let total = 0;
+  for (let i = 0; i < amount; i += 1) {
+    const level = current + i + 1;
+    total += Math.max(1, Math.floor(baseCost * cfg.baseMultiplier * cfg.growth ** level));
+  }
+  return total;
+}
+
+function openUpgradeModal(entry) {
+  const modal = ensureUpgradeModal();
+  const list = modal.list;
+  list.replaceChildren();
+  Object.entries(UPGRADE_CONFIG).forEach(([key, cfg]) => {
+    const card = document.createElement("div");
+    Object.assign(card.style, {
+      border: "1px solid #333",
+      padding: "10px",
+      borderRadius: "8px",
+      background: "#141414",
+    });
+    const title = document.createElement("div");
+    title.textContent = cfg.label;
+    title.style.fontWeight = "600";
+    const desc = document.createElement("p");
+    desc.textContent = cfg.desc;
+    desc.style.margin = "4px 0 8px";
+    desc.style.color = "#c9c9c9";
+    const level = entry.upgrades?.[key] || 0;
+    const levelLine = document.createElement("div");
+    levelLine.textContent = `레벨: ${level}`;
+    const costPlain = computeUpgradeCost(entry, key, 1);
+    const costValue = fromPlainValue(costPlain);
+    const costLine = document.createElement("div");
+    costLine.textContent = `비용: ${formatResourceValue(costValue)}`;
+    costLine.style.color = "#f1c40f";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "업그레이드";
+    btn.style.marginTop = "6px";
+    btn.style.width = "100%";
+    btn.onclick = async () => {
+      try {
+        beginTrapGuardGracePeriod();
+        const res = await upgradeGenerator(entry.generator_id, key, 1);
+        if (res.user) syncUserState(res.user);
+        if (res.generator) {
+          syncEntryBuildState(entry, res.generator);
+          entry.upgrades = res.generator.upgrades || entry.upgrades;
+        }
+        touchTrapMarker();
+        openUpgradeModal(entry); // refresh
+      } catch (err) {
+        alert(err.message || "업그레이드 실패");
+      }
+    };
+    card.append(title, desc, levelLine, costLine, btn);
+    list.appendChild(card);
+  });
+  modal.overlay.style.display = "flex";
+}
+
 function hideModal() {
   if (generatorModal) {
     generatorModal.overlay.style.display = "none";
@@ -106,6 +226,9 @@ function showGeneratorModal(entry, element) {
     alert("로그인이 필요합니다.");
     return;
   }
+  if (!entry.upgrades) {
+    entry.upgrades = { production: 0, heat_reduction: 0, tolerance: 0 };
+  }
   const modal = ensureModal();
   const typeInfo = entry.generator_type_id
     ? state.generatorTypesById[entry.generator_type_id]
@@ -115,12 +238,18 @@ function showGeneratorModal(entry, element) {
   modal.title.textContent = entry.name || "발전기";
   modal.desc.textContent = `철거 비용: ${demolishCost} 돈`;
   modal.overlay.querySelectorAll(".heat-info").forEach((node) => node.remove());
-  const tolerance = entry.tolerance || DEFAULT_TOLERANCE;
+  modal.overlay.querySelectorAll(".tolerance-info").forEach((node) => node.remove());
+  const baseTolerance = entry.baseTolerance || entry.tolerance || DEFAULT_TOLERANCE;
   const heatLine = document.createElement("p");
   heatLine.className = "heat-info";
   heatLine.style.margin = "4px 0";
+  const toleranceLine = document.createElement("p");
+  toleranceLine.className = "tolerance-info";
+  toleranceLine.style.margin = "0";
   const updateHeatLine = () => {
-    heatLine.textContent = `발열: ${Math.round(entry.heat || 0)} / ${tolerance}`;
+    const buffedTolerance = baseTolerance + (entry.upgrades?.tolerance || 0) * 10;
+    heatLine.textContent = `발열: ${Math.round(entry.heat || 0)} / ${buffedTolerance}`;
+    toleranceLine.textContent = `내열 증가: +${(entry.upgrades?.tolerance || 0) * 10}`;
   };
   updateHeatLine();
   const prevInfo = modal.overlay.querySelector(".build-info");
@@ -130,6 +259,8 @@ function showGeneratorModal(entry, element) {
   if (prevSkip) prevSkip.remove();
   const prevToggle = actions.querySelector(".run-toggle");
   if (prevToggle) prevToggle.remove();
+  const prevUpgrade = actions.querySelector(".upgrade-button");
+  if (prevUpgrade) prevUpgrade.remove();
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
   if (entry.isDeveloping) {
     const remainingSeconds = Math.max(
@@ -194,7 +325,21 @@ function showGeneratorModal(entry, element) {
   };
   actions.appendChild(toggleBtn);
 
+  const upgradeBtn = document.createElement("button");
+  upgradeBtn.type = "button";
+  upgradeBtn.className = "upgrade-button";
+  upgradeBtn.textContent = "업그레이드";
+  upgradeBtn.style.flex = "1";
+  upgradeBtn.style.background = "#2980b9";
+  upgradeBtn.style.color = "#fff";
+  upgradeBtn.onclick = () => {
+    hideModal();
+    openUpgradeModal(entry);
+  };
+  actions.appendChild(upgradeBtn);
+
   modal.desc.insertAdjacentElement("afterend", heatLine);
+  modal.desc.insertAdjacentElement("afterend", toleranceLine);
   modal.demolishBtn.onclick = async () => {
     try {
       beginTrapGuardGracePeriod();
@@ -304,6 +449,8 @@ export function initDropHandlers() {
         generator_type_id: res.generator.generator_type_id,
         level,
         baseCost: cost,
+        cost_data: res.generator.cost_data,
+        cost_high: res.generator.cost_high,
         isDeveloping: Boolean(res.generator.isdeveloping),
         buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : null,
         buildDurationMs: Math.max(1000, 2 ** level * 1000),
@@ -311,7 +458,9 @@ export function initDropHandlers() {
         running: res.generator.running !== false,
         heat: typeof res.generator.heat === "number" ? res.generator.heat : 0,
         tolerance,
+        baseTolerance: tolerance,
         heatRate,
+        upgrades: res.generator.upgrades || { production: 0, heat_reduction: 0, tolerance: 0 },
       };
       entry.element = placeGeneratorVisual(worldX, imgSrc, genName, res.generator.generator_id);
       state.placedGenerators.push(entry);

@@ -113,7 +113,7 @@ export function renderTradeTab() {
   dom.contentArea.appendChild(wrap);
 
   let inFlight = false;
-  let lastRate = null;
+  let lastRate = state.exchangeRate;
 
   const setBusy = (busy) => {
     inFlight = busy;
@@ -136,11 +136,12 @@ export function renderTradeTab() {
       rateLine.textContent = "환율을 불러오는 중...";
     }
     const amount = Number(sellInput.value) || 0;
+    const amountValue = formatPlain(amount);
     if (typeof lastRate === "number") {
       const expectedPlain = Math.max(1, Math.floor(amount * lastRate));
-      amountLine.textContent = `${amount} 에너지 → ${formatPlain(expectedPlain)} 돈 예상`;
+      amountLine.textContent = `${amountValue} 에너지 → ${formatPlain(expectedPlain)} 돈 예상`;
     } else {
-      amountLine.textContent = `${amount} 에너지 → -`;
+      amountLine.textContent = `${amountValue} 에너지 → -`;
     }
   };
 
@@ -163,6 +164,10 @@ export function renderTradeTab() {
       console.warn("환율 조회 실패", e);
     }
   };
+
+  // 초기 상태에 저장된 환율을 반영
+  updatePreview();
+  updateRateMessage(lastRate);
 
   sellBtn.addEventListener("click", async (event) => {
     event.preventDefault();
