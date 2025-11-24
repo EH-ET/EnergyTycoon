@@ -59,3 +59,9 @@ class ProgressAutoSaveIn(BaseModel):
     money: Optional[int] = Field(default=None, ge=0)
     money_data: Optional[int] = None
     money_high: Optional[int] = None
+
+
+class GeneratorStateUpdate(BaseModel):
+    running: Optional[bool] = None
+    heat: Optional[int] = Field(default=None, ge=0)
+    explode: Optional[bool] = False

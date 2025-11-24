@@ -52,6 +52,7 @@ class Generator(Base):
     isdeveloping = Column(Boolean, default=False, nullable=False)
     build_complete_ts = Column(Integer, nullable=True)
     heat = Column(Integer, default=0, nullable=False)
+    running = Column(Boolean, default=True, nullable=False)
 
     owner = relationship("User", back_populates="generators")
     generator_type = relationship("GeneratorType")
