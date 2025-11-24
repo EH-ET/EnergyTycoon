@@ -28,10 +28,14 @@ export function renderUpgradeTab() {
   dom.contentArea.replaceChildren();
   const grid = document.createElement("div");
   grid.className = "upgrade-grid";
-  grid.style.display = "grid";
-  grid.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px, 1fr))";
+  grid.style.display = "flex";
+  grid.style.flexWrap = "nowrap";
   grid.style.gap = "10px";
   grid.style.padding = "10px";
+  grid.style.overflowX = "auto";
+  grid.style.overflowY = "hidden";
+  grid.style.scrollBehavior = "smooth";
+  grid.style.alignItems = "stretch";
 
   upgrades.forEach((upgrade) => {
     const levelValue = getUpgradeLevel(state.currentUser, upgrade);
@@ -42,6 +46,8 @@ export function renderUpgradeTab() {
     item.style.textAlign = "center";
     item.style.background = "#f9f9f9";
     item.style.borderRadius = "5px";
+    item.style.minWidth = "220px";
+    item.style.flex = "0 0 240px";
 
     const title = document.createElement("h3");
     title.textContent = upgrade.이름;
