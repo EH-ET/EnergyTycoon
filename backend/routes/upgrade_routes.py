@@ -39,8 +39,8 @@ async def upgrade_max_generators(payload: UpgradeRequest | None = None, auth=Dep
     return UserOut.model_validate(upgraded_user)
 
 
-@router.post("/upgrade/supply")
-async def upgrade_supply(payload: UpgradeRequest | None = None, auth=Depends(get_user_and_db)):
+@router.post("/upgrade/demand")
+async def upgrade_demand(payload: UpgradeRequest | None = None, auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    upgraded_user = apply_upgrade(user, db, "supply", _amount_from_payload(payload))
+    upgraded_user = apply_upgrade(user, db, "demand", _amount_from_payload(payload))
     return UserOut.model_validate(upgraded_user)

@@ -19,6 +19,7 @@ from ..bigvalue import (
     from_plain,
     to_payload,
 )
+from ..init_db import get_build_time_by_name
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
 import os
 
@@ -50,9 +51,13 @@ def _demolish_cost(generator_type: GeneratorType) -> int:
     return max(1, int(generator_type.cost * DEMOLISH_COST_RATE))
 
 
-def _build_duration(level: int) -> int:
-    lvl = max(1, level or 1)
-    return max(1, int(2 ** lvl))
+def _build_duration(generator_type: Optional[GeneratorType] = None, level: Optional[int] = None) -> int:
+    if generator_type and getattr(generator_type, "name", None):
+        seconds = get_build_time_by_name(generator_type.name)
+        if seconds:
+            return max(1, int(seconds))
+    # 기본값: 데이터에 설치시간이 없으면 2초로 고정
+    return 2
 
 
 def _maybe_complete_build(generator: Generator, now: Optional[int] = None) -> bool:
@@ -158,7 +163,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     )
     db.add(g)
     set_user_money_value(user, subtract_plain(money_value, gt.cost))
-    build_duration = _build_duration(g.level)
+    build_duration = _build_duration(gt, g.level)
     g.isdeveloping = True
     g.build_complete_ts = int(time.time() + build_duration)
     db.commit()
@@ -223,7 +228,7 @@ async def update_generator_state(generator_id: str, payload: GeneratorStateUpdat
         gen.isdeveloping = True
         gen.running = False
         gen.heat = 0
-        gen.build_complete_ts = int(time.time() + _build_duration(gen.level))
+        gen.build_complete_ts = int(time.time() + _build_duration(getattr(gen, "generator_type", None), gen.level))
         changed = True
     if not changed:
         raise HTTPException(status_code=400, detail="No changes provided")

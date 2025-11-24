@@ -54,14 +54,14 @@ export function renderGeneratorTab() {
 
     const title = document.createElement("div");
     title.textContent = gen.이름;
-    Object.assign(title.style, { fontWeight: "600", fontSize: "15px", color: "#222" });
+    Object.assign(title.style, { fontWeight: "600", fontSize: "15px", color: "#ffffffff" });
 
     const stats = document.createElement("div");
     stats.className = "generator-stats";
     const appendStatLine = (label, value) => {
       const line = document.createElement("p");
       line.style.fontSize = "13px";
-      line.style.color = "#555";
+      line.style.color = "#ffffffff";
       line.style.margin = "0";
       line.textContent = `${label}: ${value}`;
       stats.appendChild(line);
