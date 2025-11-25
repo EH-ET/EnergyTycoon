@@ -150,9 +150,11 @@ export async function moneyToEnergy() {
 }
 
 export async function demolishGenerator(generatorId, token) {
+  const headers = attachCsrf({});
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}`, {
     method: "DELETE",
-    headers: attachCsrf({}),
+    headers,
     credentials: "include",
   });
   const data = await res.json();
@@ -170,10 +172,12 @@ export async function fetchMyRank(token) {
   return data;
 }
 
-export async function skipGeneratorBuild(generatorId) {
+export async function skipGeneratorBuild(generatorId, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/build/skip`, {
     method: "POST",
-    headers: attachCsrf({ "Content-Type": "application/json" }),
+    headers,
     credentials: "include",
   });
   const data = await res.json();
@@ -216,15 +220,17 @@ export async function autosaveProgress(token, payload = {}) {
   return data;
 }
 
-export async function updateGeneratorState(generatorId, payload = {}) {
+export async function updateGeneratorState(generatorId, payload = {}, token) {
   const body = {};
   if (payload.running != null) body.running = Boolean(payload.running);
   if (typeof payload.heat === "number") body.heat = Math.max(0, Math.floor(payload.heat));
   if (payload.explode) body.explode = true;
   if (!Object.keys(body).length) throw new Error("변경할 내용이 없습니다.");
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/state`, {
     method: "POST",
-    headers: attachCsrf({ "Content-Type": "application/json" }),
+    headers,
     credentials: "include",
     body: JSON.stringify(body),
   });

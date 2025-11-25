@@ -66,7 +66,8 @@ export default function Main() {
 
     const rect = e.currentTarget.getBoundingClientRect();
     const screenX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const worldX = Math.max(0, Math.round(screenX - (Number(userOffsetX) || 0)));
+    const worldWidth = backgroundWidth || SCROLL_RANGE || BG_FALLBACK_WIDTH;
+    const worldX = Math.max(0, Math.min(worldWidth, Math.round(screenX - (Number(userOffsetX) || 0))));
     const gen = generators[Number(idx)];
     if (!gen) return;
 
@@ -223,10 +224,16 @@ export default function Main() {
           {placedGenerators.map((generator) => {
             const screenX = generator.x + userOffsetX;
             const width = getGeneratorSize(generator.name);
+            const isRunning = generator.running !== false && !generator.isDeveloping;
+            const nameColor = generator.isDeveloping
+              ? '#4fa3ff'
+              : isRunning
+                ? '#f1c40f'
+                : '#e74c3c';
 
             // 원래 위치 계산 방식과 동일하게
             const containerHeight = 600; // main 영역 대략적인 높이
-            const defaultY = Math.max(32, containerHeight - 65);
+            const defaultY = Math.max(32, containerHeight - 60);
 
             return (
               <div
@@ -259,7 +266,7 @@ export default function Main() {
                       filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))'
                     }}
                   onError={(e) => {
-                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="84"%3E%3Crect fill="%23333" width="120" height="84"/%3E%3C/svg%3E';
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"84\"%3E%3Crect fill=\"%23333\" width=\"120\" height=\"84\"/%3E%3C/svg%3E';
                   }}
                 />
                 {generator.isDeveloping && (
@@ -277,7 +284,7 @@ export default function Main() {
                     }}
                   />
                 )}
-                <div style={{ fontSize: '16px', fontWeight: '900', color: '#ffffffff' }}>
+                <div style={{ fontSize: '16px', fontWeight: '900', color: nameColor }}>
                   {generator.name}
                 </div>
               </div>

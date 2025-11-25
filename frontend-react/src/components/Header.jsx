@@ -177,16 +177,14 @@ export default function Header() {
             }}
             onMouseLeave={() => setShowMoneyModal(false)}
           >
-            {showMoneyModal && (
-              <div className="money-modal modal">
-                <p><strong>교환 비율</strong></p>
-                <p>에너지 1 → 돈 <span className="money-rate">
-                  {typeof exchangeRate === 'number' && Number.isFinite(exchangeRate)
-                    ? exchangeRate.toFixed(2)
-                    : '0'}
-                </span></p>
-              </div>
-            )}
+            <div className={`money-modal modal ${showMoneyModal ? 'is-visible' : ''}`}>
+              <p><strong>교환 비율</strong></p>
+              <p>에너지 1 → 돈 <span className="money-rate">
+                {typeof exchangeRate === 'number' && Number.isFinite(exchangeRate)
+                  ? exchangeRate.toFixed(2)
+                  : '0'}
+              </span></p>
+            </div>
           </div>
           <div className="stat-info">
             <div className="stat-label">돈</div>
@@ -201,12 +199,10 @@ export default function Header() {
             onMouseEnter={() => setShowEnergyModal(true)}
             onMouseLeave={() => setShowEnergyModal(false)}
           >
-            {showEnergyModal && (
-              <div className="energy-modal modal">
-                <p><strong>초당 에너지 생산량</strong></p>
-                <p><span className="energy-rate">{typeof energyRate === 'number' ? energyRate.toFixed(2) : '0'}</span>/초</p>
-              </div>
-            )}
+            <div className={`energy-modal modal ${showEnergyModal ? 'is-visible' : ''}`}>
+              <p><strong>초당 에너지 생산량</strong></p>
+              <p><span className="energy-rate">{typeof energyRate === 'number' ? energyRate.toFixed(2) : '0'}</span>/초</p>
+            </div>
           </div>
           <div className="stat-info">
             <div className="stat-label">에너지</div>
