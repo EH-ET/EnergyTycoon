@@ -1,0 +1,152 @@
+import { useEffect, useState } from 'react';
+import { useStore, loadUserData, getAuthToken, ensureSessionStart, initTrapGuard, installTrapFetchGuard } from './store/useStore';
+import { loadGeneratorTypes, loadProgress } from './utils/apiClient';
+import { useEnergyTimer } from './hooks/useEnergyTimer';
+import { useAutosave } from './hooks/useAutosave';
+import { useViewport } from './hooks/useViewport';
+import { useRankUpdate } from './hooks/useRank';
+import { normalizeServerGenerators } from './utils/generatorHelpers';
+import Header from './components/Header';
+import Main from './components/Main';
+import Footer from './components/Footer';
+import GeneratorTab from './components/tabs/GeneratorTab';
+import TradeTab from './components/tabs/TradeTab';
+import UpgradeTab from './components/tabs/UpgradeTab';
+import InfoTab from './components/tabs/InfoTab';
+import Login from './pages/Login';
+import './App.css';
+
+function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const contentMode = useStore(state => state.contentMode);
+  const currentUser = useStore(state => state.currentUser);
+  const syncUserState = useStore(state => state.syncUserState);
+  const setGeneratorTypes = useStore(state => state.setGeneratorTypes);
+  const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
+
+  const fetchAndSyncProgress = async (user, token, typeMapById) => {
+    if (!user?.user_id) return;
+    const safeToken = token || getAuthToken();
+    if (!safeToken) return;
+    const res = await loadProgress(user.user_id, safeToken);
+    if (res.user) {
+      syncUserState(res.user);
+    }
+    if (res.generators) {
+      const normalized = normalizeServerGenerators(
+        res.generators,
+        typeMapById || useStore.getState().generatorTypesById
+      );
+      setPlacedGenerators(normalized);
+    }
+  };
+
+  // 에너지 타이머, 자동 저장, viewport, 랭킹 업데이트 활성화
+  useEnergyTimer();
+  useAutosave();
+  useViewport();
+  useRankUpdate();
+
+  useEffect(() => {
+    const init = async () => {
+      // 트랩 가드 초기화
+      installTrapFetchGuard();
+      initTrapGuard();
+
+      // 발전기 타입 로드
+      const state = {
+        generatorTypeMap: {},
+        generatorTypeInfoMap: {},
+        generatorTypeIdToName: {},
+        generatorTypesById: {},
+      };
+
+
+      await loadGeneratorTypes(state);
+
+      setGeneratorTypes(
+        state.generatorTypeMap,
+        state.generatorTypeInfoMap,
+        state.generatorTypeIdToName,
+        state.generatorTypesById
+      );
+
+      // 저장된 사용자 데이터 로드
+      const stored = loadUserData();
+      if (stored) {
+        const token = getAuthToken();
+
+        // 토큰이 없으면 로그아웃 처리
+        if (!token) {
+          localStorage.clear();
+          sessionStorage.clear();
+          return;
+        }
+
+        syncUserState(stored);
+        ensureSessionStart();
+
+        // 진행도 로드
+        try {
+          await fetchAndSyncProgress(stored, token, state.generatorTypesById);
+        } catch (e) {
+          // API 에러면 로그아웃 처리
+          localStorage.clear();
+          sessionStorage.clear();
+          // currentUser를 null로 설정하여 Login 페이지로 전환
+          setIsLoading(false);
+          return; // init 함수 종료
+        }
+      }
+    };
+
+    init().finally(() => setIsLoading(false));
+  }, []);
+
+  const renderTab = () => {
+    switch (contentMode) {
+      case 'generator':
+        return <GeneratorTab />;
+      case 'trade':
+        return <TradeTab />;
+      case 'upgrade':
+        return <UpgradeTab />;
+      case 'info':
+        return <InfoTab />;
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <Login
+        onLoginSuccess={async (user, token) => {
+          syncUserState(user, { token });
+          ensureSessionStart();
+          try {
+            await fetchAndSyncProgress(user, token);
+          } catch (e) {
+            console.error('login progress load failed', e);
+          }
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <Main />
+      <Footer>
+        {renderTab()}
+      </Footer>
+    </>
+  );
+}
+
+export default App;

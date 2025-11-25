@@ -53,7 +53,22 @@ export function computeEnergyPerSecond(deltaSeconds = 1) {
     if (!pg) return;
     // Cool down even while idle/building
     pg.heat = Math.max(0, (pg.heat || 0) - HEAT_COOL_RATE * deltaSeconds);
-    if (pg.isDeveloping) return;
+    if (pg.isDeveloping) {
+      if (pg.buildCompleteTs && pg.buildCompleteTs <= Date.now()) {
+        pg.isDeveloping = false;
+        pg.buildCompleteTs = null;
+        syncEntryBuildState(pg, {
+          isdeveloping: false,
+          build_complete_ts: null,
+          running: pg.running !== false,
+          heat: pg.heat,
+          level: pg.level,
+          cost: pg.baseCost,
+        });
+      } else {
+        return;
+      }
+    }
     if (pg.running === false) return;
     if (pg.genIndex != null && pg.genIndex >= 0) {
       const g = generators[pg.genIndex];
