@@ -114,6 +114,7 @@ export async function exchangeEnergy(token, userId, amount, energy) {
 
 export async function fetchExchangeRate(token) {
   const headers = {};
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/change/rate`, { headers, credentials: "include" });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "환율 조회 실패");

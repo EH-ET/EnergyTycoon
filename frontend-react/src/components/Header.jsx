@@ -92,7 +92,7 @@ export default function Header() {
 
   useEffect(() => {
     ensureExchangeRate();
-  }, []);
+  }, [currentUser?.user_id]);
 
   return (
     <header className="header">
