@@ -96,7 +96,11 @@ async def signup(
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
         set_csrf_cookie(response)
-    return {"user": schemas.UserOut.model_validate(u)}
+    return {
+        "user": schemas.UserOut.model_validate(u),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    }
 
 
 @router.post("/login")
@@ -124,7 +128,11 @@ async def login(
         set_auth_cookies(response, access_token, refresh_token)
         set_trap_cookie(response)
         set_csrf_cookie(response)
-    return {"user": schemas.UserOut.model_validate(user)}
+    return {
+        "user": schemas.UserOut.model_validate(user),
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    }
 
 
 @router.post("/logout")

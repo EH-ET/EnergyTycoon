@@ -9,39 +9,52 @@
 </head>
   <body>
     <header class="header">
-      <div class="profile">
-        <button class="profile-trigger" type="button" aria-label="프로필 메뉴 열기"></button>
-        <div class="profile-modal modal">
-          <p class="modal-line profile-name"><strong>이름:</strong> ADMIN</p>
-          <p class="modal-line profile-rank"><strong>랭킹:</strong> -</p>
-          <div class="modal-actions">
-            <button class="modal-button settings-open-btn" type="button">설정</button>
-            <button class="modal-button logout-btn" type="button">로그아웃</button>
+      <div class="header-left">
+        <div class="profile">
+          <button class="profile-trigger" type="button" aria-label="프로필 메뉴 열기"></button>
+          <div class="profile-modal modal">
+            <p class="modal-line profile-name"><strong>이름:</strong> ADMIN</p>
+            <p class="modal-line profile-rank"><strong>랭킹:</strong> -</p>
+            <div class="modal-actions">
+              <button class="modal-button settings-open-btn" type="button">설정</button>
+              <button class="modal-button logout-btn" type="button">로그아웃</button>
+            </div>
           </div>
         </div>
+        <div class="text-wrapper username">NONE</div>
       </div>
-      <div class="text-wrapper username">NONE</div>
-      <div class="generator-bar">
-        <div class="generator-img"></div>
-        <div class="generator text-bar generator-text-bar"><p>0/0</p></div>
-      </div>
-      <div class="money-bar">
-        <div class="money-img">
-          <div class="money-modal modal">
-            <p class="modal-line"><strong>교환소 환율</strong></p>
-            <p class="modal-line">에너지 1 = 돈 <span class="money-rate">0</span></p>
+      <div class="header-right">
+        <div class="stat-card generator">
+          <div class="stat-icon generator-icon"></div>
+          <div class="stat-info">
+            <div class="stat-label">발전기</div>
+            <div class="stat-value generator-count">0/0</div>
           </div>
         </div>
-        <div class="money text-bar long"><p>0</p></div>
-      </div>
-      <div class="energy-bar">
-        <div class="energy-img">
-          <div class="energy-modal modal">
-            <p class="modal-line"><strong>초당 에너지 생산량</strong></p>
-            <p class="modal-line"><span class="energy-rate">0</span> / 초</p>
+        <div class="stat-card">
+          <div class="stat-icon money-icon">
+            <div class="money-modal modal">
+              <p><strong>교환 비율</strong></p>
+              <p>에너지 1 → 돈 <span class="money-rate">0</span></p>
+            </div>
+          </div>
+          <div class="stat-info moeny">
+            <div class="stat-label">돈</div>
+            <div class="stat-value money-value">0</div>
           </div>
         </div>
-        <div class="energy text-bar long"><p>0</p></div>
+        <div class="stat-card">
+          <div class="stat-icon energy-icon">
+            <div class="energy-modal modal">
+              <p><strong>초당 에너지 생산량</strong></p>
+              <p><span class="energy-rate">0</span>/초</p>
+            </div>
+          </div>
+          <div class="stat-info energy">
+            <div class="stat-label">에너지</div>
+            <div class="stat-value energy-value">0</div>
+          </div>
+        </div>
       </div>
     </header>
     <main>

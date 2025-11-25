@@ -10,9 +10,9 @@ export const dom = {
   contentArea: document.querySelector(".content-area"),
   mainArea: document.querySelector(".main"),
   username: document.querySelector(".username"),
-  moneyBar: document.querySelector(".money.text-bar.long p"),
-  energyBar: document.querySelector(".energy.text-bar.long p"),
-  generatorBar: document.querySelector(".generator.text-bar.generator-text-bar p"),
+  generatorCount: document.querySelector(".stat-value.generator-count"),
+  moneyValue: document.querySelector(".stat-value.money-value"),
+  energyValue: document.querySelector(".stat-value.energy-value"),
   profileName: document.querySelector(".profile-modal .modal-line.profile-name"),
   profileRank: document.querySelector(".profile-modal .modal-line.profile-rank"),
   profileRoot: document.querySelector(".profile"),
@@ -24,8 +24,8 @@ export const dom = {
 export function updateUserUI(user, placedCountOverride) {
   if (!user) return;
   if (dom.username) dom.username.textContent = user.username;
-  if (dom.moneyBar) dom.moneyBar.textContent = user.money_view ? formatResourceValue(user.money_view) : user.money;
-  if (dom.energyBar) dom.energyBar.textContent = user.energy_view ? formatResourceValue(user.energy_view) : user.energy;
+  if (dom.moneyValue) dom.moneyValue.textContent = user.money_view ? formatResourceValue(user.money_view) : user.money;
+  if (dom.energyValue) dom.energyValue.textContent = user.energy_view ? formatResourceValue(user.energy_view) : user.energy;
   if (dom.profileName) {
     const strong = document.createElement("strong");
     strong.textContent = "이름:";
@@ -39,7 +39,7 @@ export function updateUserUI(user, placedCountOverride) {
   }
   const count = placedCountOverride ?? state.placedGenerators.length ?? 0;
   const max = 10 + (user.max_generators_bonus || 0) * 5;
-  if (dom.generatorBar) dom.generatorBar.textContent = `${count}/${max}`;
+  if (dom.generatorCount) dom.generatorCount.textContent = `${count}/${max}`;
 }
 
 export function updateExchangeRateUI(rate) {

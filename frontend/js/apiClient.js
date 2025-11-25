@@ -1,5 +1,6 @@
 // 서버와 통신하는 함수 모음
 import { API_BASE, generators } from "./data.js";
+import { valueFromServer, toPlainValue } from "./bigValue.js";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 
@@ -48,7 +49,8 @@ export async function loadGeneratorTypes(state) {
       const resolvedIndex = (indexFromServer != null && indexFromServer >= 0 && indexFromServer < generators.length)
         ? indexFromServer
         : (matchedIndex >= 0 ? matchedIndex : idxFromServer);
-      const cost = typeof t.cost === "number" ? t.cost : generators[resolvedIndex]?.설치비용;
+      const costValue = valueFromServer(t.cost_data, t.cost_high, t.cost ?? generators[resolvedIndex]?.설치비용);
+      const cost = toPlainValue(costValue);
       // 기본 이름 매핑
       state.generatorTypeMap[typeName] = typeId;
       state.generatorTypeInfoMap[typeName] = { id: typeId, cost };
@@ -85,7 +87,8 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
 }
 
 export async function loadProgress(userId, token) {
-  const headers = {};
+  const headers = { authorization: token ? `Bearer ${token}` : undefined };
+  if (!headers.authorization) delete headers.authorization;
   const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, {
     headers,
     credentials: "include",

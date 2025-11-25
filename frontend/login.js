@@ -16,7 +16,10 @@ const backendUrl = (() => {
   if (window.backendUrl) return window.backendUrl;
   const { protocol, hostname, port } = window.location || {};
   const isLocalHost = hostname === "localhost" || hostname === "127.0.0.1";
-  if (isLocalHost || port === "5500") return "http://127.0.0.1:8000";
+  if (isLocalHost || port === "5500") {
+    const host = hostname || "127.0.0.1";
+    return `http://${host}:8000`;
+  }
   if (protocol === "http:" || protocol === "https:") return DEPLOY_BACKEND_URL;
   return "http://127.0.0.1:8000";
 })();
@@ -67,6 +70,15 @@ function storeUser(user) {
     localStorage.setItem(STORAGE_KEYS.user, encoded);
   } catch (e) {
     console.warn("storeUser failed", e);
+  }
+}
+
+function storeToken(token) {
+  if (!token) return;
+  try {
+    localStorage.setItem("et_at", token);
+  } catch (e) {
+    console.warn("store token failed", e);
   }
 }
 
@@ -121,6 +133,7 @@ loginBtn.addEventListener('click', () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'login failed');
       storeUser(data.user);
+      storeToken(data.access_token);
       setSessionStart();
       persistTrapMarker();
       window.location.href = toFrontendPath("main.html");
@@ -161,6 +174,7 @@ signupBtn.addEventListener('click', () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'login after signup failed');
       storeUser(data.user);
+      storeToken(data.access_token);
       setSessionStart();
       persistTrapMarker();
       window.location.href = toFrontendPath("main.html");
