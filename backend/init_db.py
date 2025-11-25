@@ -37,6 +37,10 @@ DEFAULT_GENERATOR_TIME_BY_NAME = {t["이름"]: int(t.get("설치시간(초)") or
 
 def ensure_user_upgrade_columns():
     """Ensure legacy sqlite DBs contain the newest user upgrade columns."""
+    # Skip for PostgreSQL - create_all() handles schema
+    if not str(engine.url).startswith("sqlite"):
+        return
+
     needed = [
         ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
         ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
@@ -56,6 +60,10 @@ def ensure_user_upgrade_columns():
 
 
 def ensure_big_value_columns():
+    # Skip for PostgreSQL - create_all() handles schema
+    if not str(engine.url).startswith("sqlite"):
+        return
+
     needed = [
         ("money_data", "INTEGER NOT NULL DEFAULT 0"),
         ("money_high", "INTEGER NOT NULL DEFAULT 0"),
@@ -71,6 +79,10 @@ def ensure_big_value_columns():
 
 def ensure_generator_columns():
     """Ensure legacy sqlite DBs contain the newest generator columns."""
+    # Skip for PostgreSQL - create_all() handles schema
+    if not str(engine.url).startswith("sqlite"):
+        return
+
     needed = [
         ("build_complete_ts", "INTEGER"),
         ("running", "INTEGER NOT NULL DEFAULT 1"),
@@ -83,6 +95,10 @@ def ensure_generator_columns():
 
 
 def ensure_map_progress_columns():
+    # Skip for PostgreSQL - create_all() handles schema
+    if not str(engine.url).startswith("sqlite"):
+        return
+
     needed = [
         ("production_upgrade", "INTEGER NOT NULL DEFAULT 0"),
         ("heat_reduction_upgrade", "INTEGER NOT NULL DEFAULT 0"),

@@ -21,19 +21,31 @@ UPGRADE_CONFIG = {
 
 MARKET_STATE = {
     "sold_energy": 0,
-    "base_rate": 1.0,
+    "base_cost": 1.0,  # 1 돈을 얻기 위해 필요한 에너지 기본값
 }
+
+# 누적 교환량에 따라 1 돈을 얻기 위한 필요 에너지를 2 단위마다 10%씩 증가
+def _cost_growth_from_sales(sold: int) -> float:
+    if sold <= 0:
+        return 1.0
+    tiers = sold // 5  # 5 에너지 교환마다 한 단계
+    return 1.0 + tiers * 0.10
 
 
 def current_market_rate(user: Optional[User] = None) -> float:
-    base = MARKET_STATE["base_rate"]
+    base_cost = MARKET_STATE["base_cost"]
     sold = MARKET_STATE["sold_energy"]
-    drop = min(0.7, sold / 500)
+    growth = _cost_growth_from_sales(sold)
+    # 공급 보너스가 있을수록 필요한 에너지 감소
     bonus = 1.0
     if user:
-        bonus += (getattr(user, "supply_bonus", 0) or 0) * 0.05
-    rate = base * (1 - drop) * bonus
-    return max(0.1, rate)
+        bonus -= (getattr(user, "supply_bonus", 0) or 0) * 0.05
+    bonus = max(0.5, bonus)  # 보너스로 최소 절반까지 감소
+
+    energy_per_money = base_cost * growth * bonus
+    # 환율은 1 에너지당 돈이므로 역수
+    rate = 1.0 / energy_per_money if energy_per_money > 0 else 0.0
+    return max(0.0001, rate)
 
 
 def get_upgrade_meta(key: str):
