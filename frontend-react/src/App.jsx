@@ -63,15 +63,17 @@ function App() {
         generatorTypesById: {},
       };
 
-
-      await loadGeneratorTypes(state);
-
-      setGeneratorTypes(
-        state.generatorTypeMap,
-        state.generatorTypeInfoMap,
-        state.generatorTypeIdToName,
-        state.generatorTypesById
-      );
+      // 서버 호출 완료를 기다리지 않고 바로 렌더 진행
+      loadGeneratorTypes(state)
+        .catch(() => {})
+        .finally(() => {
+          setGeneratorTypes(
+            state.generatorTypeMap,
+            state.generatorTypeInfoMap,
+            state.generatorTypeIdToName,
+            state.generatorTypesById
+          );
+        });
 
       // 저장된 사용자 데이터 로드
       const stored = loadUserData();
@@ -89,16 +91,12 @@ function App() {
         ensureSessionStart();
 
         // 진행도 로드
-        try {
-          await fetchAndSyncProgress(stored, token, state.generatorTypesById);
-        } catch (e) {
+        fetchAndSyncProgress(stored, token, state.generatorTypesById).catch(() => {
           // API 에러면 로그아웃 처리
           localStorage.clear();
           sessionStorage.clear();
-          // currentUser를 null로 설정하여 Login 페이지로 전환
           setIsLoading(false);
-          return; // init 함수 종료
-        }
+        });
       }
     };
 
