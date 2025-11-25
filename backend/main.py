@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, HTTPException, Header
+from fastapi.responses import JSONResponse
 
 # Ensure package imports work even when run as a script (python backend/main.py)
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
