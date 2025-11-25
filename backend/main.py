@@ -20,32 +20,27 @@ from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
+_deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.netlify.app").rstrip("/")
+_local_origins = [
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+_default_origins = _local_origins + ([_deploy_frontend] if _deploy_frontend else [])
+
 _origins_env = os.getenv("FRONTEND_ORIGINS")
 if _origins_env:
     if _origins_env.strip() == "*":
-        origins = [
-            "http://localhost:4173",
-            "http://127.0.0.1:4173",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-        ]
+        origins = _default_origins
     else:
         origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
 else:
-    origins = [
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ]
+    origins = _default_origins
 
 app.add_middleware(
     CORSMiddleware,
