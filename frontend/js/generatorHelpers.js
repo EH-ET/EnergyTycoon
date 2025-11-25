@@ -7,14 +7,17 @@ import { formatResourceValue, fromPlainValue } from "./bigValue.js";
 const BUILD_OVERLAY_SRC = "./generator/build.png";
 const DEFAULT_TOLERANCE = 100;
 
-function buildDurationMs(level = 1) {
-  const lvl = Math.max(1, Number(level) || 1);
-  return Math.max(1000, 2 ** lvl * 1000);
+export function getBuildDurationMs(meta) {
+  const seconds = Number(meta?.["설치시간(초)"]);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.max(1000, seconds * 1000);
+  }
+  return 2000;
 }
 
 export function defaultPlacementY() {
   const height = dom.mainArea ? dom.mainArea.clientHeight : 0;
-  return Math.max(32, height - 160);
+  return Math.max(32, height - 80);
 }
 
 export function makeImageSrcByIndex(idx) {
@@ -64,15 +67,17 @@ export function placeGeneratorVisual(x, imgSrc, name, generatorId) {
     position: "absolute",
     left: `${screenX}px`,
     top: `${defaultPlacementY()}px`,
-    transform: "translate(-50%, 0)",
+    transform: "translate(-50%, -100%)",
     pointerEvents: "auto",
     cursor: "pointer",
     textAlign: "center"
   });
   const img = document.createElement("img");
   img.src = imgSrc;
-  img.width = 64;
-  img.height = 48;
+  // 발전기 크기 비율 적용 (기본 단위 50px, 최소/최대 범위 지정)
+  const sizeFactor = Number(name && generators.find((g) => g?.이름 === name)?.크기) || 1;
+  const width = Math.max(32, Math.min(300, sizeFactor * 50));
+  img.width = width;
   img.style.display = "block";
   img.style.filter = "drop-shadow(0 2px 4px rgba(0,0,0,0.25))";
   const lbl = document.createElement("div");
@@ -88,11 +93,28 @@ export function placeGeneratorVisual(x, imgSrc, name, generatorId) {
 export function renderSavedGenerators(list) {
   if (!Array.isArray(list)) return;
   list.forEach((g) => {
-    const name = g.type || state.generatorTypeIdToName[g.generator_type_id] || "";
-    const idx = findGeneratorIndexByName(name);
-    const imgSrc = idx >= 0 ? makeImageSrcByIndex(idx) : placeholderDataUrl();
     const typeInfo = state.generatorTypesById[g.generator_type_id] || {};
+    const idxFromType = Number.isInteger(typeInfo.index) ? typeInfo.index : null;
+    const idAsNumber = Number(g.generator_type_id);
+    const idxFromId = Number.isFinite(idAsNumber) ? idAsNumber : null;
+    let idx = idxFromType;
+    if (idx == null || idx < 0 || idx >= generators.length) {
+      if (idxFromId != null && idxFromId >= 0 && idxFromId < generators.length) {
+        idx = idxFromId;
+      } else if (idxFromId != null && idxFromId - 1 >= 0 && idxFromId - 1 < generators.length) {
+        idx = idxFromId - 1; // allow 1-based ids
+      }
+    }
+    const name = g.type
+      || typeInfo.name
+      || state.generatorTypeIdToName[g.generator_type_id]
+      || (idx != null && idx >= 0 && idx < generators.length ? generators[idx]?.이름 : "");
+    if (idx == null || idx < 0 || idx >= generators.length) {
+      idx = findGeneratorIndexByName(name);
+    }
+    const imgSrc = idx >= 0 ? makeImageSrcByIndex(idx) : placeholderDataUrl();
     const meta = generators[idx] || {};
+    const baseBuildDurationMs = getBuildDurationMs(meta);
     const entry = {
       x: g.x_position,
       name,
@@ -105,7 +127,8 @@ export function renderSavedGenerators(list) {
       cost_high: g.cost_high,
       isDeveloping: Boolean(g.isdeveloping),
       buildCompleteTs: g.build_complete_ts ? g.build_complete_ts * 1000 : null,
-      buildDurationMs: buildDurationMs(g.level),
+      baseBuildDurationMs,
+      buildDurationMs: baseBuildDurationMs,
       buildTimer: null,
       running: g.running !== false,
       heat: Number(g.heat) || 0,
@@ -189,7 +212,11 @@ export function syncEntryBuildState(entry, generator) {
     if (generator.cost != null) entry.baseCost = generator.cost;
     entry.isDeveloping = Boolean(generator.isdeveloping);
     entry.buildCompleteTs = generator.build_complete_ts ? generator.build_complete_ts * 1000 : null;
-    entry.buildDurationMs = buildDurationMs(entry.level);
+    if (!entry.baseBuildDurationMs || entry.baseBuildDurationMs <= 0) {
+      const meta = entry.genIndex != null && entry.genIndex >= 0 ? generators[entry.genIndex] : null;
+      entry.baseBuildDurationMs = getBuildDurationMs(meta);
+    }
+    entry.buildDurationMs = entry.baseBuildDurationMs || entry.buildDurationMs || 2000;
     entry.running = generator.running !== false;
     if (typeof generator.heat === "number") entry.heat = generator.heat;
     if (generator.upgrades) entry.upgrades = generator.upgrades;

@@ -1,6 +1,7 @@
 // 발전기 목록 탭 렌더링 및 모달 표시
 import { generators } from "./data.js";
 import { makeImageSrcByIndex, placeholderDataUrl } from "./generatorHelpers.js";
+import { valueFromServer, formatResourceValue } from "./bigValue.js";
 import { dom } from "./ui.js";
 
 const generatorModal = document.createElement("div");
@@ -54,21 +55,26 @@ export function renderGeneratorTab() {
 
     const title = document.createElement("div");
     title.textContent = gen.이름;
-    Object.assign(title.style, { fontWeight: "600", fontSize: "15px", color: "#222" });
+    Object.assign(title.style, { fontWeight: "600", fontSize: "15px", color: "#ffffffff" });
 
     const stats = document.createElement("div");
     stats.className = "generator-stats";
-    const appendStatLine = (label, value) => {
+    const appendStatLine = (label, value, dataKey, highKey) => {
+      let display = value;
+      if (dataKey && highKey) {
+        const v = valueFromServer(gen[dataKey], gen[highKey], value);
+        display = formatResourceValue(v);
+      }
       const line = document.createElement("p");
       line.style.fontSize = "13px";
-      line.style.color = "#555";
+      line.style.color = "#ffffffff";
       line.style.margin = "0";
-      line.textContent = `${label}: ${value}`;
+      line.textContent = `${label}: ${display}`;
       stats.appendChild(line);
     };
-    appendStatLine("설치비용", gen.설치비용);
+    appendStatLine("설치비용", gen.설치비용, "설치비용(수)", "설치비용(높이)");
     appendStatLine("설치시간", `${gen["설치시간(초)"]}s`);
-    appendStatLine("생산량", gen["생산량(에너지)"]);
+    appendStatLine("생산량", gen["생산량(에너지)"], "생산량(에너지수)", "생산량(에너지높이)");
     appendStatLine("크기", gen.크기);
 
     info.appendChild(title);
@@ -112,16 +118,21 @@ export function renderGeneratorTab() {
         desc.textContent = gen.세부설명;
         generatorModal.appendChild(desc);
       }
-      const appendModalLine = (label, value) => {
+      const appendModalLine = (label, value, dataKey, highKey) => {
+        let display = value;
+        if (dataKey && highKey) {
+          const v = valueFromServer(gen[dataKey], gen[highKey], value);
+          display = formatResourceValue(v);
+        }
         const p = document.createElement("p");
         p.style.opacity = "0.9";
         p.style.fontSize = "12px";
-        p.textContent = `${label}: ${value}`;
+        p.textContent = `${label}: ${display}`;
         generatorModal.appendChild(p);
       };
-      appendModalLine("설치비용", gen.설치비용);
+      appendModalLine("설치비용", gen.설치비용, "설치비용(수)", "설치비용(높이)");
       appendModalLine("설치시간", `${gen["설치시간(초)"]}s`);
-      appendModalLine("생산량", gen["생산량(에너지)"]);
+      appendModalLine("생산량", gen["생산량(에너지)"], "생산량(에너지수)", "생산량(에너지높이)");
       appendModalLine("내열한계", gen.내열한계);
       generatorModal.style.display = "block";
       positionModalNearRect(rect);

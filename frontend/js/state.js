@@ -5,6 +5,7 @@ import { normalizeValue, toPlainValue, comparePlainValue, valueFromServer, value
 
 const STORAGE_KEYS = {
   user: "et_u",
+  token: "et_at",
   sessionTs: "et_ss",
   trap: "et_tp",
 };
@@ -64,17 +65,42 @@ export function persistUser(user) {
   }
 }
 
+function persistToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem(STORAGE_KEYS.token, token);
+    }
+  } catch (e) {
+    console.warn("token persist failed", e);
+  }
+}
+
 export function syncUserState(user, options = {}) {
-  const { persist = true } = options;
+  const { persist = true, token } = options;
   state.currentUser = user;
   applyResourceValues(state.currentUser);
-  if (persist) persistUser(user);
+  if (persist) {
+    persistUser(user);
+    if (token) persistToken(token);
+  }
   if (userChangeHandler) userChangeHandler(user);
   syncTrapMarker(true);
 }
 
 export function getAuthToken() {
-  // Tokens are stored as HttpOnly cookies; JS should not read them.
+  const cookie = document.cookie || "";
+  const parts = cookie.split(";").map((c) => c.trim());
+  for (const part of parts) {
+    if (part.startsWith("ec9db4eab1b820ebb3b5ed98b8ed9994ed9598eb8ba4eb8b88=")) {
+      return part.split("=").slice(1).join("=");
+    }
+  }
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.token);
+    if (stored) return stored;
+  } catch (e) {
+    console.warn("token read failed", e);
+  }
   return null;
 }
 
@@ -115,6 +141,7 @@ function clearClientSession() {
   state.userOffsetX = 0;
   state.exchangeRate = null;
   localStorage.removeItem(STORAGE_KEYS.user);
+  localStorage.removeItem(STORAGE_KEYS.token);
   localStorage.removeItem(SESSION_START_KEY);
   sessionStorage.removeItem(STORAGE_KEYS.trap);
   // Legacy token cleanup

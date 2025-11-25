@@ -30,27 +30,43 @@ export function renderInfoTab() {
   stopPlayTimer();
   if (!requireLoginForContent(state.currentUser, "로그인 후 확인하세요.")) return;
   dom.contentArea.replaceChildren();
+  dom.contentArea.style.overflowY = "auto";
+  dom.contentArea.style.maxHeight = "100%";
 
-  const container = document.createElement("div");
-  container.style.padding = "12px";
-  container.style.color = "#cececeff";
+  const infoGrid = document.createElement("div");
+  infoGrid.className = "info-grid";
+  infoGrid.style.display = "flex";
+  infoGrid.style.flexDirection = "column";
+  infoGrid.style.flex = "1";
+  infoGrid.style.minHeight = "0";
+  infoGrid.style.maxHeight = "none";
+  infoGrid.style.overflowY = "visible";
+  infoGrid.style.padding = "12px";
+  infoGrid.style.paddingRight = "16px";
+  infoGrid.style.paddingBottom = "48px";
+  infoGrid.style.scrollbarWidth = "thin";
+  infoGrid.style.width = "100%";
+  infoGrid.style.boxSizing = "border-box";
+  infoGrid.style.color = "#cececeff";
+  infoGrid.style.background = "#0e0e0e";
+  infoGrid.style.borderRadius = "8px";
 
   const nameLine = document.createElement("p");
   nameLine.textContent = `이름: ${state.currentUser.username}`;
-  container.appendChild(nameLine);
+  infoGrid.appendChild(nameLine);
 
   const playLine = document.createElement("p");
-  container.appendChild(playLine);
+  infoGrid.appendChild(playLine);
 
   const energyLine = document.createElement("p");
   const formattedEnergy = state.currentUser.energy_view ? formatResourceValue(state.currentUser.energy_view) : state.currentUser.energy ?? 0;
   energyLine.textContent = `얻은 총 에너지량: ${formattedEnergy}`;
-  container.appendChild(energyLine);
+  infoGrid.appendChild(energyLine);
 
   const moneyLine = document.createElement("p");
   const formattedMoney = state.currentUser.money_view ? formatResourceValue(state.currentUser.money_view) : state.currentUser.money ?? 0;
   moneyLine.textContent = `얻은 총 돈: ${formattedMoney}`;
-  container.appendChild(moneyLine);
+  infoGrid.appendChild(moneyLine);
 
   const rankLine = document.createElement("p");
   const applyRankLine = (rank, score) => {
@@ -60,7 +76,7 @@ export function renderInfoTab() {
     rankLine.textContent = `등수: ${rankText}${scoreLabel}`;
   };
   applyRankLine(state.currentUser.rank, state.currentUser.rank_score ?? state.currentUser.money);
-  container.appendChild(rankLine);
+  infoGrid.appendChild(rankLine);
 
   updateRankFromServer()
     .then((payload) => {
@@ -74,10 +90,15 @@ export function renderInfoTab() {
 
   const leaderboardBox = document.createElement("div");
   leaderboardBox.style.marginTop = "18px";
+  leaderboardBox.style.marginBottom = '30px';
   leaderboardBox.style.padding = "12px";
   leaderboardBox.style.border = "1px solid #3c3c3c";
   leaderboardBox.style.borderRadius = "8px";
   leaderboardBox.style.background = "#141414";
+  leaderboardBox.style.paddingRight = "16px";
+  leaderboardBox.style.boxSizing = "border-box";
+  leaderboardBox.style.display = "flex";
+  leaderboardBox.style.flexDirection = "column";
 
   const leaderboardTitle = document.createElement("h4");
   leaderboardTitle.textContent = "상위 랭커";
@@ -122,7 +143,7 @@ export function renderInfoTab() {
       return;
     }
     try {
-      const data = await fetchRanks(getAuthToken(), { limit: 10, offset: 0 });
+      const data = await fetchRanks(getAuthToken(), { limit: 100, offset: 0 });
       const ranks = data.ranks || [];
       renderLeaderboard(ranks);
       if (ranks.length) {
@@ -137,7 +158,7 @@ export function renderInfoTab() {
   };
 
   loadLeaderboard();
-  container.appendChild(leaderboardBox);
+  infoGrid.appendChild(leaderboardBox);
 
   const sessionStart = ensureSessionStart();
   const updatePlayLine = () => {
@@ -147,5 +168,5 @@ export function renderInfoTab() {
   updatePlayLine();
   playTimeTimer = setInterval(updatePlayLine, 1000);
 
-  dom.contentArea.appendChild(container);
+  dom.contentArea.appendChild(infoGrid);
 }

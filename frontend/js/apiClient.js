@@ -1,5 +1,6 @@
 // 서버와 통신하는 함수 모음
-import { API_BASE } from "./data.js";
+import { API_BASE, generators } from "./data.js";
+import { valueFromServer, toPlainValue } from "./bigValue.js";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 
@@ -37,14 +38,29 @@ export async function loadGeneratorTypes(state) {
     const data = await res.json();
     const list = data.generator_types || data.types;
     if (!list) return;
-    list.forEach((t) => {
+    list.forEach((t, idxFromServer) => {
       const typeId = t.id || t.generator_type_id;
-      const typeName = t.name;
-      if (!typeId || !typeName) return;
+      if (!typeId) return;
+      const nameFromServer = t.name;
+      const indexFromServer = Number.isInteger(t.index) ? t.index : (Number.isInteger(t.order) ? t.order : null);
+      const matchedIndex = generators.findIndex((g) => g?.이름 === nameFromServer);
+      const fallbackName = indexFromServer != null && indexFromServer >= 0 ? generators[indexFromServer]?.이름 : generators[idxFromServer]?.이름;
+      const typeName = nameFromServer || fallbackName || String(idxFromServer);
+      const resolvedIndex = (indexFromServer != null && indexFromServer >= 0 && indexFromServer < generators.length)
+        ? indexFromServer
+        : (matchedIndex >= 0 ? matchedIndex : idxFromServer);
+      const costValue = valueFromServer(t.cost_data, t.cost_high, t.cost ?? generators[resolvedIndex]?.설치비용);
+      const cost = toPlainValue(costValue);
+      // 기본 이름 매핑
       state.generatorTypeMap[typeName] = typeId;
-      state.generatorTypeInfoMap[typeName] = { id: typeId, cost: t.cost };
-      state.generatorTypeIdToName[typeId] = typeName;
-      state.generatorTypesById[typeId] = { name: typeName, cost: t.cost };
+      state.generatorTypeInfoMap[typeName] = { id: typeId, cost };
+      // 프론트엔드 정의 이름과 서버 이름이 달라도 인덱스/이름을 기준으로 매핑
+      if (fallbackName && fallbackName !== typeName) {
+        state.generatorTypeMap[fallbackName] = typeId;
+        state.generatorTypeInfoMap[fallbackName] = { id: typeId, cost };
+      }
+      state.generatorTypeIdToName[typeId] = fallbackName || typeName;
+      state.generatorTypesById[typeId] = { name: fallbackName || typeName, cost, index: resolvedIndex };
     });
   } catch (e) {
     console.warn("generator_types load failed", e);
@@ -71,7 +87,8 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
 }
 
 export async function loadProgress(userId, token) {
-  const headers = {};
+  const headers = { authorization: token ? `Bearer ${token}` : undefined };
+  if (!headers.authorization) delete headers.authorization;
   const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, {
     headers,
     credentials: "include",

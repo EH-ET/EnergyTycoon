@@ -9,6 +9,7 @@ import {
   computeSkipCost,
   formatPlainValue,
   cleanupGeneratorEntry,
+  getBuildDurationMs,
 } from "./generatorHelpers.js";
 import { saveProgress, demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGenerator } from "./apiClient.js";
 import { dom } from "./ui.js";
@@ -435,16 +436,38 @@ export function initDropHandlers() {
         user.money = Math.max(0, user.money - cost);
         syncUserState(user);
       }
-      const genName = res.generator && res.generator.type ? res.generator.type : gen.이름;
-      const idxByName = findGeneratorIndexByName(genName);
-      const imgSrc = idxByName >= 0 ? makeImageSrcByIndex(idxByName) : placeholderDataUrl();
-      const tolerance = Number(gen.내열한계) || DEFAULT_TOLERANCE;
-      const heatRate = Number(gen.발열) || 0;
+      const typeInfo = state.generatorTypesById[res.generator.generator_type_id] || {};
+      const idxFromType = Number.isInteger(typeInfo.index) ? typeInfo.index : null;
+      const idAsNumber = Number(res.generator.generator_type_id);
+      let genIndex = idxFromType;
+      if (genIndex == null || genIndex < 0 || genIndex >= generators.length) {
+        if (Number.isFinite(idAsNumber) && idAsNumber >= 0 && idAsNumber < generators.length) {
+          genIndex = idAsNumber;
+        } else if (Number.isFinite(idAsNumber) && idAsNumber - 1 >= 0 && idAsNumber - 1 < generators.length) {
+          genIndex = idAsNumber - 1;
+        }
+      }
+      const fallbackName = genIndex != null && genIndex >= 0 && genIndex < generators.length
+        ? generators[genIndex]?.이름
+        : null;
+      const genName = (res.generator && res.generator.type)
+        ? res.generator.type
+        : (typeInfo.name || fallbackName || gen.이름);
+      if (genIndex == null || genIndex < 0 || genIndex >= generators.length) {
+        genIndex = findGeneratorIndexByName(genName);
+      }
+      const imgSrc = genIndex >= 0 ? makeImageSrcByIndex(genIndex) : placeholderDataUrl();
+      const metaByIndex = genIndex != null && genIndex >= 0 && genIndex < generators.length
+        ? generators[genIndex]
+        : null;
+      const tolerance = Number(metaByIndex?.내열한계 ?? gen.내열한계) || DEFAULT_TOLERANCE;
+      const heatRate = Number(metaByIndex?.발열 ?? gen.발열) || 0;
       const level = res.generator.level || 1;
+      const baseBuildDurationMs = getBuildDurationMs(metaByIndex);
       const entry = {
         x: worldX,
         name: genName,
-        genIndex: idxByName,
+        genIndex,
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
         level,
@@ -453,7 +476,8 @@ export function initDropHandlers() {
         cost_high: res.generator.cost_high,
         isDeveloping: Boolean(res.generator.isdeveloping),
         buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : null,
-        buildDurationMs: Math.max(1000, 2 ** level * 1000),
+        baseBuildDurationMs,
+        buildDurationMs: baseBuildDurationMs,
         buildTimer: null,
         running: res.generator.running !== false,
         heat: typeof res.generator.heat === "number" ? res.generator.heat : 0,

@@ -4,7 +4,7 @@ import { state, syncUserState, getEnergyValue, setEnergyValue } from "./state.js
 import { updateEnergyRateUI } from "./ui.js";
 import { addPlainValue } from "./bigValue.js";
 import { updateGeneratorState } from "./apiClient.js";
-import { syncEntryBuildState } from "./generatorHelpers.js";
+import { syncEntryBuildState, getBuildDurationMs } from "./generatorHelpers.js";
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 
@@ -13,7 +13,10 @@ async function handleExplosion(entry) {
   entry.running = false;
   entry.isDeveloping = true;
   entry.heat = 0;
-  const rebuildMs = entry.buildDurationMs || Math.max(1000, 2 ** (entry.level || 1) * 1000);
+  const meta = entry.genIndex != null && entry.genIndex >= 0 ? generators[entry.genIndex] : null;
+  const rebuildMs = entry.baseBuildDurationMs
+    || entry.buildDurationMs
+    || getBuildDurationMs(meta);
   entry.buildCompleteTs = Date.now() + rebuildMs;
   syncEntryBuildState(entry, {
     isdeveloping: true,
