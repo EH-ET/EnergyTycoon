@@ -2,7 +2,7 @@
 import { generators } from "./data.js";
 import { state, syncUserState, getEnergyValue, setEnergyValue } from "./state.js";
 import { updateEnergyRateUI } from "./ui.js";
-import { addPlainValue } from "./bigValue.js";
+import { addPlainValue, valueFromServer, toPlainValue } from "./bigValue.js";
 import { updateGeneratorState } from "./apiClient.js";
 import { syncEntryBuildState, getBuildDurationMs } from "./generatorHelpers.js";
 
@@ -53,12 +53,30 @@ export function computeEnergyPerSecond(deltaSeconds = 1) {
     if (!pg) return;
     // Cool down even while idle/building
     pg.heat = Math.max(0, (pg.heat || 0) - HEAT_COOL_RATE * deltaSeconds);
-    if (pg.isDeveloping) return;
+    if (pg.isDeveloping) {
+      if (pg.buildCompleteTs && pg.buildCompleteTs <= Date.now()) {
+        pg.isDeveloping = false;
+        pg.buildCompleteTs = null;
+        syncEntryBuildState(pg, {
+          isdeveloping: false,
+          build_complete_ts: null,
+          running: pg.running !== false,
+          heat: pg.heat,
+          level: pg.level,
+          cost: pg.baseCost,
+        });
+      } else {
+        return;
+      }
+    }
     if (pg.running === false) return;
     if (pg.genIndex != null && pg.genIndex >= 0) {
       const g = generators[pg.genIndex];
       const upgrades = pg.upgrades || {};
-      const base = g ? Number(g["생산량(에너지)"]) || 0 : 0;
+      const productionValue = g
+        ? valueFromServer(g["생산량(에너지수)"], g["생산량(에너지높이)"], g["생산량(에너지)"])
+        : null;
+      const base = Math.max(0, toPlainValue(productionValue));
       const produced = applyUpgradeEffects(base, upgrades, { type: "production" });
       baseTotal += produced;
       let heatRate = typeof pg.heatRate === "number" ? pg.heatRate : (g ? Number(g["발열"]) || 0 : 0);

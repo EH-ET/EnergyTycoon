@@ -1,0 +1,102 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: radial-gradient(circle at 20% 20%, #e8f0ff 0, #e8f0ff 20%, transparent 25%) no-repeat,
+              radial-gradient(circle at 80% 80%, #ffe8ed 0, #ffe8ed 20%, transparent 25%) no-repeat,
+              linear-gradient(135deg, #f7f9fc, #eef3ff);
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: min(420px, 96vw);
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(50, 70, 120, 0.12);
+  border: 1px solid #e6ebf5;
+  display: grid;
+  gap: 18px;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1c2b45;
+  letter-spacing: -0.3px;
+}
+
+.login-subtitle {
+  margin: 0;
+  color: #5b6b80;
+  font-size: 14px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d3dce8;
+  background: #f9fbff;
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  box-sizing: border-box;
+}
+
+.login-input:focus {
+  border-color: #4fa3ff;
+  background: #ffffff;
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(79, 163, 255, 0.12);
+}
+
+.login-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.login-button {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
+}
+
+.login-button.primary {
+  background: linear-gradient(135deg, #4fa3ff, #3a7bff);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(58, 123, 255, 0.25);
+}
+
+.login-button.secondary {
+  background: #eef3ff;
+  color: #2c3e64;
+  border: 1px solid #d6e2ff;
+}
+
+.login-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(58, 123, 255, 0.12);
+}
+
+.login-message {
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-message.success {
+  color: #2b9a5b;
+}
+
+.login-message.error {
+  color: #d9534f;
+}

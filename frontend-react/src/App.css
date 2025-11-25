@@ -19,6 +19,7 @@ main {
   background-repeat: no-repeat;
   background-position: 0 0;
   background-size: auto 100%;
+  overflow: hidden;
 }
 
 
@@ -79,6 +80,13 @@ main {
   opacity: 0;
   transform: translateY(-6px);
   transition: 0.2s ease;
+}
+
+.profile-modal.is-open {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .profile.profile-open .profile-modal {
@@ -282,11 +290,11 @@ main {
 
 .build-bar:hover {
   height: 32vh;
-  transform: translateY(-14vh);
+  transform: translateY(-18vh);
 }
 
 .btn-bar {
-  width: 8vw;
+  width: 9vw;
   height: 32vh;
   display: flex;
   flex-direction: column;
@@ -334,7 +342,7 @@ main {
 .content-area {
   width: 92vw;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex: 1;
   min-height: 0;
