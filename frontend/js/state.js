@@ -20,6 +20,8 @@ export const state = {
   contentMode: "generator",
   currentUser: null,
   placedGenerators: [],
+  backgroundWidth: 0,
+  backgroundHeight: 0,
   generatorTypeMap: {},
   generatorTypeInfoMap: {},
   generatorTypeIdToName: {},

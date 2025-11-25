@@ -145,6 +145,9 @@ export function renderSavedGenerators(list) {
 
 export function updateGeneratorPositions() {
   const offset = Number(state.userOffsetX) || 0;
+  if (dom.mainArea) {
+    dom.mainArea.style.backgroundPosition = `calc(50% + ${offset}px) 0`;
+  }
   document.querySelectorAll(".placed-generator").forEach((el) => {
     const base = Number(el.dataset.worldX);
     const worldX = Number.isFinite(base) ? base : 0;

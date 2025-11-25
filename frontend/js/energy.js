@@ -2,7 +2,7 @@
 import { generators } from "./data.js";
 import { state, syncUserState, getEnergyValue, setEnergyValue } from "./state.js";
 import { updateEnergyRateUI } from "./ui.js";
-import { addPlainValue } from "./bigValue.js";
+import { addPlainValue, valueFromServer, toPlainValue } from "./bigValue.js";
 import { updateGeneratorState } from "./apiClient.js";
 import { syncEntryBuildState, getBuildDurationMs } from "./generatorHelpers.js";
 
@@ -58,7 +58,10 @@ export function computeEnergyPerSecond(deltaSeconds = 1) {
     if (pg.genIndex != null && pg.genIndex >= 0) {
       const g = generators[pg.genIndex];
       const upgrades = pg.upgrades || {};
-      const base = g ? Number(g["생산량(에너지)"]) || 0 : 0;
+      const productionValue = g
+        ? valueFromServer(g["생산량(에너지수)"], g["생산량(에너지높이)"], g["생산량(에너지)"])
+        : null;
+      const base = Math.max(0, toPlainValue(productionValue));
       const produced = applyUpgradeEffects(base, upgrades, { type: "production" });
       baseTotal += produced;
       let heatRate = typeof pg.heatRate === "number" ? pg.heatRate : (g ? Number(g["발열"]) || 0 : 0);

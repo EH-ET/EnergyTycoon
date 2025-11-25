@@ -16,6 +16,9 @@ main {
   height: 100%;
   min-height: inherit;
   background: #fafafa;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: auto 100%;
 }
 
 
@@ -39,7 +42,7 @@ main {
 
 .header-right {
   justify-content: right;
-  padding-right: 10%;
+
 }
 
 .profile {
@@ -157,8 +160,12 @@ main {
 
 .money-img, .energy-img, .money-icon, .energy-icon { position: relative; }
 .money-modal, .energy-modal { position: absolute; top: 60px; left: -40px; width: 180px; background-color: #0b0b0b; color: #fff; padding: 8px; border-radius: 8px; opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s ease; box-shadow: 0 6px 18px rgba(0,0,0,0.35); font-size: 14px; z-index: 10; pointer-events: none; }
-.money-img:hover .money-modal, .money-icon:hover .money-modal .money{ opacity: 0.75; visibility: visible; transform: translateY(0); pointer-events: auto; }
-.energy-img:hover .energy-modal, .energy-icon:hover .energy-modal .energy{ opacity: 0.75; visibility: visible; transform: translateY(0); pointer-events: auto; }
+.stat-card:hover .money-modal,
+.stat-card:hover .energy-modal {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
 .money-rate, .energy-rate { font-weight: 700; color: #a8ff8e; }
 
 .stat-card {

@@ -36,6 +36,7 @@ const UPGRADE_CONFIG = {
 
 let generatorModal = null;
 let upgradeModal = null;
+let generatorModalTimer = null;
 
 function ensureModal() {
   if (generatorModal) return generatorModal;
@@ -219,6 +220,10 @@ function hideModal() {
     generatorModal.overlay.style.display = "none";
     generatorModal.demolishBtn.onclick = null;
   }
+  if (generatorModalTimer) {
+    clearInterval(generatorModalTimer);
+    generatorModalTimer = null;
+  }
 }
 
 function showGeneratorModal(entry, element) {
@@ -263,23 +268,36 @@ function showGeneratorModal(entry, element) {
   const prevUpgrade = actions.querySelector(".upgrade-button");
   if (prevUpgrade) prevUpgrade.remove();
   modal.demolishBtn.textContent = `철거 (비용 ${demolishCost})`;
-  if (entry.isDeveloping) {
+  let skipBtn = null;
+  let buildInfo = null;
+  const renderBuildInfo = () => {
+    if (!entry.isDeveloping) {
+      if (buildInfo) buildInfo.remove();
+      if (skipBtn) skipBtn.remove();
+      return;
+    }
     const remainingSeconds = Math.max(
       0,
       Math.ceil(((entry.buildCompleteTs || Date.now()) - Date.now()) / 1000),
     );
-    const info = document.createElement("p");
-    info.style.margin = "6px 0";
-     info.className = "build-info";
-    info.textContent = `건설 중 (${remainingSeconds}초 남음)`;
-    modal.desc.insertAdjacentElement("afterend", info);
+    if (!buildInfo) {
+      buildInfo = document.createElement("p");
+      buildInfo.style.margin = "6px 0";
+      buildInfo.className = "build-info";
+      modal.desc.insertAdjacentElement("afterend", buildInfo);
+    }
+    buildInfo.textContent = `건설 중 (${remainingSeconds}초 남음)`;
     const skipCost = computeSkipCost(entry);
-    const skipBtn = document.createElement("button");
-    skipBtn.type = "button";
+    if (!skipBtn) {
+      skipBtn = document.createElement("button");
+      skipBtn.type = "button";
+      skipBtn.style.flex = "1";
+      skipBtn.className = "skip-button";
+      actions.appendChild(skipBtn);
+    }
     skipBtn.textContent = `즉시 완성 (${formatPlainValue(skipCost)})`;
-    skipBtn.style.flex = "1";
-    skipBtn.className = "skip-button";
     skipBtn.onclick = async () => {
+      if (!entry.generator_id) return;
       try {
         beginTrapGuardGracePeriod();
         const res = await skipGeneratorBuild(entry.generator_id);
@@ -289,14 +307,16 @@ function showGeneratorModal(entry, element) {
         }
         if (res.generator) {
           syncEntryBuildState(entry, res.generator);
+          renderBuildInfo();
+          updateHeatLine();
         }
         hideModal();
       } catch (err) {
         alert(err.message || "건설 스킵 실패");
       }
     };
-    actions.appendChild(skipBtn);
-  }
+  };
+  renderBuildInfo();
   const toggleBtn = document.createElement("button");
   toggleBtn.type = "button";
   toggleBtn.className = "run-toggle";
@@ -363,6 +383,15 @@ function showGeneratorModal(entry, element) {
     }
   };
   modal.overlay.style.display = "flex";
+
+  if (generatorModalTimer) {
+    clearInterval(generatorModalTimer);
+    generatorModalTimer = null;
+  }
+  generatorModalTimer = window.setInterval(() => {
+    updateHeatLine();
+    renderBuildInfo();
+  }, 1000);
 }
 
 function computeMaxGenerators(user) {
