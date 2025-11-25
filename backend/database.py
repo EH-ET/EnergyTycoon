@@ -3,8 +3,12 @@ import sys
 import pathlib
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# Load .env file
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 def _ensure_sqlite_dir(database_url: str):

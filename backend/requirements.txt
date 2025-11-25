@@ -1,3 +1,7 @@
 fastapi
 uvicorn
 passlib[bcrypt]
+psycopg2-binary
+python-dotenv
+sqlalchemy
+SQLAlchemy>=2.0

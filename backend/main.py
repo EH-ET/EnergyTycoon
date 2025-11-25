@@ -63,26 +63,52 @@ AUTH_ENDPOINTS = {"/login", "/signup"}
 
 @app.middleware("http")
 async def enforce_origin(request: Request, call_next):
-    if request.method not in SAFE_METHODS:
-        origin = request.headers.get("origin")
-        referer = request.headers.get("referer")
-        def _allow(url: str | None) -> bool:
-            if not url:
-                return False
-            parsed = urlparse(url)
-            candidate = f"{parsed.scheme}://{parsed.netloc}"
-            return candidate in origins
+    origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
 
-        if not (_allow(origin) or _allow(referer)):
-            raise HTTPException(status_code=403, detail="Origin not allowed")
+    def _allow(url: str | None) -> str | None:
+        if not url:
+            return None
+        parsed = urlparse(url)
+        candidate = f"{parsed.scheme}://{parsed.netloc}"
+        return candidate if candidate in origins else None
+
+    allowed_origin = _allow(origin) or _allow(referer)
+
+    # Preflight은 통과시킴
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        if allowed_origin:
+            response.headers["Access-Control-Allow-Origin"] = allowed_origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
+
+    if request.method not in SAFE_METHODS:
+        if not allowed_origin:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Origin not allowed"},
+                headers={"Access-Control-Allow-Origin": origin or "*"}
+                if origin
+                else None,
+            )
 
         # Skip CSRF check for authentication endpoints where token is set
         if request.url.path not in AUTH_ENDPOINTS:
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
             if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-                raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
-    return await call_next(request)
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token missing or invalid"},
+                    headers={"Access-Control-Allow-Origin": allowed_origin, "Access-Control-Allow-Credentials": "true"},
+                )
+
+    response = await call_next(request)
+    if allowed_origin:
+        response.headers["Access-Control-Allow-Origin"] = allowed_origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # DB setup and seeding
 Base.metadata.create_all(bind=engine)
