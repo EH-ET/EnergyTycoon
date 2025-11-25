@@ -163,8 +163,10 @@ export async function demolishGenerator(generatorId, token) {
 }
 
 export async function fetchMyRank(token) {
+  const headers = {};
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/rank`, {
-    headers: {},
+    headers,
     credentials: "include",
   });
   const data = await res.json();
@@ -189,8 +191,10 @@ export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  const headers = {};
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
-    headers: {},
+    headers,
     credentials: "include",
   });
   const data = await res.json();
