@@ -1,19 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
 import { formatResourceValue } from '../../utils/bigValue';
 import { fetchRanks } from '../../utils/apiClient';
 import { fetchMyRank } from '../../utils/apiClient';
-
-const PLAY_TIME_KEY = 'et_play_total';
-
-function formatPlayTime(ms) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
-}
+import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
 
 export default function InfoTab() {
   const currentUser = useStore(state => state.currentUser);
@@ -21,34 +11,25 @@ export default function InfoTab() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
   const [myRank, setMyRank] = useState(null);
-  const totalPlayRef = useRef(0);
-  const lastTickRef = useRef(0);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    totalPlayRef.current = Math.max(0, Number(localStorage.getItem(PLAY_TIME_KEY)) || 0);
-    lastTickRef.current = Date.now();
+    const base = Math.max(readStoredPlayTime(), parseServerPlayTime(currentUser));
+    setPlayTime(base);
 
-    const updatePlayTime = () => {
-      const current = Date.now();
-      const delta = Math.max(0, current - lastTickRef.current);
-      lastTickRef.current = current;
-      totalPlayRef.current += delta;
-      setPlayTime(totalPlayRef.current);
-      localStorage.setItem(PLAY_TIME_KEY, String(totalPlayRef.current));
+    const handleUpdate = (event) => {
+      if (typeof event.detail === 'number') {
+        setPlayTime(event.detail);
+      } else {
+        const stored = readStoredPlayTime();
+        const fromServer = parseServerPlayTime(currentUser);
+        setPlayTime(Math.max(stored, fromServer));
+      }
     };
 
-    updatePlayTime();
-    const timer = setInterval(updatePlayTime, 1000);
-
-    return () => {
-      clearInterval(timer);
-      const current = Date.now();
-      const delta = Math.max(0, current - lastTickRef.current);
-      totalPlayRef.current += delta;
-      localStorage.setItem(PLAY_TIME_KEY, String(totalPlayRef.current));
-    };
+    document.addEventListener(PLAY_TIME_EVENT, handleUpdate);
+    return () => document.removeEventListener(PLAY_TIME_EVENT, handleUpdate);
   }, [currentUser]);
 
   useEffect(() => {

@@ -5,6 +5,7 @@ import { useEnergyTimer } from './hooks/useEnergyTimer';
 import { useAutosave } from './hooks/useAutosave';
 import { useViewport } from './hooks/useViewport';
 import { useRankUpdate } from './hooks/useRank';
+import { usePlayTime } from './hooks/usePlayTime';
 import { normalizeServerGenerators } from './utils/generatorHelpers';
 import Header from './components/Header';
 import Main from './components/Main';
@@ -46,6 +47,7 @@ function App() {
   useAutosave();
   useViewport();
   useRankUpdate();
+  usePlayTime();
 
   useEffect(() => {
     const init = async () => {

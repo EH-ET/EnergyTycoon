@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGenerator } from '../utils/apiClient';
 import { computeSkipCost } from '../utils/generatorHelpers';
-import { formatResourceValue, fromPlainValue } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
+import { generators } from '../utils/data';
 import AlertModal from './AlertModal';
 
 const DEMOLISH_COST_RATE = 0.5;
@@ -11,6 +12,7 @@ const UPGRADE_CONFIG = {
   heat_reduction: { label: "발열 감소", desc: "발열 10% 감소/레벨", baseMultiplier: 0.4, growth: 1.2 },
   tolerance: { label: "내열 증가", desc: "내열 +10/레벨", baseMultiplier: 0.45, growth: 1.2 },
 };
+const PRODUCTION_UPGRADE_FACTOR = 0.1;
 
 function computeUpgradeCost(entry, key) {
   const cfg = UPGRADE_CONFIG[key];
@@ -74,7 +76,8 @@ export default function GeneratorModal({ generator, onClose }) {
 
   const handleSkip = async () => {
     try {
-      const res = await skipGeneratorBuild(generator.generator_id);
+      const token = getAuthToken();
+      const res = await skipGeneratorBuild(generator.generator_id, token);
 
       if (res.user) {
         syncUserState(res.user);
@@ -86,6 +89,7 @@ export default function GeneratorModal({ generator, onClose }) {
           buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : null,
           running: res.generator.running !== false,
           heat: typeof res.generator.heat === 'number' ? res.generator.heat : 0,
+          upgrades: res.generator.upgrades || generator.upgrades,
         }));
       }
 
@@ -96,25 +100,32 @@ export default function GeneratorModal({ generator, onClose }) {
   };
 
   const handleToggleRunning = async () => {
-    try {
-      const res = await updateGeneratorState(generator.generator_id, {
-        running: generator.running === false,
-        heat: generator.heat,
-      });
+    const id = generator?.generator_id;
+    if (!id) {
+      setAlertMessage('발전기 ID가 없습니다.');
+      return;
+    }
 
-      const nextRunning = res.generator ? res.generator.running !== false : generator.running === false;
-      const nextHeat = typeof res.generator?.heat === 'number' ? res.generator.heat : generator.heat;
+    const nextRunning = generator.running === false;
+    try {
+      const token = getAuthToken();
+      const res = await updateGeneratorState(
+        id,
+        { running: nextRunning, heat: generator.heat },
+        token
+      );
+
+      const serverRunning = res.generator ? res.generator.running !== false : nextRunning;
+      const serverHeat = typeof res.generator?.heat === 'number' ? res.generator.heat : generator.heat;
       updateGeneratorEntry((prev) => ({
         ...prev,
-        running: nextRunning,
-        heat: typeof nextHeat === 'number' ? nextHeat : prev?.heat,
+        running: serverRunning,
+        heat: typeof serverHeat === 'number' ? serverHeat : prev?.heat,
       }));
 
       if (res.user) {
         syncUserState(res.user);
       }
-
-      onClose();
     } catch (err) {
       setAlertMessage(err.message || '상태 변경 실패');
     }
@@ -150,6 +161,27 @@ export default function GeneratorModal({ generator, onClose }) {
   const baseTolerance = generator.baseTolerance || generator.tolerance || 100;
   const buffedTolerance = baseTolerance + (generator.upgrades?.tolerance || 0) * 10;
   const skipCost = computeSkipCost(generator);
+  const isRunning = generator.running !== false && !generator.isDeveloping;
+  const statusColor = generator.isDeveloping ? '#4fa3ff' : isRunning ? '#f1c40f' : '#e74c3c';
+  const currentUser = useStore(state => state.currentUser);
+
+  const computeProductionPerSec = () => {
+    const idx = Number(generator.genIndex);
+    const meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
+    if (!meta) return 0;
+    const productionValue = valueFromServer(
+      meta["생산량(에너지수)"],
+      meta["생산량(에너지높이)"],
+      meta["생산량(에너지)"]
+    );
+    const base = Math.max(0, toPlainValue(productionValue));
+    const upgradeLevel = generator.upgrades?.production || 0;
+    const upgraded = base * (1 + PRODUCTION_UPGRADE_FACTOR * upgradeLevel);
+    const bonus = Number(currentUser?.production_bonus) || 0;
+    return upgraded * (1 + 0.1 * bonus);
+  };
+
+  const productionPerSec = computeProductionPerSec();
 
   return (
     <>
@@ -174,17 +206,37 @@ export default function GeneratorModal({ generator, onClose }) {
     >
       <div
         style={{
-          background: '#111',
-          color: '#fff',
-          padding: '20px',
-          borderRadius: '8px',
-          minWidth: '260px',
-          boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
+          background: 'linear-gradient(160deg, #0d1117 0%, #111827 100%)',
+          color: '#f6f8fa',
+          padding: '22px',
+          borderRadius: '14px',
+          minWidth: '300px',
+          maxWidth: '90vw',
+          boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
+          border: '1px solid #1f2a3d',
+          position: 'relative',
         }}
       >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', color: '#f6f8fa' }}>{generator.name || '발전기'}</h3>
+          <span style={{
+            fontSize: '12px',
+            padding: '6px 10px',
+            borderRadius: '999px',
+            background: statusColor,
+            color: '#0d1117',
+            fontWeight: 800,
+            letterSpacing: '0.3px'
+          }}>
+            {generator.isDeveloping ? '건설 중' : isRunning ? '운영 중' : '중단'}
+          </span>
+        </div>
+        <p style={{ margin: '4px 0 10px', color: '#9ba4b5', fontSize: '13px' }}>
+          내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)}
+        </p>
         {showUpgrade ? (
           <>
-            <h3 style={{ marginTop: 0 }}>발전기 업그레이드</h3>
+            <h3 style={{ marginTop: 0, color: '#f6f8fa' }}>발전기 업그레이드</h3>
             {Object.entries(UPGRADE_CONFIG).map(([key, cfg]) => {
               const level = generator.upgrades?.[key] || 0;
               const cost = computeUpgradeCost(generator, key);
@@ -193,71 +245,147 @@ export default function GeneratorModal({ generator, onClose }) {
                 <div
                   key={key}
                   style={{
-                    border: '1px solid #333',
+                    border: '1px solid #223148',
                     padding: '10px',
                     borderRadius: '8px',
-                    background: '#141414',
+                    background: '#0f1729',
                     marginBottom: '10px',
                   }}
                 >
                   <div style={{ fontWeight: '600' }}>{cfg.label}</div>
-                  <p style={{ margin: '4px 0 8px', color: '#c9c9c9' }}>{cfg.desc}</p>
+                  <p style={{ margin: '4px 0 8px', color: '#9ba4b5' }}>{cfg.desc}</p>
                   <div>레벨: {level}</div>
                   <div style={{ color: '#f1c40f' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
                   <button
                     onClick={() => handleUpgrade(key)}
-                    style={{ marginTop: '6px', width: '100%' }}
+                    style={{
+                      marginTop: '6px',
+                      width: '100%',
+                      background: '#1f6feb',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
                   >
                     업그레이드
                   </button>
                 </div>
               );
             })}
-            <button onClick={() => setShowUpgrade(false)} style={{ width: '100%', marginTop: '12px' }}>
+            <button
+              onClick={() => setShowUpgrade(false)}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                padding: '10px',
+                borderRadius: '10px',
+                border: '1px solid #223148',
+                background: '#0f1729',
+                color: '#c8d1e5',
+                cursor: 'pointer',
+              }}
+            >
               닫기
             </button>
           </>
         ) : (
           <>
-            <h3 style={{ marginTop: 0 }}>{generator.name || '발전기'}</h3>
-            <p>철거 비용: {demolishCost} 돈</p>
-            <p style={{ margin: '4px 0' }}>발열: {Math.round(generator.heat || 0)} / {buffedTolerance}</p>
-            <p style={{ margin: '0' }}>내열 증가: +{(generator.upgrades?.tolerance || 0) * 10}</p>
+            <div style={{ marginBottom: '10px', color: '#9ba4b5' }}>
+              철거 비용: <span style={{ color: '#f39c12' }}>{demolishCost.toLocaleString()} 돈</span>
+            </div>
+            <div style={{ marginBottom: '10px', color: '#c8d1e5' }}>
+              초당 생산량: <span style={{ color: '#f1c40f', fontWeight: 800 }}>{productionPerSec.toLocaleString()} /초</span>
+            </div>
 
             {generator.isDeveloping && remainingTime > 0 && (
-              <>
-                <p style={{ margin: '6px 0' }}>건설 중 ({remainingTime}초 남음)</p>
-                <button onClick={handleSkip} style={{ width: '100%', marginBottom: '8px' }}>
+              <div style={{
+                padding: '10px',
+                borderRadius: '10px',
+                background: '#0f1729',
+                border: '1px solid #223148',
+                marginBottom: '10px',
+                color: '#c8d1e5'
+              }}>
+                건설 중 ({remainingTime}초 남음)
+                <button
+                  onClick={handleSkip}
+                  style={{
+                    width: '100%',
+                    marginTop: '8px',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#1f6feb',
+                    color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
                   즉시 완성 ({formatResourceValue(fromPlainValue(skipCost))})
                 </button>
-              </>
+              </div>
             )}
 
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-              <button onClick={onClose} style={{ flex: 1 }}>
-                닫기
-              </button>
-              <button
-                onClick={handleDemolish}
-                style={{ flex: 1, background: '#c0392b', color: '#fff' }}
-              >
-                철거 (비용 {demolishCost})
-              </button>
+            <div style={{ display: 'grid', gap: '8px', marginTop: '12px' }}>
               <button
                 onClick={handleToggleRunning}
                 style={{
-                  flex: 1,
-                  background: generator.running === false ? '#27ae60' : '#f39c12',
-                  color: '#fff',
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: generator.running === false ? '#2ecc71' : '#f39c12',
+                  color: '#0d1117',
+                  fontWeight: 800,
+                  cursor: 'pointer',
                 }}
               >
                 {generator.running === false ? '운영 재개' : '운영 중단'}
               </button>
               <button
                 onClick={() => setShowUpgrade(true)}
-                style={{ flex: 1, background: '#2980b9', color: '#fff' }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #223148',
+                  background: '#0f1729',
+                  color: '#c8d1e5',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
               >
                 업그레이드
+              </button>
+              <button
+                onClick={handleDemolish}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: '#e74c3c',
+                  color: '#fff',
+                  fontWeight: 800,
+                  cursor: 'pointer'
+                }}
+              >
+                철거 (비용 {demolishCost})
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid #223148',
+                  background: '#0d1117',
+                  color: '#9ba4b5',
+                  cursor: 'pointer'
+                }}
+              >
+                닫기
               </button>
             </div>
           </>

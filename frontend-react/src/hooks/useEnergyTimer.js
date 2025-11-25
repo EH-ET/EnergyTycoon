@@ -7,7 +7,7 @@ import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generato
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 
-async function handleExplosion(entry, removePlacedGenerator) {
+async function handleExplosion(entry, removePlacedGenerator, token) {
   if (!entry) return;
   entry.running = false;
   entry.isDeveloping = true;
@@ -19,7 +19,7 @@ async function handleExplosion(entry, removePlacedGenerator) {
   entry.buildCompleteTs = Date.now() + rebuildMs;
 
   try {
-    await updateGeneratorState(entry.generator_id, { explode: true });
+    await updateGeneratorState(entry.generator_id, { explode: true }, token);
   } catch (err) {
     // Silent fail
   }
@@ -34,7 +34,7 @@ function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
 
 function applyHeatReduction(heatRate, upgrades = {}) {
   const lvl = upgrades.heat_reduction || 0;
-  if (!lvl) return 0;
+  if (!lvl) return heatRate;
   const factor = Math.max(0.1, 1 - 0.1 * lvl);
   return heatRate * factor;
 }
@@ -108,7 +108,15 @@ export function useEnergyTimer() {
         if (next.isDeveloping || isPaused) return next;
 
         const idx = Number(next.genIndex);
-        const meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
+        let meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
+        if (!meta) {
+          const byId = Number(next.generator_type_id);
+          if (Number.isInteger(byId) && byId >= 0 && byId < generators.length) {
+            meta = generators[byId];
+          } else if (next.name) {
+            meta = generators.find((g) => g?.이름 === next.name);
+          }
+        }
         if (!meta) return next;
 
         const upgrades = next.upgrades || {};
@@ -136,7 +144,7 @@ export function useEnergyTimer() {
             : (meta ? Number(meta["내열한계"]) || 0 : 0);
         const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10;
         if (toleranceBuff > 0 && next.heat > toleranceBuff) {
-          handleExplosion(next, removePlacedGenerator);
+          handleExplosion(next, removePlacedGenerator, getAuthToken());
         }
 
         return next;
