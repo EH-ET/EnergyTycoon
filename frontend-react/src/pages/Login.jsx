@@ -52,6 +52,16 @@ function storeToken(token) {
   }
 }
 
+function storeCsrfFromResponse(response) {
+  const headerVal = response?.headers?.get?.("x-csrf-token");
+  if (!headerVal) return;
+  try {
+    localStorage.setItem("et_csrf", headerVal);
+  } catch (e) {
+    // Silent fail
+  }
+}
+
 function setSessionStart() {
   if (!localStorage.getItem(STORAGE_KEYS.sessionTs)) {
     localStorage.setItem(STORAGE_KEYS.sessionTs, String(Date.now()));
@@ -114,6 +124,7 @@ export default function Login({ onLoginSuccess }) {
 
       storeUser(data.user);
       storeToken(data.access_token);
+      storeCsrfFromResponse(response);
       setSessionStart();
       persistTrapMarker();
 
@@ -169,6 +180,7 @@ export default function Login({ onLoginSuccess }) {
 
       storeUser(loginData.user);
       storeToken(loginData.access_token);
+      storeCsrfFromResponse(loginResponse);
       setSessionStart();
       persistTrapMarker();
 

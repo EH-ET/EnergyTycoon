@@ -197,6 +197,14 @@ def set_trap_cookie(response: Response) -> None:
 def set_csrf_cookie(response: Response) -> str:
     token = generate_uuid()
     response.set_cookie(CSRF_COOKIE_NAME, token, **_cookie_params(REFRESH_TOKEN_TTL, http_only=False))
+    response.headers[CSRF_HEADER_NAME] = token
+    existing_expose = response.headers.get("Access-Control-Expose-Headers")
+    if existing_expose:
+        exposed = {h.strip() for h in existing_expose.split(",") if h.strip()}
+        exposed.add(CSRF_HEADER_NAME)
+        response.headers["Access-Control-Expose-Headers"] = ", ".join(sorted(exposed))
+    else:
+        response.headers["Access-Control-Expose-Headers"] = CSRF_HEADER_NAME
     return token
 
 
