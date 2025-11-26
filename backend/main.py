@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, HTTPException, Header
+from fastapi.responses import JSONResponse
 
 # Ensure package imports work even when run as a script (python backend/main.py)
 ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
@@ -20,7 +21,6 @@ from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
-_deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.netlify.app").rstrip("/")
 _local_origins = [
     "http://localhost:4173",
     "http://127.0.0.1:4173",
@@ -30,8 +30,9 @@ _local_origins = [
     "http://127.0.0.1:5500",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://energytycoon.netlify.app",
 ]
-_default_origins = _local_origins + ([_deploy_frontend] if _deploy_frontend else [])
+_default_origins = [_local_origins] if _local_origins else []
 
 _origins_env = os.getenv("FRONTEND_ORIGINS")
 if _origins_env:
