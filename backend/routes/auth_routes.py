@@ -19,7 +19,7 @@ from ..auth_utils import (
     set_trap_cookie,
     verify_password,
 )
-from ..dependencies import get_db, get_refresh_user_and_db
+from ..dependencies import get_db, get_refresh_user_and_db, get_user_and_db
 from ..models import User
 from ..bigvalue import from_plain, set_user_money_value, set_user_energy_value, ensure_user_big_values
 
@@ -168,3 +168,15 @@ async def refresh_refresh(response: Response, auth=Depends(get_refresh_user_and_
         set_auth_cookies(response, access_token, refresh_token)
         set_csrf_cookie(response)
     return {"detail": "token pair refreshed"}
+
+
+@router.post("/delete_account")
+async def delete_account(payload: schemas.DeleteAccountIn, response: Response, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    if not verify_password(payload.password, user.password):
+        raise HTTPException(status_code=400, detail="Invalid password")
+    revoke_user_tokens(user.user_id)
+    db.delete(user)
+    db.commit()
+    clear_auth_cookies(response)
+    return {"detail": "Account deleted"}

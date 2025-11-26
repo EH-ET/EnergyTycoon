@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { deleteAccount } from '../utils/apiClient';
+import { getAuthToken } from '../store/useStore';
 
 const AUDIO_PREF_KEY = "audio_preferences";
 const DEFAULT_PREFS = { music: true, sfx: true };
@@ -25,10 +27,15 @@ function persistAudioPrefs(pref) {
 
 export default function SettingsModal({ open, onClose }) {
   const [prefs, setPrefs] = useState(DEFAULT_PREFS);
+  const [password, setPassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setPrefs(loadAudioPrefs());
+    setPassword("");
+    setDeleteError("");
   }, [open]);
 
   useEffect(() => {
@@ -46,6 +53,29 @@ export default function SettingsModal({ open, onClose }) {
     const next = { ...prefs, [key]: value };
     setPrefs(next);
     persistAudioPrefs(next);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError("");
+    const pwd = password.trim();
+    if (!pwd) {
+      setDeleteError("비밀번호를 입력해주세요.");
+      return;
+    }
+    const confirmed = window.confirm("정말 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+    if (!confirmed) return;
+    try {
+      setIsDeleting(true);
+      const token = getAuthToken();
+      await deleteAccount(pwd, token);
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/";
+    } catch (err) {
+      setDeleteError(err?.message || "계정 삭제에 실패했습니다.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (!open) return null;
@@ -86,6 +116,38 @@ export default function SettingsModal({ open, onClose }) {
 
         <div className="settings-actions">
           <button type="button" onClick={onClose}>닫기</button>
+        </div>
+
+        <hr style={{ margin: "16px 0", borderColor: "#333" }} />
+        <div style={{ display: "grid", gap: "8px" }}>
+          <label htmlFor="delete-password" style={{ fontWeight: 600 }}>회원 탈퇴</label>
+          <input
+            id="delete-password"
+            type="password"
+            placeholder="비밀번호 입력"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: "10px", borderRadius: "8px", border: "1px solid #555" }}
+          />
+          {deleteError && (
+            <div style={{ color: "#ff6b6b", fontSize: "13px" }}>{deleteError}</div>
+          )}
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={isDeleting}
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid #b00020",
+              background: isDeleting ? "#4a000f" : "linear-gradient(135deg, #ff4d6d, #b00020)",
+              color: "#fff",
+              cursor: isDeleting ? "not-allowed" : "pointer",
+              fontWeight: 700,
+            }}
+          >
+            {isDeleting ? "탈퇴 처리 중..." : "회원 탈퇴"}
+          </button>
         </div>
       </div>
     </div>
