@@ -21,6 +21,7 @@ from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
+_deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.netlify.app").rstrip("/")
 _local_origins = [
     "http://localhost:4173",
     "http://127.0.0.1:4173",
@@ -30,7 +31,7 @@ _local_origins = [
     "http://127.0.0.1:5500",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://energytycoon.netlify.app",
+    _deploy_frontend,
 ]
 
 def _dedup(seq):
@@ -53,6 +54,16 @@ if _origins_env:
         origins = _dedup(_default_origins + parsed)
 else:
     origins = _default_origins
+
+_origin_regex = None
+_origin_regex_env = os.getenv("FRONTEND_ORIGIN_REGEX")
+if _origin_regex_env:
+    import re
+
+    try:
+        _origin_regex = re.compile(_origin_regex_env)
+    except re.error:
+        _origin_regex = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,7 +89,11 @@ async def enforce_origin(request: Request, call_next):
             return None
         parsed = urlparse(url)
         candidate = f"{parsed.scheme}://{parsed.netloc}"
-        return candidate if candidate in origins else None
+        if candidate in origins:
+            return candidate
+        if _origin_regex and _origin_regex.match(candidate):
+            return candidate
+        return None
 
     allowed_origin = _allow(origin) or _allow(referer)
 

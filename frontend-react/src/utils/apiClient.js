@@ -3,6 +3,7 @@ import { API_BASE, generators } from "./data.js";
 import { valueFromServer, toPlainValue } from "./bigValue.js";
 
 const CSRF_COOKIE_NAME = "csrf_token";
+const CSRF_STORAGE_KEY = "et_csrf";
 
 function readCookie(name) {
   const cookie = document.cookie || "";
@@ -16,12 +17,29 @@ function readCookie(name) {
 }
 
 function ensureCsrfToken() {
-  let token = readCookie(CSRF_COOKIE_NAME);
+  // 우선 서버에서 내려준 토큰을 로컬 스토리지에서 찾음
+  let token = null;
+  try {
+    token = localStorage.getItem(CSRF_STORAGE_KEY);
+  } catch (e) {
+    token = null;
+  }
+  // 없으면 현재 도메인 쿠키에서 조회
+  if (!token) {
+    token = readCookie(CSRF_COOKIE_NAME);
+  }
+  // 그래도 없으면 임시 생성 (백엔드 쿠키와 맞지 않으면 이후 요청에서 실패)
   if (!token) {
     token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
     const d = new Date();
     d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
     document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  }
+  // 캐시
+  try {
+    localStorage.setItem(CSRF_STORAGE_KEY, token);
+  } catch (e) {
+    // ignore
   }
   return token;
 }
