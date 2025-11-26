@@ -32,14 +32,25 @@ _local_origins = [
     "http://127.0.0.1:8000",
     "https://energytycoon.netlify.app",
 ]
-_default_origins = [_local_origins] if _local_origins else []
+
+def _dedup(seq):
+    seen = set()
+    out = []
+    for item in seq:
+        if item and item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+_default_origins = _dedup(_local_origins)
 
 _origins_env = os.getenv("FRONTEND_ORIGINS")
 if _origins_env:
     if _origins_env.strip() == "*":
         origins = _default_origins
     else:
-        origins = [o.strip() for o in _origins_env.split(",") if o.strip()]
+        parsed = [o.strip() for o in _origins_env.split(",") if o.strip()]
+        origins = _dedup(_default_origins + parsed)
 else:
     origins = _default_origins
 
