@@ -221,6 +221,20 @@ export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
   return data;
 }
 
+export async function deleteAccount(password, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/delete_account`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: JSON.stringify({ password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "계정 삭제 실패");
+  return data;
+}
+
 export async function autosaveProgress(token, payload = {}) {
   const body = {};
   if (typeof payload.energy === "number") body.energy = payload.energy;

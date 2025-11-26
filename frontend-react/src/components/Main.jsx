@@ -222,7 +222,10 @@ export default function Main() {
           }}
         >
           {placedGenerators.map((generator) => {
-            const screenX = generator.x + userOffsetX;
+            const baseX = typeof generator.world_position === 'number'
+              ? generator.world_position
+              : (typeof generator.x === 'number' ? generator.x : 0);
+            const screenX = baseX + userOffsetX;
             const width = getGeneratorSize(generator.name);
             const isRunning = generator.running !== false && !generator.isDeveloping;
             const nameColor = generator.isDeveloping

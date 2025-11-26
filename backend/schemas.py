@@ -70,3 +70,7 @@ class GeneratorStateUpdate(BaseModel):
 class GeneratorUpgradeRequest(BaseModel):
     upgrade: str
     amount: int = Field(1, ge=1)
+
+
+class DeleteAccountIn(BaseModel):
+    password: str
