@@ -59,13 +59,15 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     if compare_plain(money_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     rate = current_market_rate(user)
+    # Calculate energy gained: money * rate (opposite of energy2money)
+    gained = max(1, int(payload.amount * rate))
     money_value = subtract_plain(money_value, payload.amount)
-    energy_value = add_plain(get_user_energy_value(user), payload.amount)
+    energy_value = add_plain(get_user_energy_value(user), gained)
     set_user_money_value(user, money_value)
     set_user_energy_value(user, energy_value)
     db.commit()
     db.refresh(user)
-    return {"energy": user.energy, "money": user.money, "rate": rate, "user": UserOut.model_validate(user)}
+    return {"energy": user.energy, "money": user.money, "rate": rate, "gained": gained, "user": UserOut.model_validate(user)}
 
 
 @router.get("/change/rate")
