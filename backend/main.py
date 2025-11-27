@@ -150,15 +150,17 @@ async def enforce_origin(request: Request, call_next):
         response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
-# DB setup and seeding
-Base.metadata.create_all(bind=engine)
-ensure_user_upgrade_columns()
-ensure_big_value_columns()
-ensure_generator_columns()
-ensure_map_progress_columns()
-with SessionLocal() as db:
-    # 기존 DB에 새로 추가된 발전기 타입이 누락되지 않도록 동기화
-    sync_generator_types(db)
+@app.on_event("startup")
+async def startup_event():
+    # DB setup and seeding (moved to startup to avoid blocking import/health checks)
+    Base.metadata.create_all(bind=engine)
+    ensure_user_upgrade_columns()
+    ensure_big_value_columns()
+    ensure_generator_columns()
+    ensure_map_progress_columns()
+    with SessionLocal() as db:
+        sync_generator_types(db)
+
 
 # Routers
 app.include_router(auth_routes.router)
@@ -169,9 +171,6 @@ app.include_router(rank_routes.router)
 app.include_router(upgrade_routes.router)
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host=host, port=port)
+@app.get("/")
+def root():
+    return {"status": "ok"}
