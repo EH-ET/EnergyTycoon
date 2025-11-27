@@ -1,3 +1,4 @@
+import os
 import time
 from collections import defaultdict
 
@@ -25,13 +26,13 @@ from ..bigvalue import from_plain, set_user_money_value, set_user_energy_value, 
 
 router = APIRouter()
 
-LOGIN_COOLDOWN_SECONDS = 1.0
+LOGIN_COOLDOWN_SECONDS = float(os.getenv("LOGIN_COOLDOWN_SECONDS", "1.0"))
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 _login_backoff: dict[str, float] = {}
 _ip_buckets = defaultdict(list)
-IP_MAX_ATTEMPTS = 10
-IP_WINDOW_SECONDS = 60
+IP_MAX_ATTEMPTS = int(os.getenv("IP_MAX_ATTEMPTS", "100"))
+IP_WINDOW_SECONDS = int(os.getenv("IP_WINDOW_SECONDS", "60"))
 
 
 def _validate_password_strength(pw: str):
