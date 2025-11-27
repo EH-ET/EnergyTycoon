@@ -127,8 +127,17 @@ async def enforce_origin(request: Request, call_next):
         if request.url.path not in AUTH_ENDPOINTS:
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
-            # Accept if cookie exists and either matches header or header is absent (Netlify can't read Render cookie)
-            if not csrf_cookie or (csrf_header and csrf_cookie != csrf_header):
+            # Allow if:
+            # - both cookie and header exist and match
+            # - only header exists (Netlify can't read Render cookie)
+            # - only cookie exists (same as before)
+            if csrf_cookie and csrf_header and csrf_cookie == csrf_header:
+                pass
+            elif csrf_header and not csrf_cookie:
+                pass
+            elif csrf_cookie and not csrf_header:
+                pass
+            else:
                 return JSONResponse(
                     status_code=403,
                     content={"detail": "CSRF token missing or invalid"},
