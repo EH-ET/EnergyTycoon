@@ -28,6 +28,16 @@ def migrate():
     sqlite_engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
     SqliteSession = sessionmaker(bind=sqlite_engine)
 
+    # Ensure legacy SQLite DB has the demand_bonus column populated
+    with sqlite_engine.begin() as conn:
+        rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
+        cols = {row[1] for row in rows}
+        if "demand_bonus" not in cols:
+            conn.exec_driver_sql("ALTER TABLE users ADD COLUMN demand_bonus INTEGER NOT NULL DEFAULT 0")
+            cols.add("demand_bonus")
+        if "supply_bonus" in cols:
+            conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
+
     # PostgreSQL (Neon) destination
     postgres_url = os.getenv("DATABASE_URL")
     if not postgres_url or postgres_url.startswith("sqlite"):
@@ -80,7 +90,7 @@ def migrate():
                 heat_reduction=user.heat_reduction,
                 tolerance_bonus=user.tolerance_bonus,
                 max_generators_bonus=user.max_generators_bonus,
-                supply_bonus=user.supply_bonus,
+                demand_bonus=user.demand_bonus,
             )
             dst_db.add(new_user)
             user_id_map[user.user_id] = user.user_id

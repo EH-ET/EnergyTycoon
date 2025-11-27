@@ -49,7 +49,9 @@ export function getStoredUser() {
   if (!stored) return null;
   try {
     const decoded = atob(stored);
-    return JSON.parse(decoded);
+    const parsed = JSON.parse(decoded);
+    normalizeDemandBonus(parsed);
+    return parsed;
   } catch (err) {
     console.warn("stored user parse failed", err);
     return null;
@@ -166,8 +168,16 @@ function sanitizeUserForStorage(user) {
   return clone;
 }
 
+function normalizeDemandBonus(user) {
+  if (!user) return;
+  if (user.demand_bonus == null && user.supply_bonus != null) {
+    user.demand_bonus = user.supply_bonus;
+  }
+}
+
 function applyResourceValues(user) {
   if (!user) return;
+  normalizeDemandBonus(user);
   const energyValue = valueFromServer(user.energy_data, user.energy_high, user.energy);
   user.energy_value = energyValue;
   user.energy_view = energyValue;

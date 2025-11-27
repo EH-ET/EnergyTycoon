@@ -20,6 +20,7 @@ main {
   background-position: 0 0;
   background-size: auto 100%;
   overflow: hidden;
+  overscroll-behavior-x: none;
 }
 
 

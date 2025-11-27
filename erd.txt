@@ -8,7 +8,7 @@ Table users {
   heat_reduction       int     [not null, default: 0]
   tolerance_bonus      int     [not null, default: 0]
   max_generators_bonus int     [not null, default: 0]
-  supply_bonus         int     [not null, default: 0]
+  demand_bonus         int     [not null, default: 0]
 
   indexes {
     username [unique]
