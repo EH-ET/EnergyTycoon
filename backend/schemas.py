@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     tolerance_bonus: int
     max_generators_bonus: int
     demand_bonus: int
+    play_time_ms: int
 
     model_config = {"from_attributes": True}
 
@@ -59,6 +60,7 @@ class ProgressAutoSaveIn(BaseModel):
     money: Optional[int] = Field(default=None, ge=0)
     money_data: Optional[int] = None
     money_high: Optional[int] = None
+    play_time_ms: Optional[int] = Field(default=None, ge=0)
 
 
 class GeneratorStateUpdate(BaseModel):

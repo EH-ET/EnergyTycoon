@@ -24,6 +24,7 @@ class User(Base):
     tolerance_bonus = Column(Integer, default=0, nullable=False)
     max_generators_bonus = Column(Integer, default=0, nullable=False)
     demand_bonus = Column(Integer, default=0, server_default="0", nullable=False)
+    play_time_ms = Column(Integer, default=0, server_default="0", nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { autosaveProgress } from '../utils/apiClient';
+import { readStoredPlayTime } from '../utils/playTime';
 
 export function useAutosave() {
   const currentUser = useStore(state => state.currentUser);
@@ -15,6 +16,7 @@ export function useAutosave() {
         const token = getAuthToken();
         const energyPayload = toEnergyServerPayload();
         const moneyPayload = toMoneyServerPayload();
+        const playTimeMs = readStoredPlayTime();
 
         await autosaveProgress(token, {
           energy: currentUser.energy,
@@ -23,6 +25,7 @@ export function useAutosave() {
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
+          play_time_ms: playTimeMs,
         });
       } catch (e) {
         // Silent fail

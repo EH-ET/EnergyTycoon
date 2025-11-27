@@ -4,6 +4,7 @@ import { generators } from '../utils/data';
 import { addPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
 import { loadProgress, updateGeneratorState, autosaveProgress } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
+import { readStoredPlayTime } from '../utils/playTime';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 const ENERGY_SAVE_DELAY = 500; // 에너지 변경 후 0.5초 후 저장
@@ -171,6 +172,7 @@ export function useEnergyTimer() {
             const token = getAuthToken();
             const energyPayload = toEnergyServerPayload();
             const currentEnergy = toPlainValue(getEnergyValue());
+            const playTimeMs = readStoredPlayTime();
 
             // 이미 저장된 값과 다를 때만 저장
             if (lastSavedEnergyRef.current !== currentEnergy) {
@@ -178,6 +180,7 @@ export function useEnergyTimer() {
                 energy: currentEnergy,
                 energy_data: energyPayload.data,
                 energy_high: energyPayload.high,
+                play_time_ms: playTimeMs,
               });
               lastSavedEnergyRef.current = currentEnergy;
             }
