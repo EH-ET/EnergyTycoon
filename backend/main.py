@@ -92,8 +92,8 @@ async def enforce_origin(request: Request, call_next):
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
 
-    # Loosen origin handling: echo back the incoming Origin/Referer to keep CORS headers flowing
-    allowed_origin = origin or referer
+    # Loosen origin handling: echo back the incoming Origin/Referer (or "*") to keep CORS headers flowing
+    allowed_origin = origin or referer or "*"
 
     # Preflight은 통과시킴
     if request.method == "OPTIONS":
@@ -101,6 +101,10 @@ async def enforce_origin(request: Request, call_next):
         if allowed_origin:
             response.headers["Access-Control-Allow-Origin"] = allowed_origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Headers"] = (
+                request.headers.get("Access-Control-Request-Headers") or "authorization,content-type,x-csrf-token"
+            )
+            response.headers["Access-Control-Allow-Methods"] = request.headers.get("Access-Control-Request-Method") or "*"
         return response
 
     if request.method not in SAFE_METHODS:
@@ -129,6 +133,7 @@ async def enforce_origin(request: Request, call_next):
     if allowed_origin:
         response.headers["Access-Control-Allow-Origin"] = allowed_origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers.setdefault("Access-Control-Expose-Headers", CSRF_HEADER_NAME)
     return response
 
 @app.on_event("startup")
