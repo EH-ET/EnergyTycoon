@@ -29,8 +29,8 @@ export function useAutosave() {
       }
     };
 
-    // 30초마다 자동 저장
-    const timer = setInterval(save, 30000);
+    // 10초마다 자동 저장 (에너지 증가를 빠르게 반영)
+    const timer = setInterval(save, 10000);
 
     return () => clearInterval(timer);
   }, [currentUser]);
