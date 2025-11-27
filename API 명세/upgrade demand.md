@@ -1,7 +1,7 @@
-# /upgrade/supply
+# /upgrade/demand
 
 HTTP Method: POST
-Service: 공급 증가
+Service: 수요 증가
 
 ## Request
 
@@ -19,7 +19,7 @@ Service: 공급 증가
 }
 ```
 
-- `amount`: 증가시키려는 공급량 보너스 값
+- `amount`: 증가시키려는 수요 보너스 값
 - 필요한 비용은 서버 로직에서 money 차감 후 처리
 
 ---
@@ -31,14 +31,14 @@ Service: 공급 증가
 ```json
 {
   "user_id": "string",
-  "supply_bonus": 4,
+  "demand_bonus": 4,
   "money": 1
 }
 ```
 
 예시 설명:
 
-- 기존 supply_bonus: 3 → 4
+- 기존 demand_bonus: 3 → 4
 - 비용 차감 후 money: 10 → 1
 
 ---

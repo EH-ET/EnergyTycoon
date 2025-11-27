@@ -9,7 +9,7 @@
 ## API 명세 (FastAPI `backend/main.py`)
 - Base URL: 백엔드 루트(기본 `http://localhost:8000`). CORS는 환경변수 `FRONTEND_ORIGINS`가 `*`가 아니면 화이트리스트로 제한.
 - 공통 모델
-  - User: `user_id`, `username`, `energy`, `money`, `production_bonus`, `heat_reduction`, `tolerance_bonus`, `max_generators_bonus`, `supply_bonus`.
+  - User: `user_id`, `username`, `energy`, `money`, `production_bonus`, `heat_reduction`, `tolerance_bonus`, `max_generators_bonus`, `demand_bonus`.
   - GeneratorType: `generator_type_id`, `name`, `description`, `cost`. 서버 기동 시 기본값(광합성, 풍력, 지열) 자동 시드.
   - Generator: `generator_id`, `generator_type_id`, `owner_id`, `level`, `x_position`, `world_position`, `isdeveloping`, `heat`.
   - MapProgress: `map_progress_id`, `user_id`, `generator_id` (유저-발전기 유니크).
@@ -26,7 +26,7 @@
 | Method | Path | Auth | Request | Response/로직 |
 | --- | --- | --- | --- | --- |
 | GET | `/generator_types` | - | - | `{types:[{id,name,cost,description}]}` |
-| GET | `/market` | Token | - | `{rate, sold_energy}`. `rate = base_rate(1) * (1 - min(0.7, sold_energy/500)) * (1 + supply_bonus*0.05)`, 최소 0.1. |
+| GET | `/market` | Token | - | `{rate, sold_energy}`. `rate = base_rate(1) * (1 - min(0.7, sold_energy/500)) * (1 + demand_bonus*0.05)`, 최소 0.1. |
 
 ### 거래
 | Method | Path | Auth | Request | Response/로직 |
@@ -47,7 +47,7 @@
 | POST | `/upgrade/heat_reduction` | Token | - | 위와 동일. |
 | POST | `/upgrade/tolerance` | Token | - | 위와 동일. |
 | POST | `/upgrade/max_generators` | Token | - | 위와 동일. |
-| POST | `/upgrade/supply` | Token | - | 위와 동일. 시장 교환비 계산 시 `supply_bonus` 반영. |
+| POST | `/upgrade/demand` | Token | - | 위와 동일. 시장 교환비 계산 시 `demand_bonus` 반영. |
 
 ### 랭킹
 | Method | Path | Auth | Request | Response/로직 |
@@ -75,7 +75,7 @@ GeneratorType (generator_type_id PK)
   - 탭에서 발전기 카드 드래그 → 메인 영역 드롭(`dropHandlers.js`). 위치 X 좌표와 발전기 타입 ID로 `/progress` 호출해 구매·저장.
   - 성공 시 `state.placedGenerators`에 추가하고 `placeGeneratorVisual`로 화면에 렌더. 비용은 서버 `generator_types`에서 가져온 `cost`를 사용.
   - 에너지 생산량: 매 1초 `computeEnergyPerSecond`로 합산(`generators` 기본 생산량 × (1 + production_bonus·0.1)) 후 `state.currentUser.energy` 증가.
-- 거래(`tradeTab.js`): `/market`으로 교환비 조회, 입력 에너지량을 `/change/energy2money`로 판매. 공급 업그레이드 버튼은 `/upgrade/supply` 호출.
+- 거래(`tradeTab.js`): `/market`으로 교환비 조회, 입력 에너지량을 `/change/energy2money`로 판매. 수요 업그레이드 버튼은 `/upgrade/demand` 호출.
 - 업그레이드 탭(`upgradeTab.js`): `data.js`의 업그레이드 메타를 사용해 비용/레벨 계산, `/upgrade/{endpoint}` 호출로 서버 반영.
 - 정보 탭(`infoTab.js`): 세션 시작 시각(`session_start_ts`) 기준 플레이 타임, 현재 에너지/돈, 임시 등수 표시.
 - 기타 UI: 상단 상태바에 에너지/돈/발전기 수 표기(최대 발전기 = `10 + max_generators_bonus*5`). 배치/진행도, 사용자 정보는 로컬스토리지와 백엔드 동기화를 병행합니다.

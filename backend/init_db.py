@@ -37,26 +37,39 @@ DEFAULT_GENERATOR_TIME_BY_NAME = {t["이름"]: int(t.get("설치시간(초)") or
 
 def ensure_user_upgrade_columns():
     """Ensure legacy sqlite DBs contain the newest user upgrade columns."""
-    # Skip for PostgreSQL - create_all() handles schema
-    if not str(engine.url).startswith("sqlite"):
+    dialect = engine.dialect.name
+    if dialect == "sqlite":
+        needed = [
+            ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
+            ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
+            ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
+            ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
+            ("money", "INTEGER NOT NULL DEFAULT 10"),
+            ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+        with engine.begin() as conn:
+            existing = set()
+            rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
+            for r in rows:
+                existing.add(r[1])
+            for col_name, col_def in needed:
+                if col_name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+            if "supply_bonus" in existing and "demand_bonus" in existing:
+                conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
         return
 
-    needed = [
-        ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
-        ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
-        ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
-        ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
-        ("money", "INTEGER NOT NULL DEFAULT 10"),
-        ("supply_bonus", "INTEGER NOT NULL DEFAULT 0"),
-    ]
-    with engine.begin() as conn:
-        existing = set()
-        rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
-        for r in rows:
-            existing.add(r[1])
-        for col_name, col_def in needed:
-            if col_name not in existing:
-                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+    if "postgres" in dialect:
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+            ).fetchall()
+            existing = {row[0] for row in rows}
+            if "demand_bonus" not in existing:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS demand_bonus INTEGER NOT NULL DEFAULT 0")
+                existing.add("demand_bonus")
+            if "supply_bonus" in existing:
+                conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
 
 
 def ensure_big_value_columns():

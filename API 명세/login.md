@@ -36,7 +36,7 @@ Service: 로그인
     "heat_reduction": 0,
     "tolerance_bonus": 0,
     "max_generators_bonus": 0,
-    "supply_bonus": 0
+    "demand_bonus": 0
   },
   "access_token": "string",
   "refresh_token": "string"

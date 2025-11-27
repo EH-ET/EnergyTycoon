@@ -120,8 +120,8 @@ export async function fetchExchangeRate(token) {
   return data;
 }
 
-export async function upgradeSupply(token) {
-  const res = await fetch(`${API_BASE}/upgrade/supply`, {
+export async function upgradeDemand(token) {
+  const res = await fetch(`${API_BASE}/upgrade/demand`, {
     method: "POST",
     headers: attachCsrf({}),
     credentials: "include",
@@ -130,6 +130,8 @@ export async function upgradeSupply(token) {
   if (!res.ok) throw new Error(data.detail || "업그레이드 실패");
   return data;
 }
+
+export const upgradeSupply = upgradeDemand;
 
 export async function postUpgrade(endpoint, token) {
   const headers = attachCsrf({ "Content-Type": "application/json" });

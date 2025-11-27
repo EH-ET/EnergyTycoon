@@ -164,6 +164,8 @@ export default function Main() {
   };
 
   const handleWheelScroll = (e) => {
+    // Prevent browser back/forward navigation triggered by horizontal swipe gestures
+    e.preventDefault();
     const deltaRaw = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     // 스크롤 방향을 직관적으로 좌우 이동하도록 반전
     const delta = -deltaRaw;

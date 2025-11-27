@@ -21,7 +21,7 @@ class UserOut(BaseModel):
     heat_reduction: int
     tolerance_bonus: int
     max_generators_bonus: int
-    supply_bonus: int
+    demand_bonus: int
 
     model_config = {"from_attributes": True}
 

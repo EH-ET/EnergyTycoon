@@ -16,7 +16,7 @@ UPGRADE_CONFIG = {
     "heat_reduction": {"field": "heat_reduction", "base_cost": 100, "price_growth": 1.15},
     "tolerance": {"field": "tolerance_bonus", "base_cost": 100, "price_growth": 1.2},
     "max_generators": {"field": "max_generators_bonus", "base_cost": 150, "price_growth": 1.3},
-    "supply": {"field": "supply_bonus", "base_cost": 120, "price_growth": 1.2},
+    "demand": {"field": "demand_bonus", "base_cost": 120, "price_growth": 1.2},
 }
 
 MARKET_STATE = {
@@ -36,10 +36,10 @@ def current_market_rate(user: Optional[User] = None) -> float:
     base_cost = MARKET_STATE["base_cost"]
     sold = MARKET_STATE["sold_energy"]
     growth = _cost_growth_from_sales(sold)
-    # 공급 보너스가 있을수록 필요한 에너지 감소
+    # 수요(시장) 보너스가 있을수록 필요한 에너지 감소
     bonus = 1.0
     if user:
-        bonus -= (getattr(user, "supply_bonus", 0) or 0) * 0.05
+        bonus -= (getattr(user, "demand_bonus", 0) or 0) * 0.05
     bonus = max(0.5, bonus)  # 보너스로 최소 절반까지 감소
 
     energy_per_money = base_cost * growth * bonus

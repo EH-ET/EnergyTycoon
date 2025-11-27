@@ -14,4 +14,4 @@
 발열 감소,/upgrade/heat_reduction,POST,
 내열한계 증가,/upgrade/tolerance,POST,
 최대 발전기 수 증가,/upgrade/max_generators,POST,
-공급 증가,/upgrade/supply,POST,
+수요 증가,/upgrade/demand,POST,
