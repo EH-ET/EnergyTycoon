@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
 import { addPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
-import { loadProgress, updateGeneratorState } from '../utils/apiClient';
+import { loadProgress, updateGeneratorState, autosaveProgress } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
+const ENERGY_SAVE_DELAY = 500; // 에너지 변경 후 0.5초 후 저장
 
 async function handleExplosion(entry, removePlacedGenerator, token) {
   if (!entry) return;
@@ -68,6 +69,10 @@ export function useEnergyTimer() {
   const setEnergyValue = useStore(state => state.setEnergyValue);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
+  const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
+
+  const energySaveTimerRef = useRef(null);
+  const lastSavedEnergyRef = useRef(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -156,6 +161,30 @@ export function useEnergyTimer() {
         const totalGain = energyGain * multiplier;
         const nextValue = addPlainValue(getEnergyValue(), totalGain);
         setEnergyValue(nextValue);
+
+        // 에너지 변경 시 0.5초 debounce로 백엔드 저장
+        if (energySaveTimerRef.current) {
+          clearTimeout(energySaveTimerRef.current);
+        }
+        energySaveTimerRef.current = setTimeout(async () => {
+          try {
+            const token = getAuthToken();
+            const energyPayload = toEnergyServerPayload();
+            const currentEnergy = toPlainValue(getEnergyValue());
+
+            // 이미 저장된 값과 다를 때만 저장
+            if (lastSavedEnergyRef.current !== currentEnergy) {
+              await autosaveProgress(token, {
+                energy: currentEnergy,
+                energy_data: energyPayload.data,
+                energy_high: energyPayload.high,
+              });
+              lastSavedEnergyRef.current = currentEnergy;
+            }
+          } catch (e) {
+            // Silent fail
+          }
+        }, ENERGY_SAVE_DELAY);
       }
 
       if (buildCompleted && userFromStore?.user_id) {
@@ -179,8 +208,13 @@ export function useEnergyTimer() {
     tick();
     const timer = setInterval(tick, 1000);
 
-    return () => clearInterval(timer);
-  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue]);
+    return () => {
+      clearInterval(timer);
+      if (energySaveTimerRef.current) {
+        clearTimeout(energySaveTimerRef.current);
+      }
+    };
+  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, toEnergyServerPayload]);
 }
 
 export function useEnergyRate() {
