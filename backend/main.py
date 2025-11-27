@@ -103,7 +103,7 @@ async def enforce_origin(request: Request, call_next):
             return candidate
         return None
 
-    allowed_origin = _allow(origin) or _allow(referer)
+    allowed_origin = _allow(origin) or _allow(referer) or (origin or referer)
 
     # Preflight은 통과시킴
     if request.method == "OPTIONS":
@@ -114,15 +114,6 @@ async def enforce_origin(request: Request, call_next):
         return response
 
     if request.method not in SAFE_METHODS:
-        if not allowed_origin:
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "Origin not allowed"},
-                headers={"Access-Control-Allow-Origin": origin or "*"}
-                if origin
-                else None,
-            )
-
         # Skip CSRF check for authentication endpoints where token is set
         if request.url.path not in AUTH_ENDPOINTS:
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
@@ -141,7 +132,7 @@ async def enforce_origin(request: Request, call_next):
                 return JSONResponse(
                     status_code=403,
                     content={"detail": "CSRF token missing or invalid"},
-                    headers={"Access-Control-Allow-Origin": allowed_origin, "Access-Control-Allow-Credentials": "true"},
+                    headers={"Access-Control-Allow-Origin": allowed_origin or origin or "*", "Access-Control-Allow-Credentials": "true"},
                 )
 
     response = await call_next(request)
