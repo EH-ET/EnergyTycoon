@@ -52,22 +52,29 @@ export default function TradeTab() {
       const { toEnergyServerPayload, toMoneyServerPayload, getEnergyValue, getMoneyValue } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
+      const currentEnergy = toPlainValue(getEnergyValue());
+      const currentMoney = toPlainValue(getMoneyValue());
 
-      await autosaveProgress(getAuthToken(), {
-        energy: toPlainValue(getEnergyValue()),
-        money: toPlainValue(getMoneyValue()),
+      const saveResult = await autosaveProgress(getAuthToken(), {
+        energy: currentEnergy,
+        money: currentMoney,
         energy_data: energyPayload.data,
         energy_high: energyPayload.high,
         money_data: moneyPayload.data,
         money_high: moneyPayload.high,
       });
 
+      // 저장 후 state 업데이트
+      if (saveResult.user) {
+        syncUserState(saveResult.user);
+      }
+
       const beforeMoney = toPlainValue(getMoneyValue());
       const data = await exchangeEnergy(
         getAuthToken(),
         currentUser.user_id,
         exchangeAmount,
-        currentUser.energy
+        currentEnergy  // 최신 에너지 값 사용
       );
 
       if (data.user) {
