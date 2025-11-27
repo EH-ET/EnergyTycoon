@@ -28,15 +28,18 @@ def migrate():
     sqlite_engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
     SqliteSession = sessionmaker(bind=sqlite_engine)
 
-    # Ensure legacy SQLite DB has the demand_bonus column populated
+    # Ensure legacy SQLite DB has the demand_bonus column populated (rename if needed)
     with sqlite_engine.begin() as conn:
         rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
         cols = {row[1] for row in rows}
+        if "demand_bonus" not in cols and "supply_bonus" in cols:
+            conn.exec_driver_sql("ALTER TABLE users RENAME COLUMN supply_bonus TO demand_bonus")
+            cols.discard("supply_bonus")
+            cols.add("demand_bonus")
         if "demand_bonus" not in cols:
             conn.exec_driver_sql("ALTER TABLE users ADD COLUMN demand_bonus INTEGER NOT NULL DEFAULT 0")
             cols.add("demand_bonus")
-        if "supply_bonus" in cols:
-            conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
+        conn.exec_driver_sql("UPDATE users SET demand_bonus = 0 WHERE demand_bonus IS NULL")
 
     # PostgreSQL (Neon) destination
     postgres_url = os.getenv("DATABASE_URL")
