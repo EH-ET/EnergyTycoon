@@ -14,6 +14,7 @@ export default function Main() {
   const [selectedGeneratorId, setSelectedGeneratorId] = useState(null);
   const [alertMessage, setAlertMessage] = useState('');
   const mainRef = useRef(null);
+  const scrollSyncRef = useRef(false);
 
   const placedGenerators = useStore(state => state.placedGenerators);
   const selectedGenerator = useStore(
@@ -35,6 +36,7 @@ export default function Main() {
   const generatorTypesById = useStore(state => state.generatorTypesById);
   const setUserOffsetX = useStore(state => state.setUserOffsetX);
   const backgroundWidth = useStore(state => state.backgroundWidth);
+  const worldWidth = backgroundWidth || SCROLL_RANGE || BG_FALLBACK_WIDTH;
 
   useEffect(() => {
     if (selectedGeneratorId && !selectedGenerator) {
@@ -66,7 +68,6 @@ export default function Main() {
 
     const rect = e.currentTarget.getBoundingClientRect();
     const screenX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const worldWidth = backgroundWidth || SCROLL_RANGE || BG_FALLBACK_WIDTH;
     const worldX = Math.max(0, Math.min(worldWidth, Math.round(screenX - (Number(userOffsetX) || 0))));
     const gen = generators[Number(idx)];
     if (!gen) return;
@@ -164,17 +165,34 @@ export default function Main() {
   };
 
   const handleWheelScroll = (e) => {
+    const container = mainRef.current;
+    if (!container) return;
     // Prevent browser back/forward navigation triggered by horizontal swipe gestures
     e.preventDefault();
     const deltaRaw = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     // 스크롤 방향을 직관적으로 좌우 이동하도록 반전
     const delta = -deltaRaw;
     if (!delta) return;
-    const viewWidth = mainRef.current?.clientWidth || 0;
-    const bgWidth = backgroundWidth || SCROLL_RANGE || BG_FALLBACK_WIDTH;
+    const viewWidth = container.clientWidth || 0;
     const current = userOffsetX || 0;
-    const next = clampOffset(current + delta, bgWidth, viewWidth);
+    const next = clampOffset(current + delta, worldWidth, viewWidth);
+    const targetScroll = Math.max(0, -next);
+    scrollSyncRef.current = true;
+    container.scrollLeft = targetScroll;
+    requestAnimationFrame(() => { scrollSyncRef.current = false; });
     setUserOffsetX(next);
+  };
+
+  const handleScroll = () => {
+    if (scrollSyncRef.current) return;
+    const container = mainRef.current;
+    if (!container) return;
+    const scrollLeft = container.scrollLeft || 0;
+    const viewWidth = container.clientWidth || 0;
+    const clamped = clampOffset(-scrollLeft, worldWidth, viewWidth);
+    if (clamped !== userOffsetX) {
+      setUserOffsetX(clamped);
+    }
   };
 
   // 배경 이미지 크기 측정 후 오프셋 클램프 (1회)
@@ -205,96 +223,115 @@ export default function Main() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const container = mainRef.current;
+    if (!container) return;
+    const target = Math.max(0, -(userOffsetX || 0));
+    if (Math.abs((container.scrollLeft || 0) - target) > 1) {
+      scrollSyncRef.current = true;
+      container.scrollLeft = target;
+      requestAnimationFrame(() => { scrollSyncRef.current = false; });
+    }
+  }, [userOffsetX]);
+
   return (
     <>
       <main>
         <div
           className={`main ${dragOver ? 'drag-over' : ''}`}
           onWheel={handleWheelScroll}
+          onScroll={handleScroll}
           ref={mainRef}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           style={{
-            position: 'relative',
-            backgroundImage: 'url(/backgroundImgEhET.png)',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: `calc(50% + ${userOffsetX}px) 0`,
-            backgroundSize: 'auto 100%'
+            position: 'relative'
           }}
         >
-          {placedGenerators.map((generator) => {
-            const baseX = typeof generator.world_position === 'number'
-              ? generator.world_position
-              : (typeof generator.x === 'number' ? generator.x : 0);
-            const screenX = baseX + userOffsetX;
-            const width = getGeneratorSize(generator.name);
-            const isRunning = generator.running !== false && !generator.isDeveloping;
-            const nameColor = generator.isDeveloping
-              ? '#4fa3ff'
-              : isRunning
-                ? '#f1c40f'
-                : '#e74c3c';
+          <div
+            className="main-content"
+            style={{
+              backgroundImage: 'url(/backgroundImgEhET.png)',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: '0 0',
+              backgroundSize: 'auto 100%',
+              width: `${worldWidth}px`
+            }}
+          >
+            {placedGenerators.map((generator) => {
+              const baseX = typeof generator.world_position === 'number'
+                ? generator.world_position
+                : (typeof generator.x === 'number' ? generator.x : 0);
+              const screenX = baseX;
+              const width = getGeneratorSize(generator.name);
+              const isRunning = generator.running !== false && !generator.isDeveloping;
+              const nameColor = generator.isDeveloping
+                ? '#4fa3ff'
+                : isRunning
+                  ? '#f1c40f'
+                  : '#e74c3c';
 
-            // 원래 위치 계산 방식과 동일하게
-            const containerHeight = 600; // main 영역 대략적인 높이
-            const defaultY = Math.max(32, containerHeight - 60);
+              // 원래 위치 계산 방식과 동일하게
+              const containerHeight = 600; // main 영역 대략적인 높이
+              const defaultY = Math.max(32, containerHeight - 60);
 
-            return (
-              <div
-                key={generator.generator_id}
-                className="placed-generator"
-                onClick={() => {
-                  const id = generator.generator_id ?? generator.id;
-                  if (id != null) setSelectedGeneratorId(id);
-                }}
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-                style={{
-                  position: 'absolute',
-                  left: `${screenX}px`,
-                  top: `${defaultY}px`,
-                  transform: 'translate(-50%, -100%)',
-                  pointerEvents: 'auto',
-                  cursor: 'pointer',
-                  textAlign: 'center'
-                }}
-                >
-                  <img
-                    src={makeImageSrcByIndex(generator.genIndex)}
-                    alt={generator.name}
-                    width={width}
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    style={{
-                      display: 'block',
-                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))'
-                    }}
-                  onError={(e) => {
-                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"84\"%3E%3Crect fill=\"%23333\" width=\"120\" height=\"84\"/%3E%3C/svg%3E';
+              return (
+                <div
+                  key={generator.generator_id}
+                  className="placed-generator"
+                  onClick={() => {
+                    const id = generator.generator_id ?? generator.id;
+                    if (id != null) setSelectedGeneratorId(id);
                   }}
-                />
-                {generator.isDeveloping && (
-                  <img
-                    src="/generator/build.png"
-                    alt="건설 중"
-                    className="build-overlay"
-                    style={{
-                      position: 'absolute',
-                      top: '-20px',
-                      left: '50%',
-                      transform: 'translate(-50%, 0)',
-                      width: '48px',
-                      pointerEvents: 'none'
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  style={{
+                    position: 'absolute',
+                    left: `${screenX}px`,
+                    top: `${defaultY}px`,
+                    transform: 'translate(-50%, -100%)',
+                    pointerEvents: 'auto',
+                    cursor: 'pointer',
+                    textAlign: 'center'
+                  }}
+                  >
+                    <img
+                      src={makeImageSrcByIndex(generator.genIndex)}
+                      alt={generator.name}
+                      width={width}
+                      draggable={false}
+                      onDragStart={(e) => e.preventDefault()}
+                      style={{
+                        display: 'block',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.25))'
+                      }}
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"84\"%3E%3Crect fill=\"%23333\" width=\"120\" height=\"84\"/%3E%3C/svg%3E';
                     }}
                   />
-                )}
-                <div style={{ fontSize: '16px', fontWeight: '900', color: nameColor }}>
-                  {generator.name}
+                  {generator.isDeveloping && (
+                    <img
+                      src="/generator/build.png"
+                      alt="건설 중"
+                      className="build-overlay"
+                      style={{
+                        position: 'absolute',
+                        top: '-20px',
+                        left: '50%',
+                        transform: 'translate(-50%, 0)',
+                        width: '48px',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
+                  <div style={{ fontSize: '16px', fontWeight: '900', color: nameColor }}>
+                    {generator.name}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </main>
       {selectedGenerator && (
