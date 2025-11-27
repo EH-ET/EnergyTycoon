@@ -6,7 +6,7 @@ import { loadProgress, updateGeneratorState, autosaveProgress } from '../utils/a
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
-const ENERGY_SAVE_DELAY = 2000; // 에너지 변경 후 2초 후 저장
+const ENERGY_SAVE_DELAY = 500; // 에너지 변경 후 0.5초 후 저장
 
 async function handleExplosion(entry, removePlacedGenerator, token) {
   if (!entry) return;
@@ -162,7 +162,7 @@ export function useEnergyTimer() {
         const nextValue = addPlainValue(getEnergyValue(), totalGain);
         setEnergyValue(nextValue);
 
-        // 에너지 변경 시 2초 debounce로 백엔드 저장
+        // 에너지 변경 시 0.5초 debounce로 백엔드 저장
         if (energySaveTimerRef.current) {
           clearTimeout(energySaveTimerRef.current);
         }

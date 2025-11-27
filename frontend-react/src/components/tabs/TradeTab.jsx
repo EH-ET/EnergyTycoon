@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
-import { exchangeEnergy, fetchExchangeRate } from '../../utils/apiClient';
+import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
 
@@ -47,6 +47,21 @@ export default function TradeTab() {
 
     try {
       setIsLoading(true);
+
+      // 교환 전 현재 에너지/돈을 백엔드에 즉시 동기화
+      const { toEnergyServerPayload, toMoneyServerPayload, getEnergyValue, getMoneyValue } = useStore.getState();
+      const energyPayload = toEnergyServerPayload();
+      const moneyPayload = toMoneyServerPayload();
+
+      await autosaveProgress(getAuthToken(), {
+        energy: toPlainValue(getEnergyValue()),
+        money: toPlainValue(getMoneyValue()),
+        energy_data: energyPayload.data,
+        energy_high: energyPayload.high,
+        money_data: moneyPayload.data,
+        money_high: moneyPayload.high,
+      });
+
       const beforeMoney = toPlainValue(getMoneyValue());
       const data = await exchangeEnergy(
         getAuthToken(),
