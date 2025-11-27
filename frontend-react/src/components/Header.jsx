@@ -158,7 +158,6 @@ export default function Header() {
             </div>
           )}
         </div>
-        <div className="text-wrapper username">{currentUser?.username || 'NONE'}</div>
       </div>
       <div className="header-right">
         <div className="stat-card">
