@@ -92,18 +92,8 @@ async def enforce_origin(request: Request, call_next):
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
 
-    def _allow(url: str | None) -> str | None:
-        if not url:
-            return None
-        parsed = urlparse(url)
-        candidate = f"{parsed.scheme}://{parsed.netloc}"
-        if candidate in origins:
-            return candidate
-        if _origin_regex and _origin_regex.match(candidate):
-            return candidate
-        return None
-
-    allowed_origin = _allow(origin) or _allow(referer) or (origin or referer)
+    # Loosen origin handling: echo back the incoming Origin/Referer to keep CORS headers flowing
+    allowed_origin = origin or referer
 
     # Preflight은 통과시킴
     if request.method == "OPTIONS":
@@ -165,3 +155,8 @@ app.include_router(upgrade_routes.router)
 @app.get("/")
 def root():
     return {"status": "ok"}
+
+
+@app.head("/")
+def root_head():
+    return JSONResponse(status_code=200, content=None)
