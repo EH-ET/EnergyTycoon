@@ -91,6 +91,7 @@ export async function saveProgress(userId, generatorTypeId, x_position, world_po
     payload.energy = energy;
   }
   const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress`, {
     method: "POST",
     headers,
@@ -119,9 +120,11 @@ export async function loadProgress(userId, token) {
 }
 
 export async function exchangeEnergy(token, userId, amount, energy) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/change/energy2money`, {
     method: "POST",
-    headers: attachCsrf({ "Content-Type": "application/json" }),
+    headers,
     credentials: "include",
     body: JSON.stringify({ user_id: userId, amount, energy }),
   });
@@ -140,9 +143,11 @@ export async function fetchExchangeRate(token) {
 }
 
 export async function upgradeDemand(token) {
+  const headers = attachCsrf({});
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/upgrade/demand`, {
     method: "POST",
-    headers: attachCsrf({}),
+    headers,
     credentials: "include",
   });
   const data = await res.json();
@@ -154,6 +159,7 @@ export const upgradeSupply = upgradeDemand;
 
 export async function postUpgrade(endpoint, token) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
     headers,
@@ -246,11 +252,11 @@ export async function autosaveProgress(token, payload = {}) {
   if (payload.money_data != null) body.money_data = payload.money_data;
   if (payload.money_high != null) body.money_high = payload.money_high;
   if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress/autosave`, {
     method: "POST",
-    headers: attachCsrf({
-      "Content-Type": "application/json",
-    }),
+    headers,
     credentials: "include",
     body: JSON.stringify(body),
   });
