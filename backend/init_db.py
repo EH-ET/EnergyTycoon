@@ -112,6 +112,30 @@ def ensure_big_value_columns():
                 conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
 
 
+def ensure_play_time_column():
+    """Ensure play_time_ms column exists in users table."""
+    dialect = engine.dialect.name
+
+    if dialect == "sqlite":
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
+            cols = {r[1] for r in rows}
+            if "play_time_ms" not in cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN play_time_ms INTEGER NOT NULL DEFAULT 0")
+        return
+
+    if "postgres" in dialect:
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+            ).fetchall()
+            existing = {row[0] for row in rows}
+            if "play_time_ms" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS play_time_ms INTEGER NOT NULL DEFAULT 0"
+                )
+
+
 def ensure_generator_columns():
     """Ensure legacy sqlite DBs contain the newest generator columns."""
     # Skip for PostgreSQL - create_all() handles schema

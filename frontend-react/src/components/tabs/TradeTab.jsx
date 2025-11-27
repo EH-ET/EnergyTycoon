@@ -4,6 +4,7 @@ import { getAuthToken } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
+import { readStoredPlayTime } from '../../utils/playTime';
 
 export default function TradeTab() {
   const [amount, setAmount] = useState(1);
@@ -54,6 +55,7 @@ export default function TradeTab() {
       const moneyPayload = toMoneyServerPayload();
       const currentEnergy = toPlainValue(getEnergyValue());
       const currentMoney = toPlainValue(getMoneyValue());
+      const playTimeMs = readStoredPlayTime();
 
       const saveResult = await autosaveProgress(getAuthToken(), {
         energy: currentEnergy,
@@ -62,6 +64,7 @@ export default function TradeTab() {
         energy_high: energyPayload.high,
         money_data: moneyPayload.data,
         money_high: moneyPayload.high,
+        play_time_ms: playTimeMs,
       });
 
       // 저장 후 state 업데이트

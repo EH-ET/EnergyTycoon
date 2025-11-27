@@ -326,6 +326,9 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
             raise HTTPException(status_code=400, detail="Money value too large")
         set_user_money_value(user, money_value)
         updated = True
+    if payload.play_time_ms is not None:
+        user.play_time_ms = max(0, int(payload.play_time_ms))
+        updated = True
     if not updated:
         raise HTTPException(status_code=400, detail="No fields provided to autosave")
     db.commit()
