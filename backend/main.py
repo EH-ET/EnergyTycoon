@@ -22,6 +22,8 @@ from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 app = FastAPI()
 
 _deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.netlify.app").rstrip("/")
+# Allow preview/stage Netlify domains by default (overridable via FRONTEND_ORIGIN_REGEX)
+_default_origin_regex = r"^https://.*\\.netlify\\.app$"
 _local_origins = [
     # "http://localhost:4173",
     # "http://127.0.0.1:4173",
@@ -57,17 +59,23 @@ else:
 
 _origin_regex = None
 _origin_regex_env = os.getenv("FRONTEND_ORIGIN_REGEX")
-if _origin_regex_env:
-    import re
+import re
 
+if _origin_regex_env:
     try:
         _origin_regex = re.compile(_origin_regex_env)
+    except re.error:
+        _origin_regex = None
+if _origin_regex is None:
+    try:
+        _origin_regex = re.compile(_default_origin_regex)
     except re.error:
         _origin_regex = None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=_origin_regex.pattern if _origin_regex else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
