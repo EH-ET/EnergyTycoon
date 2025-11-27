@@ -7,9 +7,9 @@ export const SCROLL_RANGE = 4000; // 사용자 정의 좌우 이동 한계
 
 export function clampOffset(nextOffset, backgroundWidth, viewWidth) {
   const bgWidth = backgroundWidth || BG_FALLBACK_WIDTH;
-  const maxShift = Math.max(0, (bgWidth - viewWidth) / 2);
+  const maxShift = Math.max(0, bgWidth - viewWidth);
   const minOffset = -maxShift;
-  const maxOffset = maxShift;
+  const maxOffset = 0;
   return Math.min(maxOffset, Math.max(minOffset, nextOffset));
 }
 
