@@ -260,9 +260,11 @@ export default function Main() {
             }}
           >
             {placedGenerators.map((generator) => {
-              const baseX = typeof generator.world_position === 'number'
-                ? generator.world_position
-                : (typeof generator.x === 'number' ? generator.x : 0);
+              const baseX = typeof generator.x_position === 'number'
+                ? generator.x_position
+                : (typeof generator.world_position === 'number'
+                  ? generator.world_position
+                  : (typeof generator.x === 'number' ? generator.x : 0));
               const screenX = baseX;
               const width = getGeneratorSize(generator.name);
               const isRunning = generator.running !== false && !generator.isDeveloping;
