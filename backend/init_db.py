@@ -39,24 +39,32 @@ def ensure_user_upgrade_columns():
     """Ensure legacy sqlite DBs contain the newest user upgrade columns."""
     dialect = engine.dialect.name
     if dialect == "sqlite":
-        needed = [
-            ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
-            ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
-            ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
-            ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
-            ("money", "INTEGER NOT NULL DEFAULT 10"),
-            ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
-        ]
         with engine.begin() as conn:
-            existing = set()
             rows = conn.exec_driver_sql("PRAGMA table_info('users')").fetchall()
-            for r in rows:
-                existing.add(r[1])
+            cols = {r[1] for r in rows}
+            # Rename supply_bonus -> demand_bonus if needed
+            if "demand_bonus" not in cols and "supply_bonus" in cols:
+                conn.exec_driver_sql("ALTER TABLE users RENAME COLUMN supply_bonus TO demand_bonus")
+                cols.discard("supply_bonus")
+                cols.add("demand_bonus")
+            needed = [
+                ("production_bonus", "INTEGER NOT NULL DEFAULT 0"),
+                ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
+                ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
+                ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
+                ("money", "INTEGER NOT NULL DEFAULT 10"),
+                ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
+            ]
             for col_name, col_def in needed:
-                if col_name not in existing:
+                if col_name not in cols:
                     conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
-            if "supply_bonus" in existing and "demand_bonus" in existing:
-                conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
+            # Backfill demand_bonus from legacy supply_bonus if both exist
+            if "supply_bonus" in cols and "demand_bonus" in cols:
+                conn.exec_driver_sql("UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus)")
+                try:
+                    conn.exec_driver_sql("ALTER TABLE users DROP COLUMN supply_bonus")
+                except Exception:
+                    pass
         return
 
     if "postgres" in dialect:
@@ -65,11 +73,25 @@ def ensure_user_upgrade_columns():
                 "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
             ).fetchall()
             existing = {row[0] for row in rows}
-            if "demand_bonus" not in existing:
-                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS demand_bonus INTEGER NOT NULL DEFAULT 0")
+            # Rename supply_bonus -> demand_bonus if needed
+            if "demand_bonus" not in existing and "supply_bonus" in existing:
+                conn.exec_driver_sql("ALTER TABLE users RENAME COLUMN supply_bonus TO demand_bonus")
+                existing.discard("supply_bonus")
                 existing.add("demand_bonus")
+            if "demand_bonus" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS demand_bonus INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("demand_bonus")
+            # Backfill and clean up legacy column if it still exists
             if "supply_bonus" in existing:
-                conn.exec_driver_sql("UPDATE users SET demand_bonus = supply_bonus WHERE demand_bonus = 0")
+                conn.exec_driver_sql(
+                    "UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus) WHERE demand_bonus IS NULL"
+                )
+                conn.exec_driver_sql("ALTER TABLE users DROP COLUMN supply_bonus")
+            conn.exec_driver_sql("UPDATE users SET demand_bonus = 0 WHERE demand_bonus IS NULL")
+            conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET DEFAULT 0")
+            conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET NOT NULL")
 
 
 def ensure_big_value_columns():
