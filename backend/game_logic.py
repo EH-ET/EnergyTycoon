@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 from fastapi import HTTPException
@@ -24,12 +25,12 @@ MARKET_STATE = {
     "base_cost": 1.0,  # 1 돈을 얻기 위해 필요한 에너지 기본값
 }
 
-# 누적 교환량에 따라 1 돈을 얻기 위한 필요 에너지를 2 단위마다 10%씩 증가
+# 누적 교환량 E에 따라 증가 단계 k = floor(log_3(E)), 증가율은 2k%
 def _cost_growth_from_sales(sold: int) -> float:
     if sold <= 0:
         return 1.0
-    tiers = sold // 3  # 5 에너지 교환마다 한 단계
-    return 1.0 + tiers * 0.01
+    k = math.floor(math.log(sold, 3))
+    return 1.0 + (k * 0.05)
 
 
 def current_market_rate(user: Optional[User] = None) -> float:
