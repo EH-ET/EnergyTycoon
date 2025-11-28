@@ -1,0 +1,102 @@
+이 아이디어는 Idle-type 숫자표기법에서 확장된 것이다.
+data_number와 data_high가 있다.
+일반적인 1은 data_number = 1000, data_high = 0과 같다.
+또한 data_number >= 1000000 이라면 data_number /= 10; data_high++;을 한다.
+data_high는 10의 배수라고 생각하면 편해. 
+즉 high가 1증가 할 때마다 소숫점 위치가 바뀌고, high가 3증가 할 때마다 단위가 바뀌는거야.
+
+단위의 리스트들은 다음과 같아. 다음 리스트들을 규칙에 맞게 잘 조합하여 단위를 생성하여 숫자 뒤에 붙이면 돼.
+const BASE_UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
+const COMMON_UNITS = ["", "U", "D", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
+const HIGH_COMMON_UNITS = ["", "D", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
+const BIG_UNITS = ["", "d", "v", "Tr", "Qav", "Qiv", "Sev", "Spv", "Ocv", "Nv"];
+const HUGE_UNITS = ["", "C", "Mi", "Mc", "Na", "Pi", "Fe", "At", "Ze", "Yo", "Xo", "Ve", "Me"];
+
+단위 구간별 역할
+0 <= high <= 30: BASE_UNITS 사용
+31 <= high <= 300: COMMON_UNITS + BIG_UNITS 조합으로 사용
+301 <= high <= 3000: HIGH_COMMON_UNITS와 HUGE_UNITS[1]="C" + COMMON_UNITS + BIG_UNITS 조합으로 사용
+3001 <= high <= 300000000000000: 단위 그룹이 순환적으로 반복되며 HIGH_COMMON_UNITS + HUGE_UNITS 패턴을 재귀적으로 유지하며 확장됨. HUGE_UNITS 인덱스가 1증가한게 앞에 재귀로 더 붙으려면 high가 10배씩 증가해야함.
+high > 300000000000000: 그냥 [숫자]e[10의 거듭제곱]으로 표현함.
+
+처음 HUGE_UNITS 되기 전 함수, 단위를 조합하는 함수, e를 표현하는 함수 단 3개만 있으면 돼. HUGE_UNITS을 덭붙이는것.
+리스트 안에 어짜피 "" 공백이 있으니 가능한거야.
+
+아래가 data = 123000일때 high에 따른 예시야. 형식은 high = n -> [표시].
+high = 0 -> 123
+high = 1 -> 1.23K
+high = 2 -> 12.3K
+high = 3 -> 123K
+.
+high = 5 -> 12.3M
+.
+high = 7 -> 1.23B
+.
+high = 19 -> 1.23Sx
+.
+high = 30 -> 123N
+high = 31 -> 1.23d
+high = 32 -> 12.3d
+.
+high = 34 -> 1.23Ud
+.
+high = 37 -> 1.23Dd
+.
+high = 58 -> 1.23Nd
+.
+high = 61 -> 1.23v
+high = 62 -> 12.3v
+.
+high = 88 -> 1.23Nv
+.
+high = 91 -> 1.23Tr
+.
+high = 94 -> 1.23UTr
+.
+high = 271 -> 1.23Nv
+.
+high = 274 -> 1.23UNv
+.
+high = 301 -> 1.23C
+.
+high = 304 -> 1.23CU
+.
+high = 331 -> 1.23Cd
+.
+high = 361 -> 1.23Cv
+.
+high = 391 -> 1.23CTr
+.
+high = 394 -> 1.23CUTr
+.
+high = 601 -> 1.23DC
+.
+high = 901 -> 1.23TC
+.
+high = 3001 -> 1.23Mi
+.
+high = 3004 -> 1.23MiU
+.
+high = 3031 -> 1.23Mid
+.
+high = 3034 -> 1.23MiUd
+.
+high = 3301 -> 1.23MiC
+.
+high = 3331 -> 1.23MiCd
+.
+high = 3334 -> 1.23MiCUd
+.
+high = 3634 -> 1.23MiDCUd
+.
+high = 6001 -> 1.23DMi
+.
+high = 30001 -> 1.23Mc
+.
+high = 33001 -> 1.23McMi
+.
+high = 36001 -> 1.23McDMi
+.
+high = 300001 -> 1.23Na
+.
+high = 3000001 -> 1.23Pi
