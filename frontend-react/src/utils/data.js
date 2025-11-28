@@ -61,11 +61,11 @@ const rawGenerators = [
 ];
 
 const rawUpgrades = [
-  {"이름": "전체 생산량 증가", "endpoint": "production", "field": "production_bonus", "설명": "모든 발전기의 생산량을 늘립니다.", "baseCost": 100, "priceGrowth": 1.25},
-  {"이름": "발열 감소", "endpoint": "heat_reduction", "field": "heat_reduction", "설명": "발전기의 발열을 줄입니다.", "baseCost": 100, "priceGrowth": 1.15},
-  {"이름": "내열한계 증가", "endpoint": "tolerance", "field": "tolerance_bonus", "설명": "발전기의 내열한계를 높입니다.", "baseCost": 100, "priceGrowth": 1.2},
-  {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 150, "priceGrowth": 1.3},
-  {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 120, "priceGrowth": 1.2}
+  {"이름": "전체 생산량 증가", "endpoint": "production", "field": "production_bonus", "설명": "모든 발전기의 생산량을 늘립니다.", "baseCost": 10, "priceGrowth": 1.6},
+  {"이름": "발열 감소", "endpoint": "heat_reduction", "field": "heat_reduction", "설명": "발전기의 발열을 줄입니다.", "baseCost": 50, "priceGrowth": 1.5},
+  {"이름": "내열한계 증가", "endpoint": "tolerance", "field": "tolerance_bonus", "설명": "발전기의 내열한계를 높입니다.", "baseCost": 60, "priceGrowth": 1.75},
+  {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 300, "priceGrowth": 3},
+  {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 15, "priceGrowth": 2.5}
 ];
 
 function withResourceFields(obj, key) {

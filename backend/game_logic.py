@@ -28,8 +28,8 @@ MARKET_STATE = {
 def _cost_growth_from_sales(sold: int) -> float:
     if sold <= 0:
         return 1.0
-    tiers = sold // 5  # 5 에너지 교환마다 한 단계
-    return 1.0 + tiers * 0.10
+    tiers = sold // 3  # 5 에너지 교환마다 한 단계
+    return 1.0 + tiers * 0.01
 
 
 def current_market_rate(user: Optional[User] = None) -> float:
