@@ -34,9 +34,19 @@ def _cost_growth_from_sales(sold: int) -> float:
     return 1.0 + (k * 0.05)
 
 
-def current_market_rate(user: Optional[User] = None) -> float:
+def current_market_rate(user: Optional[User] = None, sold_override: Optional[int] = None) -> float:
+    """
+    현재 시장 환율 계산
+
+    Args:
+        user: 사용자 (보너스 적용용)
+        sold_override: 판매량 오버라이드 (None이면 현재 MARKET_STATE 사용)
+
+    Returns:
+        1 에너지당 돈 환율
+    """
     base_cost = MARKET_STATE["base_cost"]
-    sold = MARKET_STATE["sold_energy"]
+    sold = sold_override if sold_override is not None else MARKET_STATE["sold_energy"]
     growth = _cost_growth_from_sales(sold)
     # 수요(시장) 보너스가 있을수록 필요한 에너지 감소
     bonus = 1.0
@@ -48,6 +58,46 @@ def current_market_rate(user: Optional[User] = None) -> float:
     # 환율은 1 에너지당 돈이므로 역수
     rate = 1.0 / energy_per_money if energy_per_money > 0 else 0.0
     return max(0.0001, rate)
+
+
+def calculate_progressive_exchange(user: Optional[User], amount: int) -> tuple[int, float]:
+    """
+    대량 거래 시 점진적으로 변하는 환율을 적용하여 실제 획득량 계산
+
+    Args:
+        user: 사용자 (보너스 적용용)
+        amount: 교환할 에너지 양
+
+    Returns:
+        (총 획득 돈, 평균 환율)
+    """
+    if amount <= 0:
+        return 0, 0.0
+
+    current_sold = MARKET_STATE["sold_energy"]
+    total_gained = 0
+
+    # 성능 최적화: 100 단위로 묶어서 계산 (너무 작으면 정확도 저하, 너무 크면 성능 저하)
+    chunk_size = min(100, max(1, amount // 1000))
+
+    remaining = amount
+    sold_so_far = current_sold
+
+    while remaining > 0:
+        chunk = min(chunk_size, remaining)
+        # 이 청크의 중간 시점 환율 사용 (적분 근사)
+        mid_sold = sold_so_far + chunk // 2
+        rate = current_market_rate(user, sold_override=mid_sold)
+        gained = chunk * rate
+        total_gained += gained
+
+        sold_so_far += chunk
+        remaining -= chunk
+
+    # 평균 환율 계산
+    avg_rate = total_gained / amount if amount > 0 else 0.0
+
+    return max(1, int(total_gained)), avg_rate
 
 
 def get_upgrade_meta(key: str):
