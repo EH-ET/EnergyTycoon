@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import GeneratorType
-from ..init_db import DEFAULT_GENERATOR_NAME_TO_INDEX, DEFAULT_GENERATOR_TYPES
+from ..init_db import DEFAULT_GENERATOR_NAME_TO_INDEX, DEFAULT_GENERATOR_TYPES, sync_generator_types
 
 DEFAULT_GENERATOR_SPEC_BY_NAME = {g["이름"]: g for g in DEFAULT_GENERATOR_TYPES}
 
@@ -28,6 +28,9 @@ def _spec_cost(name: str, fallback: int) -> int:
 
 @router.get("/generator_types")
 async def generator_types(db: Session = Depends(get_db)):
+    # 안전망: startup 훅이 돌지 않았거나 테이블이 비어있으면 기본 타입을 채운다.
+    if db.query(GeneratorType).count() == 0:
+        sync_generator_types(db)
     types = db.query(GeneratorType).all()
     payload = []
     for t in types:
