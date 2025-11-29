@@ -13,11 +13,12 @@ from .bigvalue import (
 )
 
 UPGRADE_CONFIG = {
-    "production": {"field": "production_bonus", "base_cost": 100, "price_growth": 1.25},
-    "heat_reduction": {"field": "heat_reduction", "base_cost": 100, "price_growth": 1.15},
-    "tolerance": {"field": "tolerance_bonus", "base_cost": 100, "price_growth": 1.2},
-    "max_generators": {"field": "max_generators_bonus", "base_cost": 150, "price_growth": 1.3},
-    "demand": {"field": "demand_bonus", "base_cost": 120, "price_growth": 1.2},
+    # 클라이언트(data.js)와 동일한 비용 곡선
+    "production": {"field": "production_bonus", "base_cost": 10, "price_growth": 1.8},
+    "heat_reduction": {"field": "heat_reduction", "base_cost": 50, "price_growth": 1.5},
+    "tolerance": {"field": "tolerance_bonus", "base_cost": 60, "price_growth": 2.0},
+    "max_generators": {"field": "max_generators_bonus", "base_cost": 300, "price_growth": 3.0},
+    "demand": {"field": "demand_bonus", "base_cost": 15, "price_growth": 2.0},
 }
 
 MARKET_STATE = {

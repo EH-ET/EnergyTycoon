@@ -25,7 +25,7 @@ import { startEnergyTimer } from "./energy.js";
 import { valueFromServer, formatResourceValue, fromPlainValue, toPlainValue } from "./bigValue.js";
 
 const BASE_MAX_GENERATORS = 10;
-const GENERATOR_STEP = 5;
+const GENERATOR_STEP = 1;
 const DEMOLISH_COST_RATE = 0.5;
 const DEFAULT_TOLERANCE = 100;
 const UPGRADE_CONFIG = {

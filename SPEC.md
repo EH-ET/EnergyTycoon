@@ -78,7 +78,7 @@ GeneratorType (generator_type_id PK)
 - 거래(`tradeTab.js`): `/market`으로 교환비 조회, 입력 에너지량을 `/change/energy2money`로 판매. 수요 업그레이드 버튼은 `/upgrade/demand` 호출.
 - 업그레이드 탭(`upgradeTab.js`): `data.js`의 업그레이드 메타를 사용해 비용/레벨 계산, `/upgrade/{endpoint}` 호출로 서버 반영.
 - 정보 탭(`infoTab.js`): 세션 시작 시각(`session_start_ts`) 기준 플레이 타임, 현재 에너지/돈, 임시 등수 표시.
-- 기타 UI: 상단 상태바에 에너지/돈/발전기 수 표기(최대 발전기 = `10 + max_generators_bonus*5`). 배치/진행도, 사용자 정보는 로컬스토리지와 백엔드 동기화를 병행합니다.
+- 기타 UI: 상단 상태바에 에너지/돈/발전기 수 표기(최대 발전기 = `10 + max_generators_bonus*1`). 배치/진행도, 사용자 정보는 로컬스토리지와 백엔드 동기화를 병행합니다.
 
 ## 동작/제약 메모
 - sqlite 경로는 `DATABASE_URL`로 변경 가능하며, 경로 부모 디렉터리가 없으면 자동 생성(`_ensure_sqlite_dir`).

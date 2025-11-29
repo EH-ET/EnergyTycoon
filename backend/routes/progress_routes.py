@@ -26,14 +26,14 @@ import os
 router = APIRouter()
 
 MAX_GENERATOR_BASE = 10
-MAX_GENERATOR_STEP = 5
+MAX_GENERATOR_STEP = 1
 DEMOLISH_COST_RATE = 0.5
 MAX_ENERGY_VALUE = int(os.getenv("MAX_ENERGY_VALUE", 1_000_000_000_000))
 MAX_MONEY_VALUE = int(os.getenv("MAX_MONEY_VALUE", 1_000_000_000_000))
 GENERATOR_UPGRADE_CONFIG = {
-    "production": {"field": "production_upgrade", "base_cost_multiplier": 0.5, "price_growth": 1.25},
-    "heat_reduction": {"field": "heat_reduction_upgrade", "base_cost_multiplier": 0.4, "price_growth": 1.2},
-    "tolerance": {"field": "tolerance_upgrade", "base_cost_multiplier": 0.45, "price_growth": 1.2},
+    "production": {"field": "production_upgrade", "base_cost_multiplier": 1, "price_growth": 1.25},
+    "heat_reduction": {"field": "heat_reduction_upgrade", "base_cost_multiplier": 0.8, "price_growth": 1.2},
+    "tolerance": {"field": "tolerance_upgrade", "base_cost_multiplier": 0.9, "price_growth": 1.2},
 }
 
 
