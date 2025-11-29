@@ -386,6 +386,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     gen.running = True
     db.commit()
     db.refresh(gen)
+    db.refresh(user)
     return {
         "user": UserOut.model_validate(user),
         "generator": _serialize_generator(gen, type_name, type_cost, mp),

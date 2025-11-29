@@ -8,6 +8,7 @@ const HIGH_COMMON_UNITS = ["", "D", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
 const BIG_UNITS = ["", "d", "v", "Tr", "Qav", "Qiv", "Sev", "Spv", "Ocv", "Nv"];
 const HUGE_UNITS = ["", "C", "Mi", "Mc", "Na", "Pi", "Fe", "At", "Ze", "Yo", "Xo", "Ve", "Me"];
 
+
 export function normalizeValue(value = {}) {
   const out = {
     data: Math.max(0, Number(value.data) || 0),
@@ -115,13 +116,14 @@ function getSubPattern(offset) {
  */
 function getHugeUnitRecursive(offset) {
   // Find which HUGE unit we're in
+  // HUGE_UNITS increase by 1000x each level
   let hugeIndex = 2; // Start from Mi (HUGE_UNITS[2])
   let rangeStart = 0;
-  let rangeSize = 27000; // Each HUGE unit covers 3000 * 9
+  let rangeSize = 3000 * 1000; // Mi covers 3000000 (3000 * 1000)
 
   while (offset >= rangeStart + rangeSize && hugeIndex < HUGE_UNITS.length - 1) {
     rangeStart += rangeSize;
-    rangeSize *= 10;
+    rangeSize *= 1000; // 1000x increase per level
     hugeIndex++;
   }
 
@@ -133,20 +135,37 @@ function getHugeUnitRecursive(offset) {
     return hugeUnit + getSubPattern(currentOffset);
   }
 
-  // Case 2: Mi range (first HUGE) with offset >= 3000
-  // Use HIGH_COMMON prefix pattern
-  if (hugeIndex === 2) {
-    const highCommonIndex = Math.floor(currentOffset / 3000);
-    const withinHuge = currentOffset % 3000;
+  // Case 2: All HUGE units with offset >= 3000
+  // Calculate cell size: Mi=3000, Mc=3000000, Na=3000000000, etc.
+  const cellSize = 3000 * Math.pow(1000, hugeIndex - 2);
+  const index = Math.floor(currentOffset / cellSize);
+  const withinHuge = currentOffset % cellSize;
 
-    const highCommonUnit = HIGH_COMMON_UNITS[highCommonIndex] || "";
-    return highCommonUnit + hugeUnit + getSubPattern(withinHuge);
+  // Calculate prefix based on index
+  let prefix = "";
+  if (index < HIGH_COMMON_UNITS.length) {
+    // index 0-8: use HIGH_COMMON_UNITS
+    prefix = HIGH_COMMON_UNITS[index] || "";
+  } else {
+    // index >= 9: use COMMON_UNITS + BIG_UNITS pattern (like 31-300 range)
+    const adjustedIndex = index - HIGH_COMMON_UNITS.length;
+    const bigIndex = Math.floor(adjustedIndex / 10) + 1;
+    const commonIndex = adjustedIndex % 10;
+    prefix = (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
   }
 
-  // Case 3: Mc, Na, etc. with offset >= 3000
-  // Recursively apply the previous HUGE pattern
-  const recursivePattern = getHugeUnitRecursive(currentOffset - 3000);
-  return hugeUnit + recursivePattern;
+  if (withinHuge === 0) {
+    return prefix + hugeUnit;
+  }
+
+  // If withinHuge < cellSize/1000, use subPattern directly
+  if (withinHuge < cellSize / 1000) {
+    return prefix + hugeUnit + getSubPattern(withinHuge);
+  }
+
+  // Otherwise, always subtract cellSize/1000 and recurse
+  const adjustedOffset = withinHuge - cellSize / 1000;
+  return prefix + hugeUnit + getHugeUnitRecursive(adjustedOffset);
 }
 
 /**
