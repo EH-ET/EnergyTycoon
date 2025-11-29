@@ -19,13 +19,12 @@ from ..bigvalue import (
     from_plain,
     to_payload,
 )
-from ..init_db import get_build_time_by_name, DEFAULT_GENERATOR_TYPES
+from ..init_db import get_build_time_by_name
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
 import os
 
 router = APIRouter()
 
-DEFAULT_GENERATOR_SPEC_BY_NAME = {t.get("이름"): t for t in DEFAULT_GENERATOR_TYPES if t.get("이름")}
 MAX_GENERATOR_BASE = 10
 MAX_GENERATOR_STEP = 1
 DEMOLISH_COST_RATE = 0.5
@@ -48,32 +47,8 @@ def _max_generators_allowed(user: User) -> int:
     return MAX_GENERATOR_BASE + bonus * MAX_GENERATOR_STEP
 
 
-def _spec_cost_by_name(name: Optional[str], fallback: Optional[int] = None) -> int:
-    spec = DEFAULT_GENERATOR_SPEC_BY_NAME.get(name or "", {})
-    if not spec:
-        return max(1, int(fallback or 1))
-    base = spec.get("설치비용(수)") or spec.get("설치비용") or spec.get("cost") or 0
-    high = spec.get("설치비용(높이)") or 0
-    try:
-        base_num = float(base)
-    except (TypeError, ValueError):
-        base_num = 0
-    try:
-        high_num = int(high)
-    except (TypeError, ValueError):
-        high_num = 0
-    cost = max(0, base_num) * (10 ** max(0, high_num))
-    return max(1, int(round(cost if cost > 0 else (fallback or 1))))
-
-
-def _generator_cost(generator_type: Optional[GeneratorType]) -> int:
-    if not generator_type:
-        return 1
-    return _spec_cost_by_name(getattr(generator_type, "name", None), getattr(generator_type, "cost", 1))
-
-
 def _demolish_cost(generator_type: GeneratorType) -> int:
-    return max(1, int(_generator_cost(generator_type) * DEMOLISH_COST_RATE))
+    return max(1, int(generator_type.cost * DEMOLISH_COST_RATE))
 
 
 def _build_duration(generator_type: Optional[GeneratorType] = None, level: Optional[int] = None) -> int:
@@ -103,7 +78,7 @@ def _serialize_generator(
     cost: Optional[int] = None,
     mp: Optional[MapProgress] = None,
 ):
-    cost_val = cost if cost is not None else _generator_cost(getattr(g, "generator_type", None))
+    cost_val = cost if cost is not None else getattr(getattr(g, "generator_type", None), "cost", None)
     cost_payload = to_payload(from_plain(cost_val or 0))
     return {
         "generator_id": g.generator_id,
@@ -147,7 +122,7 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
     out = []
     for g, mp in gens:
         type_name = getattr(g.generator_type, "name", None)
-        cost = _generator_cost(getattr(g, "generator_type", None))
+        cost = getattr(g.generator_type, "cost", None)
         out.append(_serialize_generator(g, type_name, cost, mp))
     return {"user_id": user.user_id, "generators": out, "user": UserOut.model_validate(user)}
 
@@ -174,9 +149,8 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     )
     if existing:
         raise HTTPException(status_code=400, detail="Generator already exists in this position")
-    cost_val = _generator_cost(gt)
     money_value = get_user_money_value(user)
-    if compare_plain(money_value, cost_val) < 0:
+    if compare_plain(money_value, gt.cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     g = Generator(
         generator_type_id=gt.generator_type_id,
@@ -188,7 +162,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
         running=True,
     )
     db.add(g)
-    set_user_money_value(user, subtract_plain(money_value, cost_val))
+    set_user_money_value(user, subtract_plain(money_value, gt.cost))
     build_duration = _build_duration(gt, g.level)
     g.isdeveloping = True
     g.build_complete_ts = int(time.time() + build_duration)
@@ -197,9 +171,10 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
     db.add(mp)
     db.commit()
+    db.refresh(user)
     return {
         "ok": True,
-        "generator": _serialize_generator(g, gt.name, cost_val, mp),
+        "generator": _serialize_generator(g, gt.name, gt.cost, mp),
         "user": UserOut.model_validate(user),
     }
 
@@ -375,7 +350,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     gt = db.query(GeneratorType).filter_by(generator_type_id=gen.generator_type_id).first()
     mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
     type_name = getattr(gt, "name", None)
-    type_cost = _generator_cost(gt)
+    type_cost = getattr(gt, "cost", None)
     now = int(time.time())
     if _maybe_complete_build(gen, now):
         db.commit()
@@ -402,7 +377,8 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         }
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
-    cost = max(1, math.ceil((remaining * (gt.cost or 1)) / 10))
+    total_duration = max(1, _build_duration(gt, gen.level))
+    cost = max(1, math.ceil((remaining / total_duration) * (gt.cost or 1)))
     money_value = get_user_money_value(user)
     if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money to skip build")
