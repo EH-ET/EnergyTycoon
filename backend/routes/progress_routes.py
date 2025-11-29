@@ -347,6 +347,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     if not gen:
         raise HTTPException(status_code=404, detail="Generator not found")
     gt = db.query(GeneratorType).filter_by(generator_type_id=gen.generator_type_id).first()
+    mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
     type_name = getattr(gt, "name", None)
     type_cost = getattr(gt, "cost", None)
     now = int(time.time())

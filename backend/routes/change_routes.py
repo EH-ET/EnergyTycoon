@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
-from ..game_logic import current_market_rate, MARKET_STATE
+from ..game_logic import current_market_rate, calculate_progressive_exchange, MARKET_STATE
 from ..schemas import ExchangeIn, UserOut
 from ..models import User
 from ..bigvalue import (
@@ -32,8 +32,10 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     energy_value = get_user_energy_value(user)
     if compare_plain(energy_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough energy")
-    rate = current_market_rate(user)
-    gained = max(1, int(payload.amount * rate))
+
+    # 점진적 환율 적용하여 실제 획득량 계산
+    gained, avg_rate = calculate_progressive_exchange(user, payload.amount)
+
     energy_value = subtract_plain(energy_value, payload.amount)
     money_value = add_plain(get_user_money_value(user), gained)
     set_user_energy_value(user, energy_value)
@@ -44,7 +46,7 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     return {
         "energy": user.energy,
         "money": user.money,
-        "rate": rate,
+        "rate": avg_rate,  # 평균 환율 반환
         "user": UserOut.model_validate(user),
     }
 
@@ -58,16 +60,23 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     money_value = get_user_money_value(user)
     if compare_plain(money_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
-    rate = current_market_rate(user)
-    # Calculate energy gained: money * rate (opposite of energy2money)
-    gained = max(1, int(payload.amount * rate))
+
+    # 점진적 환율 적용하여 실제 획득량 계산 (돈→에너지는 역방향)
+    gained, avg_rate = calculate_progressive_exchange(user, payload.amount)
+
     money_value = subtract_plain(money_value, payload.amount)
     energy_value = add_plain(get_user_energy_value(user), gained)
     set_user_money_value(user, money_value)
     set_user_energy_value(user, energy_value)
     db.commit()
     db.refresh(user)
-    return {"energy": user.energy, "money": user.money, "rate": rate, "gained": gained, "user": UserOut.model_validate(user)}
+    return {
+        "energy": user.energy,
+        "money": user.money,
+        "rate": avg_rate,
+        "gained": gained,
+        "user": UserOut.model_validate(user),
+    }
 
 
 @router.get("/change/rate")
