@@ -32,7 +32,7 @@ export function computeSkipCost(entry) {
 
 export function computeMaxGenerators(user) {
   if (!user) return 10;
-  return 10 + (Number(user.max_generators_bonus) || 0) * 5;
+  return 10 + (Number(user.max_generators_bonus) || 0);
 }
 
 export function normalizeServerGenerators(serverGenerators = [], typesById = {}) {

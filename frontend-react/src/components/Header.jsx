@@ -88,7 +88,7 @@ export default function Header() {
   }, [showProfileModal, currentUser?.user_id]);
 
   const generatorCount = placedGenerators.length;
-  const maxGenerators = 10 + (currentUser?.max_generators_bonus || 0) * 5;
+  const maxGenerators = 10 + (currentUser?.max_generators_bonus || 0);
 
   useEffect(() => {
     ensureExchangeRate();

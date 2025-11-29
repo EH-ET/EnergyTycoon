@@ -38,7 +38,7 @@ export function updateUserUI(user, placedCountOverride) {
     dom.profileRank.replaceChildren(strong, document.createTextNode(` ${rankText}`));
   }
   const count = placedCountOverride ?? state.placedGenerators.length ?? 0;
-  const max = 10 + (user.max_generators_bonus || 0) * 5;
+  const max = 10 + (user.max_generators_bonus || 0);
   if (dom.generatorCount) dom.generatorCount.textContent = `${count}/${max}`;
 }
 
