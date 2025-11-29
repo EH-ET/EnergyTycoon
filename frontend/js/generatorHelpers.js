@@ -231,7 +231,11 @@ export function computeSkipCost(entry) {
   if (!entry || !entry.isDeveloping) return 0;
   const remainingSeconds = Math.max(0, Math.ceil(((entry.buildCompleteTs || Date.now()) - Date.now()) / 1000));
   const baseCost = entry.baseCost || 0;
-  return Math.max(1, Math.ceil((remainingSeconds || 1) * baseCost / 10));
+  const totalDurationSeconds = Math.max(
+    1,
+    Math.ceil((entry.buildDurationMs || entry.baseBuildDurationMs || 2000) / 1000),
+  );
+  return Math.max(1, Math.ceil((remainingSeconds / totalDurationSeconds) * baseCost));
 }
 
 export function formatPlainValue(amount) {

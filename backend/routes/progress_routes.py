@@ -171,6 +171,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     mp = MapProgress(user_id=user.user_id, generator_id=g.generator_id)
     db.add(mp)
     db.commit()
+    db.refresh(user)
     return {
         "ok": True,
         "generator": _serialize_generator(g, gt.name, gt.cost, mp),
@@ -376,7 +377,8 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         }
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
-    cost = max(1, math.ceil((remaining * (gt.cost or 1)) / 10))
+    total_duration = max(1, _build_duration(gt, gen.level))
+    cost = max(1, math.ceil((remaining / total_duration) * (gt.cost or 1)))
     money_value = get_user_money_value(user)
     if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money to skip build")
