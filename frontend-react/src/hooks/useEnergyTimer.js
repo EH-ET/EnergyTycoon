@@ -9,21 +9,34 @@ import { readStoredPlayTime } from '../utils/playTime';
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 const ENERGY_SAVE_DELAY = 500; // 에너지 변경 후 0.5초 후 저장
 
-async function handleExplosion(entry, removePlacedGenerator, token) {
+async function handleExplosion(entry, removePlacedGenerator, token, updatePlacedGenerator) {
   if (!entry) return;
-  entry.running = false;
-  entry.isDeveloping = true;
-  entry.heat = 0;
   const meta = entry.genIndex != null && entry.genIndex >= 0 ? generators[entry.genIndex] : null;
   const rebuildMs = entry.baseBuildDurationMs
     || entry.buildDurationMs
     || getBuildDurationMs(meta);
-  entry.buildCompleteTs = Date.now() + rebuildMs;
 
   try {
-    await updateGeneratorState(entry.generator_id, { explode: true }, token);
+    const res = await updateGeneratorState(entry.generator_id, { explode: true }, token);
+
+    // Update generator with response from server
+    if (res.generator && updatePlacedGenerator) {
+      updatePlacedGenerator(entry.generator_id, (prev) => ({
+        ...prev,
+        running: res.generator.running !== false,
+        isDeveloping: Boolean(res.generator.isdeveloping),
+        heat: typeof res.generator.heat === 'number' ? res.generator.heat : 0,
+        buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : Date.now() + rebuildMs,
+        // Preserve baseCost for skip cost calculation
+        baseCost: prev.baseCost || res.generator.cost || entry.baseCost,
+      }));
+    }
   } catch (err) {
-    // Silent fail
+    // Fallback to local update if server fails
+    entry.running = false;
+    entry.isDeveloping = true;
+    entry.heat = 0;
+    entry.buildCompleteTs = Date.now() + rebuildMs;
   }
 }
 
@@ -70,6 +83,7 @@ export function useEnergyTimer() {
   const setEnergyValue = useStore(state => state.setEnergyValue);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
+  const updatePlacedGenerator = useStore(state => state.updatePlacedGenerator);
   const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
 
   const energySaveTimerRef = useRef(null);
@@ -150,7 +164,7 @@ export function useEnergyTimer() {
             : (meta ? Number(meta["내열한계"]) || 0 : 0);
         const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10;
         if (toleranceBuff > 0 && next.heat > toleranceBuff) {
-          handleExplosion(next, removePlacedGenerator, getAuthToken());
+          handleExplosion(next, removePlacedGenerator, getAuthToken(), updatePlacedGenerator);
         }
 
         return next;
@@ -217,7 +231,7 @@ export function useEnergyTimer() {
         clearTimeout(energySaveTimerRef.current);
       }
     };
-  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, toEnergyServerPayload]);
+  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, toEnergyServerPayload, updatePlacedGenerator, removePlacedGenerator]);
 }
 
 export function useEnergyRate() {
@@ -227,7 +241,3 @@ export function useEnergyRate() {
   if (!currentUser) return 0;
   return computeEnergyPerSecond(placedGenerators, currentUser);
 }
-  // 클라이언트 측 제거(선택적)
-  if (typeof removePlacedGenerator === 'function') {
-    removePlacedGenerator(entry.generator_id);
-  }

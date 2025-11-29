@@ -311,7 +311,7 @@ main {
 
 .build-bar:hover {
   height: 32vh;
-  transform: translateY(-15vh);
+  transform: translateY(-13vh);
 }
 
 .btn-bar {

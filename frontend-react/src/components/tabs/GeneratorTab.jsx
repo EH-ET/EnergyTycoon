@@ -62,16 +62,7 @@ export default function GeneratorTab() {
                     설치비용: {formatResourceValue(cost)}
                   </p>
                   <p style={{ fontSize: '13px', color: '#ffffffff', margin: 0 }}>
-                    설치시간: {gen["설치시간(초)"]}s
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#ffffffff', margin: 0 }}>
                     생산량: {formatResourceValue(production)}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#ffffffff', margin: 0 }}>
-                    발열: {gen.발열 || 0} / 내열: {gen.내열한계}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#ffffffff', margin: 0 }}>
-                    크기: {gen.크기}
                   </p>
                 </div>
               </div>
@@ -109,6 +100,9 @@ export default function GeneratorTab() {
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
             생산량: {formatResourceValue(hovered.production)}
+          </p>
+          <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
+            크기: {hovered.gen.크기 || 0}
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
             발열: {hovered.gen.발열 || 0}
