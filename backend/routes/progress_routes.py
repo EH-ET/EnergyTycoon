@@ -362,40 +362,46 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
 
 def _calculate_total_energy_production(user: User, db: Session) -> int:
     """Calculate total energy production per second from all user's generators."""
-    from .init_db import DEFAULT_GENERATOR_TYPES, DEFAULT_GENERATOR_NAME_TO_INDEX
-    
-    # Get all running generators for this user
-    generators = (
-        db.query(Generator, MapProgress)
-        .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
-        .filter(MapProgress.user_id == user.user_id, Generator.running == True, Generator.isdeveloping == False)
-        .all()
-    )
-    
-    total_production = 0
-    production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1  # Match frontend: bonus * 0.1
-    
-    for gen, mp in generators:
-        gt = gen.generator_type
-        if not gt or not gt.name:
-            continue
+    try:
+        from ..init_db import DEFAULT_GENERATOR_TYPES, DEFAULT_GENERATOR_NAME_TO_INDEX
         
-        # Find generator type info from defaults
-        gen_index = DEFAULT_GENERATOR_NAME_TO_INDEX.get(gt.name)
-        if gen_index is None:
-            continue
+        # Get all running generators for this user
+        generators = (
+            db.query(Generator, MapProgress)
+            .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
+            .filter(MapProgress.user_id == user.user_id, Generator.running == True, Generator.isdeveloping == False)
+            .all()
+        )
         
-        gen_data = DEFAULT_GENERATOR_TYPES[gen_index]
-        base_production = gen_data.get("생산량(에너지수)", 0)
+        total_production = 0
+        production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1  # Match frontend: bonus * 0.1
         
-        # Apply production upgrades
-        production_upgrade_level = getattr(mp, "production_upgrade", 0) or 0
-        upgrade_multiplier = 1.0 + production_upgrade_level * 0.1
+        for gen, mp in generators:
+            gt = gen.generator_type
+            if not gt or not gt.name:
+                continue
+            
+            # Find generator type info from defaults
+            gen_index = DEFAULT_GENERATOR_NAME_TO_INDEX.get(gt.name)
+            if gen_index is None:
+                continue
+            
+            gen_data = DEFAULT_GENERATOR_TYPES[gen_index]
+            base_production = gen_data.get("생산량(에너지수)", 0)
+            
+            # Apply production upgrades
+            production_upgrade_level = getattr(mp, "production_upgrade", 0) or 0
+            upgrade_multiplier = 1.0 + production_upgrade_level * 0.1
+            
+            gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
+            total_production += int(gen_production)
         
-        gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
-        total_production += int(gen_production)
-    
-    return total_production
+        return total_production
+    except Exception as e:
+        # If calculation fails, return 0 to avoid blocking autosave
+        import logging
+        logging.warning(f"Failed to calculate energy production: {e}")
+        return 0
 
 
 @router.post("/progress/autosave")
