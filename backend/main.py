@@ -87,15 +87,37 @@ SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 AUTH_ENDPOINTS = {"/login", "/signup"}
 
 
+def _is_origin_allowed(origin: str) -> bool:
+    """Check if origin is in the allowed list or matches the regex pattern."""
+    if not origin:
+        return False
+    if origin in origins:
+        return True
+    if _origin_regex and _origin_regex.match(origin):
+        return True
+    return False
+
+
 @app.middleware("http")
 async def enforce_origin(request: Request, call_next):
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
+    
+    # Extract origin from referer if origin header is not present
+    referer_origin = None
+    if referer:
+        parsed = urlparse(referer)
+        referer_origin = f"{parsed.scheme}://{parsed.netloc}"
+    
+    # Determine the actual origin to validate
+    request_origin = origin or referer_origin
+    
+    # Validate origin against whitelist
+    allowed_origin = None
+    if request_origin and _is_origin_allowed(request_origin):
+        allowed_origin = request_origin
 
-    # Loosen origin handling: echo back the incoming Origin/Referer (or "*") to keep CORS headers flowing
-    allowed_origin = origin or referer or "*"
-
-    # Preflight은 통과시킴
+    # Preflight requests
     if request.method == "OPTIONS":
         response = await call_next(request)
         if allowed_origin:
@@ -107,26 +129,21 @@ async def enforce_origin(request: Request, call_next):
             response.headers["Access-Control-Allow-Methods"] = request.headers.get("Access-Control-Request-Method") or "*"
         return response
 
+    # CSRF protection for state-changing requests
     if request.method not in SAFE_METHODS:
         # Skip CSRF check for authentication endpoints where token is set
         if request.url.path not in AUTH_ENDPOINTS:
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
-            # Allow if:
-            # - both cookie and header exist and match
-            # - only header exists (Netlify can't read Render cookie)
-            # - only cookie exists (same as before)
-            if csrf_cookie and csrf_header and csrf_cookie == csrf_header:
-                pass
-            elif csrf_header and not csrf_cookie:
-                pass
-            elif csrf_cookie and not csrf_header:
-                pass
-            else:
+            # Require BOTH cookie and header to be present and matching
+            if not (csrf_cookie and csrf_header and csrf_cookie == csrf_header):
                 return JSONResponse(
                     status_code=403,
                     content={"detail": "CSRF token missing or invalid"},
-                    headers={"Access-Control-Allow-Origin": allowed_origin or origin or "*", "Access-Control-Allow-Credentials": "true"},
+                    headers={
+                        "Access-Control-Allow-Origin": allowed_origin if allowed_origin else "",
+                        "Access-Control-Allow-Credentials": "true"
+                    } if allowed_origin else {},
                 )
 
     response = await call_next(request)
