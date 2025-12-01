@@ -135,11 +135,23 @@ async def enforce_origin(request: Request, call_next):
         if request.url.path not in AUTH_ENDPOINTS:
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
-            # Require BOTH cookie and header to be present and matching
-            if not (csrf_cookie and csrf_header and csrf_cookie == csrf_header):
+            
+            # Require at least one of cookie or header to be present
+            if not csrf_cookie and not csrf_header:
                 return JSONResponse(
                     status_code=403,
-                    content={"detail": "CSRF token missing or invalid"},
+                    content={"detail": "CSRF token missing"},
+                    headers={
+                        "Access-Control-Allow-Origin": allowed_origin if allowed_origin else "",
+                        "Access-Control-Allow-Credentials": "true"
+                    } if allowed_origin else {},
+                )
+            
+            # If both are present, they should match
+            if csrf_cookie and csrf_header and csrf_cookie != csrf_header:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "CSRF token mismatch"},
                     headers={
                         "Access-Control-Allow-Origin": allowed_origin if allowed_origin else "",
                         "Access-Control-Allow-Credentials": "true"
