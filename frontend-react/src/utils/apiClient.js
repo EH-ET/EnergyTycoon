@@ -284,10 +284,12 @@ export async function updateGeneratorState(generatorId, payload = {}, token) {
   return data;
 }
 
-export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
+export async function upgradeGenerator(generatorId, upgrade, amount = 1, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/upgrade`, {
     method: "POST",
-    headers: attachCsrf({ "Content-Type": "application/json" }),
+    headers,
     credentials: "include",
     body: JSON.stringify({ upgrade, amount }),
   });
