@@ -145,12 +145,20 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
 async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     _ensure_same_user(user, payload.user_id)
+    
     gt = db.query(GeneratorType).filter_by(generator_type_id=payload.generator_type_id).first()
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
+    
+    # Use FOR UPDATE to lock the user row and prevent race conditions
+    user = db.query(User).filter_by(user_id=user.user_id).with_for_update().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     current_count = db.query(MapProgress).filter_by(user_id=user.user_id).count()
     if current_count >= _max_generators_allowed(user):
         raise HTTPException(status_code=400, detail="Generator limit reached")
+    
     existing = (
         db.query(Generator)
         .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
@@ -163,6 +171,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     )
     if existing:
         raise HTTPException(status_code=400, detail="Generator already exists in this position")
+    
     money_value = get_user_money_value(user)
     
     # Use BigValue cost from cost_data and cost_high for accurate deduction
@@ -170,6 +179,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     
     if compare(money_value, cost_val) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
+    
     g = Generator(
         generator_type_id=gt.generator_type_id,
         owner_id=user.user_id,
@@ -246,20 +256,35 @@ async def update_generator_state(generator_id: str, payload: GeneratorStateUpdat
         raise HTTPException(status_code=404, detail="Generator not found")
     mp = db.query(MapProgress).filter_by(generator_id=generator_id, user_id=user.user_id).first()
     changed = False
+    
     if payload.heat is not None:
-        gen.heat = max(0, int(payload.heat))
+        new_heat = max(0, int(payload.heat))
+        current_heat = gen.heat or 0
+        
+        # Prevent suspicious heat resets (only allow gradual decreases)
+        # Heat can only decrease by a reasonable amount per update (max 50 points)
+        if new_heat < current_heat:
+            max_heat_decrease = 50
+            if current_heat - new_heat > max_heat_decrease:
+                raise HTTPException(status_code=400, detail="Heat decrease too large")
+        
+        gen.heat = new_heat
         changed = True
+    
     if payload.running is not None:
         gen.running = bool(payload.running)
         changed = True
+    
     if payload.explode:
         gen.isdeveloping = True
         gen.running = False
         gen.heat = 0
         gen.build_complete_ts = int(time.time() + _build_duration(getattr(gen, "generator_type", None), gen.level))
         changed = True
+    
     if not changed:
         raise HTTPException(status_code=400, detail="No changes provided")
+    
     db.commit()
     db.refresh(gen)
     return {
@@ -335,31 +360,101 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
     }
 
 
+def _calculate_total_energy_production(user: User, db: Session) -> int:
+    """Calculate total energy production per second from all user's generators."""
+    from .init_db import DEFAULT_GENERATOR_TYPES, DEFAULT_GENERATOR_NAME_TO_INDEX
+    
+    # Get all running generators for this user
+    generators = (
+        db.query(Generator, MapProgress)
+        .join(MapProgress, MapProgress.generator_id == Generator.generator_id)
+        .filter(MapProgress.user_id == user.user_id, Generator.running == True, Generator.isdeveloping == False)
+        .all()
+    )
+    
+    total_production = 0
+    production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1  # Match frontend: bonus * 0.1
+    
+    for gen, mp in generators:
+        gt = gen.generator_type
+        if not gt or not gt.name:
+            continue
+        
+        # Find generator type info from defaults
+        gen_index = DEFAULT_GENERATOR_NAME_TO_INDEX.get(gt.name)
+        if gen_index is None:
+            continue
+        
+        gen_data = DEFAULT_GENERATOR_TYPES[gen_index]
+        base_production = gen_data.get("생산량(에너지수)", 0)
+        
+        # Apply production upgrades
+        production_upgrade_level = getattr(mp, "production_upgrade", 0) or 0
+        upgrade_multiplier = 1.0 + production_upgrade_level * 0.1
+        
+        gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
+        total_production += int(gen_production)
+    
+    return total_production
+
+
 @router.post("/progress/autosave")
 async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     if payload is None:
         raise HTTPException(status_code=400, detail="No payload provided")
+    
+    # Import here to avoid circular dependency
+    from ..game_logic import current_market_rate
+    
     updated = False
+    
+    # Energy validation
     energy_value = from_payload(payload.energy_data, payload.energy_high, payload.energy)
     if energy_value is not None:
         energy_plain = to_plain(energy_value)
         if energy_plain > MAX_ENERGY_VALUE:
             raise HTTPException(status_code=400, detail="Energy value too large")
+        
+        # Check for suspicious increases based on production rate * 100
+        current_energy = to_plain(get_user_energy_value(user))
+        total_production_per_sec = _calculate_total_energy_production(user, db)
+        
+        # Allow a maximum increase of production_rate * 100 seconds, or at least 1M
+        max_reasonable_increase = max(total_production_per_sec * 100, 1_000_000)
+        if energy_plain > current_energy + max_reasonable_increase:
+            raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
+        
         set_user_energy_value(user, energy_value)
         updated = True
+    
+    # Money validation
     money_value = from_payload(payload.money_data, payload.money_high, payload.money)
     if money_value is not None:
         money_plain = to_plain(money_value)
         if money_plain > MAX_MONEY_VALUE:
             raise HTTPException(status_code=400, detail="Money value too large")
+        
+        # Check for suspicious increases based on energy * exchange_rate * 100
+        current_money = to_plain(get_user_money_value(user))
+        current_energy = to_plain(get_user_energy_value(user))
+        exchange_rate = current_market_rate(user)
+        
+        # Maximum reasonable money increase: current_energy * exchange_rate * 100
+        max_reasonable_increase = max(int(current_energy * exchange_rate * 100), 1_000_000)
+        if money_plain > current_money + max_reasonable_increase:
+            raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
+        
         set_user_money_value(user, money_value)
         updated = True
+    
     if payload.play_time_ms is not None:
         user.play_time_ms = max(0, int(payload.play_time_ms))
         updated = True
+    
     if not updated:
         raise HTTPException(status_code=400, detail="No fields provided to autosave")
+    
     db.commit()
     db.refresh(user)
     return {"user": UserOut.model_validate(user)}
