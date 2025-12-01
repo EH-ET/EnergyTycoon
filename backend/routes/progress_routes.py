@@ -281,18 +281,15 @@ def _gen_upgrade_meta(key: str):
     return meta
 
 
-def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> BigValue:
+def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> int:
     meta = _gen_upgrade_meta(key)
-    # Use BigValue base cost from cost_data and cost_high
-    base_val = BigValue(gt.cost_data, gt.cost_high)
-    base_cost = to_plain(base_val)
-    
+    base_cost = getattr(gt, "cost", 10) or 10
     current_level = getattr(mp, meta["field"], 0) or 0
     total = 0
     for i in range(amount):
         level = current_level + i + 1
         total += int(base_cost * meta["base_cost_multiplier"] * (meta["price_growth"] ** level))
-    return from_plain(max(1, total))
+    return max(1, total)
 
 
 @router.post("/progress/{generator_id}/upgrade")
@@ -312,20 +309,18 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
     if not mp:
         raise HTTPException(status_code=404, detail="Progress not found")
     amount = max(1, payload.amount or 1)
-    cost_val = _calc_generator_upgrade_cost(gt, mp, payload.upgrade, amount)
+    cost = _calc_generator_upgrade_cost(gt, mp, payload.upgrade, amount)
     money_value = get_user_money_value(user)
-    if compare(money_value, cost_val) < 0:
+    if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     meta = _gen_upgrade_meta(payload.upgrade)
     new_level = getattr(mp, meta["field"], 0) + amount
     setattr(mp, meta["field"], new_level)
-    set_user_money_value(user, subtract_values(money_value, cost_val))
+    set_user_money_value(user, subtract_plain(money_value, cost))
     db.commit()
     db.refresh(user)
     db.refresh(mp)
     db.refresh(gen)
-    
-    cost_payload = to_payload(cost_val)
     return {
         "user": UserOut.model_validate(user),
         "generator": _serialize_generator(
@@ -335,8 +330,8 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
             getattr(gt, "cost_high", 0),
             mp,
         ),
-        "cost_data": cost_payload["data"],
-        "cost_high": cost_payload["high"],
+        "cost_data": to_payload(from_plain(cost))["data"],
+        "cost_high": to_payload(from_plain(cost))["high"],
     }
 
 
