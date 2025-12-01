@@ -103,11 +103,25 @@ def _check_ip_rate(request: Request):
     _cleanup_old_entries()
 
 
+def _validate_username(username: str):
+    """Validate username to prevent XSS and other attacks."""
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if len(username) > 20:
+        raise HTTPException(status_code=400, detail="Username must be at most 20 characters")
+    # Only allow alphanumeric characters and underscores
+    if not all(c.isalnum() or c == '_' for c in username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, and underscores")
+
+
 @router.post("/signup")
 async def signup(
     request: Request, response: Response, payload: schemas.UserCreate, db: Session = Depends(get_db)
 ):
     _check_ip_rate(request)
+    _validate_username(payload.username)
     _validate_password_strength(payload.password)
     if db.query(User).filter_by(username=payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
