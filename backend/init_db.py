@@ -170,6 +170,33 @@ def ensure_map_progress_columns():
                 conn.exec_driver_sql(f"ALTER TABLE map_progress ADD COLUMN {col_name} {col_def}")
 
 
+def ensure_generator_type_columns():
+    """Ensure generator_types table has cost_data and cost_high columns."""
+    needed = [
+        ("cost_data", "INTEGER NOT NULL DEFAULT 0"),
+        ("cost_high", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+
+    dialect = engine.dialect.name
+    if dialect == "sqlite":
+        with engine.begin() as conn:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('generator_types')")}
+            for col_name, col_def in needed:
+                if col_name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE generator_types ADD COLUMN {col_name} {col_def}")
+        return
+
+    if "postgres" in dialect:
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'generator_types'"
+            ).fetchall()
+            existing = {row[0] for row in rows}
+            for col_name, col_def in needed:
+                if col_name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE generator_types ADD COLUMN {col_name} {col_def}")
+
+
 def create_default_generator_types(db: Session):
     """Seed default generator types if none exist."""
     if db.query(GeneratorType).count() == 0:
@@ -193,18 +220,30 @@ def sync_generator_types(db: Session):
         if not name:
             continue
         desc = src.get("세부설명") or src.get("description") or ""
-        cost = _normalize_cost(src.get("설치비용") or src.get("cost") or 0)
+        
+        # Read BigValue cost components
+        cost_data = int(src.get("설치비용(수)") or 0)
+        cost_high = int(src.get("설치비용(높이)") or 0)
+        
         row = existing.get(name)
         if not row:
-            db.add(GeneratorType(name=name, description=desc, cost=cost))
+            db.add(GeneratorType(
+                name=name, 
+                description=desc, 
+                cost_data=cost_data,
+                cost_high=cost_high
+            ))
             changed = True
             continue
         updated = False
         if row.description != desc:
             row.description = desc
             updated = True
-        if row.cost != cost:
-            row.cost = cost
+        if getattr(row, "cost_data", 0) != cost_data:
+            row.cost_data = cost_data
+            updated = True
+        if getattr(row, "cost_high", 0) != cost_high:
+            row.cost_high = cost_high
             updated = True
         if updated:
             changed = True

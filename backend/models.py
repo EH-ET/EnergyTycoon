@@ -36,7 +36,8 @@ class GeneratorType(Base):
     generator_type_id = Column(String, primary_key=True, default=generate_uuid, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(String, nullable=False)
-    cost = Column(Integer, nullable=False)
+    cost_data = Column(Integer, default=0, nullable=False)
+    cost_high = Column(Integer, default=0, nullable=False)
 
     generators = relationship("Generator", back_populates="generator_type")
 

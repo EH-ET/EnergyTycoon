@@ -20,11 +20,10 @@ async def generator_types(db: Session = Depends(get_db)):
         payload.append({
             "id": t.generator_type_id,
             "name": t.name,
-            "cost": t.cost,
+            "cost_data": t.cost_data,
+            "cost_high": t.cost_high,
             "description": t.description,
             "index": idx,
-            "cost_data": spec.get("설치비용(수)"),
-            "cost_high": spec.get("설치비용(높이)"),
             "energy_data": spec.get("생산량(에너지수)"),
             "energy_high": spec.get("생산량(에너지높이)"),
         })
@@ -34,12 +33,12 @@ async def generator_types(db: Session = Depends(get_db)):
             "generator_type_id": t.generator_type_id,
             "name": t.name,
             "description": t.description,
-            "cost": t.cost,
+            "cost_data": t.cost_data,
+            "cost_high": t.cost_high,
             "index": DEFAULT_GENERATOR_NAME_TO_INDEX.get(t.name),
-            "cost_data": DEFAULT_GENERATOR_SPEC_BY_NAME.get(t.name, {}).get("설치비용(수)"),
-            "cost_high": DEFAULT_GENERATOR_SPEC_BY_NAME.get(t.name, {}).get("설치비용(높이)"),
             "energy_data": DEFAULT_GENERATOR_SPEC_BY_NAME.get(t.name, {}).get("생산량(에너지수)"),
             "energy_high": DEFAULT_GENERATOR_SPEC_BY_NAME.get(t.name, {}).get("생산량(에너지높이)"),
         }
         for t in types
     ]}
+
