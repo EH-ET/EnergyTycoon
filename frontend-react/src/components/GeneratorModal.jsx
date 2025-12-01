@@ -133,7 +133,8 @@ export default function GeneratorModal({ generator, onClose }) {
 
   const handleUpgrade = async (key) => {
     try {
-      const res = await upgradeGenerator(generator.generator_id, key, 1);
+      const token = getAuthToken();
+      const res = await upgradeGenerator(generator.generator_id, key, 1, token);
 
       if (res.user) {
         syncUserState(res.user);
