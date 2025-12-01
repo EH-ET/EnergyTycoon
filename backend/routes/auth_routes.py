@@ -33,6 +33,31 @@ _login_backoff: dict[str, float] = {}
 _ip_buckets = defaultdict(list)
 IP_MAX_ATTEMPTS = int(os.getenv("IP_MAX_ATTEMPTS", "100"))
 IP_WINDOW_SECONDS = int(os.getenv("IP_WINDOW_SECONDS", "60"))
+MAX_BACKOFF_ENTRIES = 10000  # Prevent unbounded memory growth
+MAX_IP_ENTRIES = 10000
+
+
+def _cleanup_old_entries():
+    """Remove old entries from rate limiting dicts to prevent memory exhaustion."""
+    now = time.time()
+    
+    # Clean up login backoff entries older than cooldown period
+    if len(_login_backoff) > MAX_BACKOFF_ENTRIES:
+        to_remove = [
+            username for username, timestamp in _login_backoff.items()
+            if now - timestamp > LOGIN_COOLDOWN_SECONDS * 2
+        ]
+        for username in to_remove[:len(_login_backoff) // 2]:  # Remove half if over limit
+            _login_backoff.pop(username, None)
+    
+    # Clean up IP bucket entries
+    if len(_ip_buckets) > MAX_IP_ENTRIES:
+        to_remove = [
+            ip for ip, timestamps in _ip_buckets.items()
+            if not timestamps or all(ts < now - IP_WINDOW_SECONDS * 2 for ts in timestamps)
+        ]
+        for ip in to_remove[:len(_ip_buckets) // 2]:  # Remove half if over limit
+            _ip_buckets.pop(ip, None)
 
 
 def _validate_password_strength(pw: str):
@@ -59,6 +84,7 @@ def _enforce_login_cooldown(username: str | None):
 def _mark_login_failure(username: str | None):
     if username:
         _login_backoff[username] = time.time()
+        _cleanup_old_entries()
 
 
 def _clear_login_failure(username: str | None):
@@ -74,6 +100,7 @@ def _check_ip_rate(request: Request):
         raise HTTPException(status_code=429, detail="Too many attempts. Please wait.")
     recent.append(now)
     _ip_buckets[ip] = recent
+    _cleanup_old_entries()
 
 
 @router.post("/signup")
