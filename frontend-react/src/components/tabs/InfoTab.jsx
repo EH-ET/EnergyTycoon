@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
-import { formatResourceValue } from '../../utils/bigValue';
+import { formatResourceValue, fromPlainValue } from '../../utils/bigValue';
 import { fetchRanks } from '../../utils/apiClient';
 import { fetchMyRank } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
@@ -132,7 +132,9 @@ export default function InfoTab() {
           ) : (
             leaderboard.map((entry) => {
               const you = currentUser.username === entry.username ? ' (나)' : '';
-              const score = typeof entry.score === 'number' ? entry.score.toLocaleString('ko-KR') : '-';
+              const score = typeof entry.score === 'number' 
+                ? formatResourceValue(fromPlainValue(entry.score))
+                : '-';
               return (
                 <li key={entry.rank}>
                   {entry.rank}위 {entry.username} - {score}점{you}
