@@ -100,8 +100,6 @@ export default function Login({ onLoginSuccess }) {
     }
 
     try {
-      console.log('🔐 Login attempt:', { username: cleanUsername, url: `${API_BASE}/login` });
-      
       const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: {
@@ -112,18 +110,12 @@ export default function Login({ onLoginSuccess }) {
         body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
       });
 
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-
       const data = await response.json();
-      console.log('📦 Response data:', data);
       
       if (!response.ok) throw new Error(data.detail || 'login failed');
 
-      // Store only user info (tokens are now in HttpOnly cookies)
       storeUser(data.user);
       
-      // Fallback: Store token in memory if returned (for cross-domain support)
       if (data.access_token) {
         import('../store/useStore').then(({ setMemoryToken }) => {
           setMemoryToken(data.access_token);
@@ -135,13 +127,12 @@ export default function Login({ onLoginSuccess }) {
       persistTrapMarker();
 
       if (onLoginSuccess) {
-        // Pass token if available
         onLoginSuccess(data.user, data.access_token || null);
       } else {
         window.location.reload();
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Login error:', error);
       showMessage(error.message || 'Error', 'error');
     }
   };
