@@ -26,22 +26,14 @@ function App() {
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
 
   const fetchAndSyncProgress = async (user, token, typeMapById) => {
-    console.log("[App] fetchAndSyncProgress called", { userId: user?.user_id, hasToken: !!token });
-    
     if (!user?.user_id) {
-      console.log("[App] No user_id, aborting fetchAndSyncProgress");
       return;
     }
     
-    // With HttpOnly cookies, token might be null but we should still try the request
-    // The backend will return 401 if the cookie is missing/invalid
     const safeToken = token || getAuthToken();
-    console.log("[App] Using token for request:", safeToken ? "Present (Memory/Cookie)" : "None (HttpOnly Cookie expected)");
     
     try {
-      console.log("[App] Requesting loadProgress...");
       const res = await loadProgress(user.user_id, safeToken);
-      console.log("[App] loadProgress success", res);
       
       if (res.user) {
         syncUserState(res.user);
@@ -51,14 +43,10 @@ function App() {
           res.generators,
           typeMapById || useStore.getState().generatorTypesById
         );
-        console.log("[App] Generators normalized:", normalized.length);
         setPlacedGenerators(normalized);
       }
     } catch (err) {
-      console.error("[App] Failed to load progress:", err);
-      // If 401/403, the apiClient might throw. We can let the global error handler or 
-      // the caller handle it, or just log it here. 
-      // If it's an auth error, we might want to trigger logout, but App.jsx init logic handles that.
+      console.error("Failed to load progress:", err);
       throw err; 
     }
   };
