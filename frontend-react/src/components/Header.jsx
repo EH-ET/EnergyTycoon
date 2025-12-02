@@ -131,7 +131,11 @@ export default function Header() {
                 <strong style={{ color: '#fff' }}>이름:</strong> {currentUser?.username || 'NONE'}
               </p>
               <p className="modal-line profile-rank" style={{ margin: '0 0 12px' }}>
-                <strong style={{ color: '#fff' }}>랭킹:</strong> {typeof currentUser?.rank === 'number' ? `${currentUser.rank}위` : '-'}
+                <strong style={{ color: '#fff' }}>랭킹:</strong> {
+                  typeof currentUser?.rank === 'number' 
+                    ? `${currentUser.rank}위` 
+                    : (showProfileModal ? '로딩 중...' : '-')
+                }
               </p>
               <div className="modal-actions" style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -200,7 +204,11 @@ export default function Header() {
           >
             <div className={`energy-modal modal ${showEnergyModal ? 'is-visible' : ''}`}>
               <p><strong>초당 에너지 생산량</strong></p>
-              <p><span className="energy-rate">{typeof energyRate === 'number' ? energyRate.toFixed(2) : '0'}</span>/초</p>
+              <p><span className="energy-rate">
+                {typeof energyRate === 'number' 
+                  ? formatResourceValue({ data: energyRate * 1000, high: 0 })
+                  : '0'}
+              </span>/초</p>
             </div>
           </div>
           <div className="stat-info">

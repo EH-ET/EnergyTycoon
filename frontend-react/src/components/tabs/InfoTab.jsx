@@ -107,6 +107,7 @@ export default function InfoTab() {
     }}>
       <p>이름: {currentUser.username}</p>
       <p>플레이시간: {formatPlayTime(playTime)}</p>
+      <p>환생 횟수: {currentUser.rebirth_count || 0}회</p>
       <p>얻은 총 에너지량: {formattedEnergy}</p>
       <p>얻은 총 돈: {formattedMoney}</p>
       <p>등수: {rankText}{scoreText !== '-' ? ` (점수 ${scoreText})` : ''}</p>
