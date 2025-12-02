@@ -122,15 +122,21 @@ export default function Login({ onLoginSuccess }) {
 
       // Store only user info (tokens are now in HttpOnly cookies)
       storeUser(data.user);
-      // Note: data.access_token is no longer returned by the backend
-      // Tokens are automatically set in HttpOnly cookies
+      
+      // Fallback: Store token in memory if returned (for cross-domain support)
+      if (data.access_token) {
+        import('../store/useStore').then(({ setMemoryToken }) => {
+          setMemoryToken(data.access_token);
+        });
+      }
+
       storeCsrfFromResponse(response);
       setSessionStart();
       persistTrapMarker();
 
       if (onLoginSuccess) {
-        // Pass null as token since it's in cookies now
-        onLoginSuccess(data.user, null);
+        // Pass token if available
+        onLoginSuccess(data.user, data.access_token || null);
       } else {
         window.location.reload();
       }
