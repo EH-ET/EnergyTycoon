@@ -125,7 +125,9 @@ function App() {
           syncUserState(user, { token });
           ensureSessionStart();
           try {
-            await fetchAndSyncProgress(user, token);
+            // Explicitly pass generatorTypesById from store
+            const typesById = useStore.getState().generatorTypesById;
+            await fetchAndSyncProgress(user, token, typesById);
           } catch (e) {
             console.error('login progress load failed', e);
           }
