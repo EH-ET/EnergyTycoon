@@ -27,9 +27,11 @@ from ..bigvalue import from_plain, set_user_money_value, set_user_energy_value, 
 router = APIRouter()
 
 LOGIN_COOLDOWN_SECONDS = float(os.getenv("LOGIN_COOLDOWN_SECONDS", "1.0"))
+MAX_BACKOFF_SECONDS = float(os.getenv("MAX_BACKOFF_SECONDS", "300"))  # 5 minutes max
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 _login_backoff: dict[str, float] = {}
+_login_failure_count: dict[str, int] = {}  # Track consecutive failures for exponential backoff
 _ip_buckets = defaultdict(list)
 IP_MAX_ATTEMPTS = int(os.getenv("IP_MAX_ATTEMPTS", "100"))
 IP_WINDOW_SECONDS = int(os.getenv("IP_WINDOW_SECONDS", "60"))
@@ -49,6 +51,7 @@ def _cleanup_old_entries():
         ]
         for username in to_remove[:len(_login_backoff) // 2]:  # Remove half if over limit
             _login_backoff.pop(username, None)
+            _login_failure_count.pop(username, None)
     
     # Clean up IP bucket entries
     if len(_ip_buckets) > MAX_IP_ENTRIES:
@@ -72,24 +75,39 @@ def _validate_password_strength(pw: str):
 
 
 def _enforce_login_cooldown(username: str | None):
+    """Enforce exponential backoff based on consecutive failed login attempts."""
     if not username:
         return
     last_fail = _login_backoff.get(username)
     if last_fail is None:
         return
-    if (time.time() - last_fail) < LOGIN_COOLDOWN_SECONDS:
-        raise HTTPException(status_code=429, detail="Too many attempts. Please wait a moment.")
+    
+    # Calculate exponential backoff: base_cooldown * (2 ^ failure_count)
+    failure_count = _login_failure_count.get(username, 0)
+    cooldown = min(LOGIN_COOLDOWN_SECONDS * (2 ** failure_count), MAX_BACKOFF_SECONDS)
+    
+    elapsed = time.time() - last_fail
+    if elapsed < cooldown:
+        wait_time = int(cooldown - elapsed)
+        raise HTTPException(
+            status_code=429, 
+            detail=f"Too many failed attempts. Please wait {wait_time} seconds."
+        )
 
 
 def _mark_login_failure(username: str | None):
+    """Mark a failed login attempt and increment failure count for exponential backoff."""
     if username:
         _login_backoff[username] = time.time()
+        _login_failure_count[username] = _login_failure_count.get(username, 0) + 1
         _cleanup_old_entries()
 
 
 def _clear_login_failure(username: str | None):
-    if username and username in _login_backoff:
+    """Clear failed login tracking on successful authentication."""
+    if username:
         _login_backoff.pop(username, None)
+        _login_failure_count.pop(username, None)
 
 
 def _check_ip_rate(request: Request):
@@ -140,8 +158,6 @@ async def signup(
         set_csrf_cookie(response)
     return {
         "user": schemas.UserOut.model_validate(u),
-        "access_token": access_token,
-        "refresh_token": refresh_token,
     }
 
 
@@ -172,8 +188,6 @@ async def login(
         set_csrf_cookie(response)
     return {
         "user": schemas.UserOut.model_validate(user),
-        "access_token": access_token,
-        "refresh_token": refresh_token,
     }
 
 

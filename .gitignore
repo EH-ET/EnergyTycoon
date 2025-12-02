@@ -10,3 +10,6 @@ data/*.db
 
 # Logs
 *.log
+
+# Local Netlify folder
+.netlify

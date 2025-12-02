@@ -43,15 +43,6 @@ function storeUser(user) {
   }
 }
 
-function storeToken(token) {
-  if (!token) return;
-  try {
-    localStorage.setItem("et_at", token);
-  } catch (e) {
-    // Silent fail
-  }
-}
-
 function storeCsrfFromResponse(response) {
   const headerVal = response?.headers?.get?.("x-csrf-token");
   if (!headerVal) return;
@@ -122,14 +113,17 @@ export default function Login({ onLoginSuccess }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'login failed');
 
+      // Store only user info (tokens are now in HttpOnly cookies)
       storeUser(data.user);
-      storeToken(data.access_token);
+      // Note: data.access_token is no longer returned by the backend
+      // Tokens are automatically set in HttpOnly cookies
       storeCsrfFromResponse(response);
       setSessionStart();
       persistTrapMarker();
 
       if (onLoginSuccess) {
-        onLoginSuccess(data.user, data.access_token);
+        // Pass null as token since it's in cookies now
+        onLoginSuccess(data.user, null);
       } else {
         window.location.reload();
       }
@@ -165,27 +159,16 @@ export default function Login({ onLoginSuccess }) {
       const signupData = await signupResponse.json();
       if (!signupResponse.ok) throw new Error(signupData.detail || 'signup failed');
 
-      const loginResponse = await fetch(`${API_BASE}/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": getCsrfToken()
-        },
-        credentials: "include",
-        body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
-      });
-
-      const loginData = await loginResponse.json();
-      if (!loginResponse.ok) throw new Error(loginData.detail || 'login after signup failed');
-
-      storeUser(loginData.user);
-      storeToken(loginData.access_token);
-      storeCsrfFromResponse(loginResponse);
+      // Signup also automatically logs in and sets cookies
+      // Store only user info (tokens are now in HttpOnly cookies)
+      storeUser(signupData.user);
+      storeCsrfFromResponse(signupResponse);
       setSessionStart();
       persistTrapMarker();
 
       if (onLoginSuccess) {
-        onLoginSuccess(loginData.user, loginData.access_token);
+        // Pass null as token since it's in cookies now
+        onLoginSuccess(signupData.user, null);
       } else {
         window.location.reload();
       }
