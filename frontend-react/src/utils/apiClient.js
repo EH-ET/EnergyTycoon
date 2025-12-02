@@ -297,3 +297,31 @@ export async function upgradeGenerator(generatorId, upgrade, amount = 1, token) 
   if (!res.ok) throw new Error(data.detail || "발전기 업그레이드 실패");
   return data;
 }
+
+export async function fetchRebirthInfo(token) {
+  const headers = {};
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/rebirth/info`, {
+    headers,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`환생 정보 불러오기 실패 ${res.status} ${txt}`);
+  }
+  return res.json();
+}
+
+export async function performRebirth(token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/rebirth`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "환생 실패");
+  return data;
+}
+

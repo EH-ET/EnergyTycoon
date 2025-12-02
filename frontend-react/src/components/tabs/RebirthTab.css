@@ -1,0 +1,160 @@
+.rebirth-tab {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.rebirth-tab h2 {
+  text-align: center;
+  color: #ffd700;
+  margin-bottom: 30px;
+  font-size: 28px;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.rebirth-info {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 2px solid #ffd700;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  color: #aaa;
+  font-weight: 500;
+}
+
+.info-row .value {
+  color: #fff;
+  font-weight: bold;
+}
+
+.info-row .multiplier {
+  color: #ffd700;
+  font-size: 18px;
+}
+
+.info-row .can-afford {
+  color: #4ade80;
+}
+
+.info-row .cannot-afford {
+  color: #f87171;
+}
+
+.rebirth-description {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.rebirth-description h3 {
+  color: #ffd700;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.rebirth-description ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rebirth-description li {
+  padding: 6px 0;
+  color: #ddd;
+}
+
+.rebirth-button {
+  width: 100%;
+  padding: 16px;
+  font-size: 20px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+  margin-bottom: 20px;
+}
+
+.rebirth-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+}
+
+.rebirth-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rebirth-button:disabled {
+  background: #555;
+  color: #888;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.rebirth-history {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.rebirth-history h3 {
+  color: #ffd700;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.history-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.history-item span:first-child {
+  color: #ffd700;
+  font-weight: bold;
+}
+
+.history-item span:nth-child(2) {
+  color: #aaa;
+}
+
+.history-item .multiplier {
+  color: #ffd700;
+  text-align: right;
+  font-weight: bold;
+}
+
+.error {
+  color: #f87171;
+  text-align: center;
+  padding: 20px;
+}
