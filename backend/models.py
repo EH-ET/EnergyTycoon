@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, BigInteger, String, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -15,10 +15,10 @@ class User(Base):
     password = Column(String, nullable=False)
     energy = Column(Integer, default=0, nullable=False)
     money = Column(Integer, default=10, nullable=False)
-    energy_data = Column(Integer, default=0, nullable=False)
-    energy_high = Column(Integer, default=0, nullable=False)
-    money_data = Column(Integer, default=0, nullable=False)
-    money_high = Column(Integer, default=0, nullable=False)
+    energy_data = Column(BigInteger, default=0, nullable=False)
+    energy_high = Column(BigInteger, default=0, nullable=False)
+    money_data = Column(BigInteger, default=0, nullable=False)
+    money_high = Column(BigInteger, default=0, nullable=False)
     production_bonus = Column(Integer, default=0, nullable=False)
     heat_reduction = Column(Integer, default=0, nullable=False)
     tolerance_bonus = Column(Integer, default=0, nullable=False)

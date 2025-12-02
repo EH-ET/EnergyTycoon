@@ -98,6 +98,19 @@ def ensure_user_upgrade_columns():
             conn.exec_driver_sql("UPDATE users SET demand_bonus = 0 WHERE demand_bonus IS NULL")
             conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET DEFAULT 0")
             conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET NOT NULL")
+            
+            # Migrate BigValue columns to BIGINT to prevent overflow
+            bigvalue_columns = ["energy_data", "energy_high", "money_data", "money_high"]
+            for col in bigvalue_columns:
+                if col in existing:
+                    # Check if column is already BIGINT
+                    type_check = conn.exec_driver_sql(
+                        f"SELECT data_type FROM information_schema.columns "
+                        f"WHERE table_name = 'users' AND column_name = '{col}'"
+                    ).fetchone()
+                    if type_check and type_check[0] == 'integer':
+                        # Convert INTEGER to BIGINT
+                        conn.exec_driver_sql(f"ALTER TABLE users ALTER COLUMN {col} TYPE BIGINT")
 
 
 def ensure_big_value_columns():
