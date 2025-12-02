@@ -114,40 +114,26 @@ async def enforce_origin(request: Request, call_next):
     
     # Debug logging
     import sys
-    print(f"🔍 CORS Debug - Origin: {origin}, Referer: {referer}, Request Origin: {request_origin}", file=sys.stderr)
-    print(f"🔍 Allowed origins: {origins}", file=sys.stderr)
-    print(f"🔍 Regex pattern: {_origin_regex.pattern if _origin_regex else None}", file=sys.stderr)
+    # print(f"🔍 CORS Debug - Origin: {origin}, Referer: {referer}, Request Origin: {request_origin}", file=sys.stderr)
     
-    # Validate origin against whitelist
-    allowed_origin = None
+    # Validate origin against whitelist for CSRF protection
+    # Note: We don't set CORS headers here anymore, CORSMiddleware handles that.
+    # We just check if the origin is allowed for security purposes.
+    is_allowed = False
     if request_origin and _is_origin_allowed(request_origin):
-        allowed_origin = request_origin
-        print(f"✅ Origin allowed: {allowed_origin}", file=sys.stderr)
-    else:
-        print(f"❌ Origin NOT allowed: {request_origin}", file=sys.stderr)
-
-    # Preflight requests - return directly with CORS headers
-    if request.method == "OPTIONS":
-        if allowed_origin:
-            return JSONResponse(
-                status_code=200,
-                content=None,
-                headers={
-                    "Access-Control-Allow-Origin": allowed_origin,
-                    "Access-Control-Allow-Credentials": "true",
-                    "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") or "authorization,content-type,x-csrf-token",
-                    "Access-Control-Allow-Methods": request.headers.get("Access-Control-Request-Method") or "GET,POST,PUT,DELETE,OPTIONS",
-                    "Access-Control-Max-Age": "3600",
-                }
-            )
-        # If no allowed origin, let it fail
-        response = await call_next(request)
-        return response
-
+        is_allowed = True
+    
     # CSRF protection for state-changing requests
     if request.method not in SAFE_METHODS:
-        # Skip CSRF check for authentication endpoints where token is set
+        # Skip CSRF check for authentication endpoints
         if request.url.path not in AUTH_ENDPOINTS:
+            # If origin is not allowed, block state-changing requests
+            if not is_allowed:
+                 return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Origin not allowed for state-changing request"}
+                )
+
             csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
             csrf_header = request.headers.get(CSRF_HEADER_NAME)
             
@@ -155,29 +141,23 @@ async def enforce_origin(request: Request, call_next):
             if not csrf_cookie and not csrf_header:
                 return JSONResponse(
                     status_code=403,
-                    content={"detail": "CSRF token missing"},
-                    headers={
-                        "Access-Control-Allow-Origin": allowed_origin if allowed_origin else "",
-                        "Access-Control-Allow-Credentials": "true"
-                    } if allowed_origin else {},
+                    content={"detail": "CSRF token missing"}
                 )
             
             # If both are present, they should match
             if csrf_cookie and csrf_header and csrf_cookie != csrf_header:
                 return JSONResponse(
                     status_code=403,
-                    content={"detail": "CSRF token mismatch"},
-                    headers={
-                        "Access-Control-Allow-Origin": allowed_origin if allowed_origin else "",
-                        "Access-Control-Allow-Credentials": "true"
-                    } if allowed_origin else {},
+                    content={"detail": "CSRF token mismatch"}
                 )
 
     response = await call_next(request)
-    if allowed_origin:
-        response.headers["Access-Control-Allow-Origin"] = allowed_origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
+    
+    # We rely on CORSMiddleware for Access-Control headers
+    # But we ensure CSRF header is exposed
+    if is_allowed:
         response.headers.setdefault("Access-Control-Expose-Headers", CSRF_HEADER_NAME)
+        
     return response
 
 @app.on_event("startup")
