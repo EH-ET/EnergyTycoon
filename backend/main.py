@@ -117,16 +117,22 @@ async def enforce_origin(request: Request, call_next):
     if request_origin and _is_origin_allowed(request_origin):
         allowed_origin = request_origin
 
-    # Preflight requests
+    # Preflight requests - return directly with CORS headers
     if request.method == "OPTIONS":
-        response = await call_next(request)
         if allowed_origin:
-            response.headers["Access-Control-Allow-Origin"] = allowed_origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Headers"] = (
-                request.headers.get("Access-Control-Request-Headers") or "authorization,content-type,x-csrf-token"
+            return JSONResponse(
+                status_code=200,
+                content=None,
+                headers={
+                    "Access-Control-Allow-Origin": allowed_origin,
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") or "authorization,content-type,x-csrf-token",
+                    "Access-Control-Allow-Methods": request.headers.get("Access-Control-Request-Method") or "GET,POST,PUT,DELETE,OPTIONS",
+                    "Access-Control-Max-Age": "3600",
+                }
             )
-            response.headers["Access-Control-Allow-Methods"] = request.headers.get("Access-Control-Request-Method") or "*"
+        # If no allowed origin, let it fail
+        response = await call_next(request)
         return response
 
     # CSRF protection for state-changing requests
