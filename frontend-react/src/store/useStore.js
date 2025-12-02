@@ -327,10 +327,18 @@ function clearClientSession() {
   sessionStorage.removeItem("access_token");
 }
 
+// In-memory token storage (fallback if cookies fail)
+let memoryToken = null;
+
+export function setMemoryToken(token) {
+  memoryToken = token;
+}
+
 export function getAuthToken() {
-  // Tokens are now in HttpOnly cookies (not accessible from JavaScript)
-  // This function attempts to read the access cookie, but it may fail in production
-  // due to HttpOnly flag. API requests use credentials: 'include' instead.
+  // 1. Try to use memory token first (if set via login response)
+  if (memoryToken) return memoryToken;
+
+  // 2. Try to read from cookie (if not HttpOnly, though it should be)
   const cookie = document.cookie || "";
   const parts = cookie.split(";").map((c) => c.trim());
   for (const part of parts) {
@@ -338,7 +346,7 @@ export function getAuthToken() {
       return part.split("=").slice(1).join("=");
     }
   }
-  // No longer checking localStorage for tokens
+  
   return null;
 }
 
