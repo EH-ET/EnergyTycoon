@@ -80,92 +80,50 @@ export function cloneValue(value) {
 /**
  * Get sub-pattern for offset 0-2999 (used in recursive HUGE units)
  */
-function getSubPattern(offset) {
-  if (offset < 30) {
-    if (offset === 0) return "";
-    const commonIndex = Math.ceil(offset / 3);
-    return COMMON_UNITS[commonIndex] || "";
-  }
+function getPrefix(index) {
+  if (index < 0) return "";
+  if (index <= 8) return HIGH_COMMON_UNITS[index] || "";
+  
+  const adjusted = index - 9;
+  const bigIndex = Math.floor(adjusted / 10) + 1;
+  const commonIndex = adjusted % 10;
+  return (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
+}
 
-  if (offset < 300) {
-    const subOffset = offset - 30;
-    const bigIndex = Math.floor(subOffset / 30) + 1;
-    const commonIndex = Math.floor((subOffset % 30) / 3);
-    return (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
+function getSuffixUnit(high) {
+  if (high <= 0) return "";
+  if (high <= 30) {
+    const unitIndex = Math.ceil(high / 3);
+    // Suffix logic: 1->"", 2->U, 3->D ... matches COMMON_UNITS[unitIndex-1]
+    return COMMON_UNITS[unitIndex - 1] || "";
   }
-
-  // offset 300-2999: HIGH_COMMON + C + pattern
-  const subOffset = offset - 300;
-  const highCommonIndex = Math.floor(subOffset / 300);
-  const withinBlock = subOffset % 300;
-  const highCommonUnit = HIGH_COMMON_UNITS[highCommonIndex] || "";
-
-  if (withinBlock < 30) {
-    const commonIndex = Math.floor(withinBlock / 3);
-    return highCommonUnit + "C" + (COMMON_UNITS[commonIndex] || "");
-  } else {
-    const subSubOffset = withinBlock - 30;
-    const bigIndex = Math.floor(subSubOffset / 30) + 1;
-    const commonIndex = Math.floor((subSubOffset % 30) / 3);
-    return highCommonUnit + "C" + (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
-  }
+  return getUnitForHigh(high);
 }
 
 /**
  * Get HUGE unit recursively for high >= 3001
+ * Input offset is (high - 3001)
  */
 function getHugeUnitRecursive(offset) {
-  // Find which HUGE unit we're in
-  // HUGE_UNITS increase by 1000x each level
-  let hugeIndex = 2; // Start from Mi (HUGE_UNITS[2])
-  let rangeStart = 0;
-  let rangeSize = 3000 * 1000; // Mi covers 3000000 (3000 * 1000)
-
-  while (offset >= rangeStart + rangeSize && hugeIndex < HUGE_UNITS.length - 1) {
-    rangeStart += rangeSize;
-    rangeSize *= 1000; // 1000x increase per level
+  let hugeIndex = 2; // Mi
+  let rangeSize = 3000;
+  
+  // Find correct HUGE unit range
+  while (offset >= rangeSize * 1000) {
+    rangeSize *= 1000;
     hugeIndex++;
   }
-
-  const currentOffset = offset - rangeStart;
+  
   const hugeUnit = HUGE_UNITS[hugeIndex] || "";
-
-  // Case 1: First 3000 of any HUGE range - just add subPattern
-  if (currentOffset < 3000) {
-    return hugeUnit + getSubPattern(currentOffset);
-  }
-
-  // Case 2: All HUGE units with offset >= 3000
-  // Calculate cell size: Mi=3000, Mc=3000000, Na=3000000000, etc.
-  const cellSize = 3000 * Math.pow(1000, hugeIndex - 2);
-  const index = Math.floor(currentOffset / cellSize);
-  const withinHuge = currentOffset % cellSize;
-
-  // Calculate prefix based on index
-  let prefix = "";
-  if (index < HIGH_COMMON_UNITS.length) {
-    // index 0-8: use HIGH_COMMON_UNITS
-    prefix = HIGH_COMMON_UNITS[index] || "";
-  } else {
-    // index >= 9: use COMMON_UNITS + BIG_UNITS pattern (like 31-300 range)
-    const adjustedIndex = index - HIGH_COMMON_UNITS.length;
-    const bigIndex = Math.floor(adjustedIndex / 10) + 1;
-    const commonIndex = adjustedIndex % 10;
-    prefix = (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
-  }
-
-  if (withinHuge === 0) {
-    return prefix + hugeUnit;
-  }
-
-  // If withinHuge < cellSize/1000, use subPattern directly
-  if (withinHuge < cellSize / 1000) {
-    return prefix + hugeUnit + getSubPattern(withinHuge);
-  }
-
-  // Otherwise, always subtract cellSize/1000 and recurse
-  const adjustedOffset = withinHuge - cellSize / 1000;
-  return prefix + hugeUnit + getHugeUnitRecursive(adjustedOffset);
+  
+  const quotient = Math.floor(offset / rangeSize);
+  const remainder = offset % rangeSize;
+  
+  const prefix = getPrefix(quotient);
+  // Remainder is 0-based offset, convert to 1-based high for suffix
+  const suffix = getSuffixUnit(remainder + 1);
+  
+  return prefix + hugeUnit + suffix;
 }
 
 /**
@@ -174,7 +132,7 @@ function getHugeUnitRecursive(offset) {
 function getUnitForHigh(high) {
   if (high === 0) return "";
 
-  // Range 0-30: BASE_UNITS
+  // Range 1-30: BASE_UNITS
   if (high <= 30) {
     const unitIndex = Math.ceil(high / 3);
     return BASE_UNITS[unitIndex] || "";
@@ -191,23 +149,26 @@ function getUnitForHigh(high) {
   // Range 301-3000: HIGH_COMMON + C + COMMON + BIG
   if (high <= 3000) {
     const offset = high - 301;
-    const highCommonIndex = Math.floor(offset / 300);
-    const withinBlock = offset % 300;
-    const highCommonUnit = HIGH_COMMON_UNITS[highCommonIndex] || "";
-
-    if (withinBlock < 30) {
-      const commonIndex = Math.floor(withinBlock / 3);
-      return highCommonUnit + "C" + (COMMON_UNITS[commonIndex] || "");
-    } else {
-      const subOffset = withinBlock - 30;
-      const bigIndex = Math.floor(subOffset / 30) + 1;
-      const commonIndex = Math.floor((subOffset % 30) / 3);
-      return highCommonUnit + "C" + (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
-    }
+    const quotient = Math.floor(offset / 300);
+    const remainder = offset % 300;
+    
+    const prefix = getPrefix(quotient);
+    // For C range, suffix logic is same as getSuffixUnit but we are manually constructing it
+    // remainder 0-299. 
+    // 0-29 -> "" (COMMON[0])
+    // 30-59 -> U (COMMON[1])
+    // ...
+    // Actually, we can reuse getSuffixUnit here too!
+    // remainder is 0-based offset from C start.
+    // C start is high=301.
+    // remainder=0 -> high=1 equivalent for suffix -> ""
+    const suffix = getSuffixUnit(remainder + 1);
+    
+    return prefix + "C" + suffix;
   }
 
   // Very large numbers: e notation
-  if (high > 3 * Math.pow(10, 14)) {
+  if (high > 300000000000000) {
     return `e${high}`;
   }
 
