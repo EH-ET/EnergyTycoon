@@ -40,7 +40,7 @@ async def get_rebirth_info(auth=Depends(get_user_and_db)):
     """Get current rebirth information for the user"""
     user, db, _ = auth
     
-    current_count = user.rebirth_count or 0
+    current_count = getattr(user, "rebirth_count", 0) or 0
     next_cost = calculate_rebirth_cost(current_count)
     current_multiplier = calculate_rebirth_multiplier(current_count)
     next_multiplier = calculate_rebirth_multiplier(current_count + 1)
@@ -67,7 +67,7 @@ async def perform_rebirth(auth=Depends(get_user_and_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    current_count = user.rebirth_count or 0
+    current_count = getattr(user, "rebirth_count", 0) or 0
     rebirth_cost = calculate_rebirth_cost(current_count)
     money_value = get_user_money_value(user)
     
