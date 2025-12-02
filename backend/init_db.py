@@ -54,6 +54,7 @@ def ensure_user_upgrade_columns():
                 ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("money", "INTEGER NOT NULL DEFAULT 10"),
                 ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
+                ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -83,6 +84,11 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS demand_bonus INTEGER NOT NULL DEFAULT 0"
                 )
                 existing.add("demand_bonus")
+            if "rebirth_count" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rebirth_count INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("rebirth_count")
             # Backfill and clean up legacy column if it still exists
             if "supply_bonus" in existing:
                 conn.exec_driver_sql(

@@ -143,7 +143,13 @@ async def signup(
     _validate_password_strength(payload.password)
     if db.query(User).filter_by(username=payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
-    u = User(username=payload.username, password=hash_pw(payload.password), energy=0, money=10)
+    u = User(
+        username=payload.username, 
+        password=hash_pw(payload.password), 
+        energy=0, 
+        money=10,
+        rebirth_count=0
+    )
     set_user_money_value(u, from_plain(10))
     set_user_energy_value(u, from_plain(0))
     db.add(u)
