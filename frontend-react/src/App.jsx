@@ -80,12 +80,8 @@ function App() {
       if (stored) {
         const token = getAuthToken();
 
-        // 토큰이 없으면 로그아웃 처리
-        if (!token) {
-          localStorage.clear();
-          sessionStorage.clear();
-          return;
-        }
+        // Note: With HttpOnly cookies, token may be null but auth still works
+        // Don't logout just because token is null, let API calls determine auth status
 
         syncUserState(stored);
         ensureSessionStart();

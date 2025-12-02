@@ -25,6 +25,11 @@ CSRF_HEADER_NAME = os.getenv("CSRF_HEADER_NAME", "x-csrf-token").strip()
 COOKIE_DOMAIN = os.getenv("COOKIE_DOMAIN")
 if COOKIE_DOMAIN:
     COOKIE_DOMAIN = COOKIE_DOMAIN.strip()
+    # Force None for proxy compatibility (Netlify -> Render)
+    if not COOKIE_DOMAIN:
+        COOKIE_DOMAIN = None
+# Always use None to let browser set cookie for current origin
+COOKIE_DOMAIN = None
 _frontend_origins_env = os.getenv("FRONTEND_ORIGINS", "")
 _cookie_secure_env = os.getenv("COOKIE_SECURE")
 _cookie_samesite_env = os.getenv("COOKIE_SAMESITE")
@@ -44,7 +49,8 @@ else:
     COOKIE_SECURE = (_cookie_secure_env or "false").lower() == "true"
 
 if _cookie_samesite_env is None and _is_cross_site_default(_frontend_origins_env):
-    COOKIE_SAMESITE = "none"
+    # With Netlify proxy, requests are same-origin, so 'lax' is safer
+    COOKIE_SAMESITE = "lax"
 else:
     COOKIE_SAMESITE = (_cookie_samesite_env or "lax").lower()
 # Default JWT secret (override with JWT_SECRET/SECRET_KEY env vars in production)
