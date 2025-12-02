@@ -3,7 +3,6 @@ import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, value
 
 const STORAGE_KEYS = {
   user: "et_u",
-  token: "et_at",
   sessionTs: "et_ss",
   trap: "et_tp",
   exchangeRate: "et_er",
@@ -89,12 +88,12 @@ export const useStore = create((set, get) => ({
 
   // User 관련 함수들
   syncUserState: (user, options = {}) => {
-    const { persist = true, token } = options;
+    const { persist = true } = options;
     applyResourceValues(user);
 
     if (persist) {
       persistUser(user);
-      if (token) persistToken(token);
+      // Tokens are now managed via HttpOnly cookies, not localStorage
     }
 
     set({ currentUser: user });
@@ -185,15 +184,8 @@ function persistUser(user) {
   }
 }
 
-function persistToken(token) {
-  try {
-    if (token) {
-      localStorage.setItem(STORAGE_KEYS.token, token);
-    }
-  } catch (e) {
-    // Silent fail
-  }
-}
+// Tokens are no longer stored in localStorage
+// They are managed via HttpOnly cookies from the backend
 
 function sanitizeUserForStorage(user) {
   if (!user) return user;
@@ -326,15 +318,19 @@ function syncTrapMarker(force = false) {
 
 function clearClientSession() {
   localStorage.removeItem(STORAGE_KEYS.user);
-  localStorage.removeItem(STORAGE_KEYS.token);
   localStorage.removeItem(STORAGE_KEYS.sessionTs);
   localStorage.removeItem(STORAGE_KEYS.exchangeRate);
   sessionStorage.removeItem(STORAGE_KEYS.trap);
+  // Remove any legacy token storage (tokens are now in HttpOnly cookies)
+  localStorage.removeItem("et_at");
   localStorage.removeItem("access_token");
   sessionStorage.removeItem("access_token");
 }
 
 export function getAuthToken() {
+  // Tokens are now in HttpOnly cookies (not accessible from JavaScript)
+  // This function attempts to read the access cookie, but it may fail in production
+  // due to HttpOnly flag. API requests use credentials: 'include' instead.
   const cookie = document.cookie || "";
   const parts = cookie.split(";").map((c) => c.trim());
   for (const part of parts) {
@@ -342,12 +338,7 @@ export function getAuthToken() {
       return part.split("=").slice(1).join("=");
     }
   }
-  try {
-    const stored = localStorage.getItem(STORAGE_KEYS.token);
-    if (stored) return stored;
-  } catch (e) {
-    // Silent fail
-  }
+  // No longer checking localStorage for tokens
   return null;
 }
 
