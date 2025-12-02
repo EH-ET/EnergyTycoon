@@ -32,6 +32,12 @@ export default function Footer({ children }) {
           >
             정보
           </button>
+          <button
+            className={`rebirth-btn bbtn ${contentMode === 'rebirth' ? 'active' : ''}`}
+            onClick={() => setContentMode('rebirth')}
+          >
+            환생
+          </button>
         </div>
         <div className="content-area">
           {children}

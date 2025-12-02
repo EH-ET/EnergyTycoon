@@ -72,7 +72,15 @@ export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSecon
     baseTotal += produced * deltaSeconds;
   });
   const bonus = currentUser ? Number(currentUser.production_bonus) || 0 : 0;
-  const multiplier = 1 + bonus * 0.1;
+  const rebirthCount = currentUser ? Number(currentUser.rebirth_count) || 0 : 0;
+  
+  let multiplier = 1 + bonus * 0.1;
+  
+  // Apply rebirth multiplier: 2^n
+  if (rebirthCount > 0) {
+    multiplier *= Math.pow(2, rebirthCount);
+  }
+  
   return baseTotal * multiplier;
 }
 
@@ -104,7 +112,14 @@ export function useEnergyTimer() {
 
       const { currentUser: userFromStore } = useStore.getState();
       const bonus = Number(userFromStore?.production_bonus) || 0;
-      const multiplier = 1 + bonus * 0.1;
+      const rebirthCount = Number(userFromStore?.rebirth_count) || 0;
+      
+      let multiplier = 1 + bonus * 0.1;
+      
+      // Apply rebirth multiplier: 2^n
+      if (rebirthCount > 0) {
+        multiplier *= Math.pow(2, rebirthCount);
+      }
 
       let energyGain = 0;
       let buildCompleted = false;

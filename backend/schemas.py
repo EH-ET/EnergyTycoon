@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     max_generators_bonus: int
     demand_bonus: int
     play_time_ms: int
+    rebirth_count: int
 
     model_config = {"from_attributes": True}
 
@@ -76,3 +77,5 @@ class GeneratorUpgradeRequest(BaseModel):
 
 class DeleteAccountIn(BaseModel):
     password: str
+
+

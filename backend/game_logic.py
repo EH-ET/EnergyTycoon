@@ -57,6 +57,14 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
     energy_per_money = base_cost * growth * bonus
     # 환율은 1 에너지당 돈이므로 역수
     rate = 1.0 / energy_per_money if energy_per_money > 0 else 0.0
+    
+    # Apply rebirth multiplier: 2^n
+    if user:
+        rebirth_count = getattr(user, "rebirth_count", 0) or 0
+        if rebirth_count > 0:
+            rebirth_multiplier = 2 ** rebirth_count
+            rate *= rebirth_multiplier
+    
     return max(0.0001, rate)
 
 
