@@ -13,8 +13,6 @@ class User(Base):
     user_id = Column(String, primary_key=True, default=generate_uuid, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
-    energy = Column(Integer, default=0, nullable=False)
-    money = Column(Integer, default=10, nullable=False)
     energy_data = Column(BigInteger, default=0, nullable=False)
     energy_high = Column(BigInteger, default=0, nullable=False)
     money_data = Column(BigInteger, default=0, nullable=False)

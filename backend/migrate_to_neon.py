@@ -83,8 +83,6 @@ def migrate():
                 user_id=user.user_id,
                 username=user.username,
                 password=user.password,
-                energy=user.energy,
-                money=user.money,
                 energy_data=user.energy_data,
                 energy_high=user.energy_high,
                 money_data=user.money_data,

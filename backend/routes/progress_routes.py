@@ -416,7 +416,7 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     updated = False
     
     # Energy validation
-    energy_value = from_payload(payload.energy_data, payload.energy_high, payload.energy)
+    energy_value = from_payload(payload.energy_data, payload.energy_high)
     if energy_value is not None:
         energy_plain = to_plain(energy_value)
         if energy_plain > MAX_ENERGY_VALUE:
@@ -435,7 +435,7 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         updated = True
     
     # Money validation
-    money_value = from_payload(payload.money_data, payload.money_high, payload.money)
+    money_value = from_payload(payload.money_data, payload.money_high)
     if money_value is not None:
         money_plain = to_plain(money_value)
         if money_plain > MAX_MONEY_VALUE:
