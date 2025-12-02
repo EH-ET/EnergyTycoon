@@ -112,10 +112,19 @@ async def enforce_origin(request: Request, call_next):
     # Determine the actual origin to validate
     request_origin = origin or referer_origin
     
+    # Debug logging
+    import sys
+    print(f"🔍 CORS Debug - Origin: {origin}, Referer: {referer}, Request Origin: {request_origin}", file=sys.stderr)
+    print(f"🔍 Allowed origins: {origins}", file=sys.stderr)
+    print(f"🔍 Regex pattern: {_origin_regex.pattern if _origin_regex else None}", file=sys.stderr)
+    
     # Validate origin against whitelist
     allowed_origin = None
     if request_origin and _is_origin_allowed(request_origin):
         allowed_origin = request_origin
+        print(f"✅ Origin allowed: {allowed_origin}", file=sys.stderr)
+    else:
+        print(f"❌ Origin NOT allowed: {request_origin}", file=sys.stderr)
 
     # Preflight requests - return directly with CORS headers
     if request.method == "OPTIONS":
