@@ -21,19 +21,49 @@ UPGRADE_CONFIG = {
 
 MARKET_STATE = {
     "sold_energy": 0,
-    "base_rate": 1.0,
+    "base_cost": 1.0,  # 1 돈을 얻기 위해 필요한 에너지 기본값
 }
 
 
-def current_market_rate(user: Optional[User] = None) -> float:
-    base = MARKET_STATE["base_rate"]
-    sold = MARKET_STATE["sold_energy"]
-    drop = min(0.7, sold / 500)
+def _cost_growth_from_sales(sold: int) -> float:
+    """누적 교환량 E에 따라 증가"""
+    if sold <= 0:
+        return 1.0
+    # 간단한 증가 모델: 판매량이 증가할수록 환율이 나빠짐
+    k = sold // 1000  # 1000개당 1단계 증가
+    return 1.0 + (k * 0.02)
+
+
+def current_market_rate(user: Optional[User] = None, sold_override: Optional[int] = None) -> float:
+    """
+    현재 시장 환율 계산
+
+    Args:
+        user: 사용자 (보너스 적용용)
+        sold_override: 판매량 오버라이드 (None이면 현재 MARKET_STATE 사용)
+
+    Returns:
+        1 에너지당 돈 환율
+    """
+    base_cost = MARKET_STATE["base_cost"]
+    sold = sold_override if sold_override is not None else MARKET_STATE["sold_energy"]
+    growth = _cost_growth_from_sales(sold)
+    # 수요(시장) 보너스가 있을수록 필요한 에너지 감소
     bonus = 1.0
     if user:
-        bonus += (getattr(user, "supply_bonus", 0) or 0) * 0.05
-    rate = base * (1 - drop) * bonus
-    return max(0.1, rate)
+        bonus -= (getattr(user, "supply_bonus", 0) or 0) * 0.05
+    bonus = max(0.5, bonus)  # 보너스로 최소 절반까지 감소
+
+    energy_per_money = base_cost * growth * bonus
+    # 환율은 1 에너지당 돈이므로 역수
+    rate = 1.0 / energy_per_money if energy_per_money > 0 else 0.0
+    
+    # 환생 보너스 적용 (2^n)
+    if user and hasattr(user, 'rebirth') and user.rebirth:
+        rebirth_count = user.rebirth.rebirth_count
+        rate *= (2 ** rebirth_count)
+    
+    return max(0.0001, rate)
 
 
 def get_upgrade_meta(key: str):

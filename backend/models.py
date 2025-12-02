@@ -28,6 +28,11 @@ class User(Base):
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)
 
+    @property
+    def rebirth_count(self):
+        """Get rebirth count from related Rebirth record"""
+        return self.rebirth.rebirth_count if self.rebirth else 0
+
 
 class GeneratorType(Base):
     __tablename__ = "generator_types"
@@ -73,3 +78,17 @@ class MapProgress(Base):
     generator = relationship("Generator", back_populates="map_progresses")
 
     __table_args__ = (UniqueConstraint("user_id", "generator_id", name="_user_generator_uc"),)
+
+
+class Rebirth(Base):
+    __tablename__ = "rebirths"
+
+    rebirth_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String, ForeignKey("users.user_id"), nullable=False, unique=True)
+    rebirth_count = Column(Integer, default=0, nullable=False)
+
+    user = relationship("User", back_populates="rebirth")
+
+
+# User class relationship update
+User.rebirth = relationship("Rebirth", back_populates="user", uselist=False, cascade=CASCADE_OPTION)

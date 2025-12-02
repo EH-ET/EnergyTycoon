@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     tolerance_bonus: int
     max_generators_bonus: int
     supply_bonus: int
+    rebirth_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -70,3 +71,11 @@ class GeneratorStateUpdate(BaseModel):
 class GeneratorUpgradeRequest(BaseModel):
     upgrade: str
     amount: int = Field(1, ge=1)
+
+
+class RebirthOut(BaseModel):
+    rebirth_id: str
+    user_id: str
+    rebirth_count: int
+
+    model_config = {"from_attributes": True}
