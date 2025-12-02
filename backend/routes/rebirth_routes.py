@@ -60,48 +60,57 @@ async def get_rebirth_info(auth=Depends(get_user_and_db)):
 @router.post("/rebirth")
 async def perform_rebirth(auth=Depends(get_user_and_db)):
     """Perform rebirth - reset progress in exchange for permanent multipliers"""
-    user, db, _ = auth
+    import logging
+    logger = logging.getLogger(__name__)
     
-    # Use FOR UPDATE to lock the user row
-    user = db.query(type(user)).filter_by(user_id=user.user_id).with_for_update().first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    current_count = getattr(user, "rebirth_count", 0) or 0
-    rebirth_cost = calculate_rebirth_cost(current_count)
-    money_value = get_user_money_value(user)
-    
-    # Check if user has enough money
-    if compare(money_value, rebirth_cost) < 0:
-        raise HTTPException(status_code=400, detail="Not enough money for rebirth")
-    
-    # Calculate new multiplier
-    new_multiplier = calculate_rebirth_multiplier(current_count + 1)
-    
-    # Delete all generators and map progress
-    db.query(MapProgress).filter(MapProgress.user_id == user.user_id).delete()
-    db.query(Generator).filter(Generator.owner_id == user.user_id).delete()
-    
-    # Reset upgrades
-    user.production_bonus = 0
-    user.heat_reduction = 0
-    user.tolerance_bonus = 0
-    user.max_generators_bonus = 0
-    user.demand_bonus = 0
-    
-    # Reset energy to 0
-    set_user_energy_value(user, from_plain(0))
-    
-    # Deduct rebirth cost from money
-    set_user_money_value(user, subtract_values(money_value, rebirth_cost))
-    
-    # Increment rebirth count
-    user.rebirth_count = current_count + 1
-    
-    db.commit()
-    db.refresh(user)
-    
-    return {
-        "user": UserOut.model_validate(user),
-        "message": f"Rebirth successful! New multiplier: {new_multiplier}x"
-    }
+    try:
+        user, db, _ = auth
+        
+        # Use FOR UPDATE to lock the user row
+        user = db.query(type(user)).filter_by(user_id=user.user_id).with_for_update().first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        current_count = getattr(user, "rebirth_count", 0) or 0
+        rebirth_cost = calculate_rebirth_cost(current_count)
+        money_value = get_user_money_value(user)
+        
+        # Check if user has enough money
+        if compare(money_value, rebirth_cost) < 0:
+            raise HTTPException(status_code=400, detail="Not enough money for rebirth")
+        
+        # Calculate new multiplier
+        new_multiplier = calculate_rebirth_multiplier(current_count + 1)
+        
+        # Delete all generators and map progress
+        db.query(MapProgress).filter(MapProgress.user_id == user.user_id).delete()
+        db.query(Generator).filter(Generator.owner_id == user.user_id).delete()
+        
+        # Reset upgrades
+        user.production_bonus = 0
+        user.heat_reduction = 0
+        user.tolerance_bonus = 0
+        user.max_generators_bonus = 0
+        user.demand_bonus = 0
+        
+        # Reset energy to 0
+        set_user_energy_value(user, from_plain(0))
+        
+        # Deduct rebirth cost from money
+        set_user_money_value(user, subtract_values(money_value, rebirth_cost))
+        
+        # Increment rebirth count
+        user.rebirth_count = current_count + 1
+        
+        db.commit()
+        db.refresh(user)
+        
+        return {
+            "user": UserOut.model_validate(user),
+            "message": f"Rebirth successful! New multiplier: {new_multiplier}x"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Rebirth error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Rebirth failed: {str(e)}")

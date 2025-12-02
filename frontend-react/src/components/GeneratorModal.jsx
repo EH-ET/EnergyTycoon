@@ -156,12 +156,22 @@ export default function GeneratorModal({ generator, onClose }) {
 
   const typeInfo = generatorTypesById[generator.generator_type_id] || {};
   const baseCost = typeInfo.cost || 0;
-  const demolishCost = Math.max(1, Math.round(baseCost * DEMOLISH_COST_RATE));
+  const demolishCostPlain = Math.max(1, Math.round(baseCost * DEMOLISH_COST_RATE));
 
   // baseTolerance가 없으면 기본값 100 사용
   const baseTolerance = generator.baseTolerance || generator.tolerance || 100;
   const buffedTolerance = baseTolerance + (generator.upgrades?.tolerance || 0) * 10;
-  const skipCost = computeSkipCost(generator);
+  
+  // Skip cost calculation using cost_data and cost_high directly
+  const skipCostValue = (() => {
+    if (!generator.isDeveloping || !generator.buildCompleteTs) return fromPlainValue(0);
+    const remainingSeconds = Math.max(0, Math.ceil((generator.buildCompleteTs - Date.now()) / 1000));
+    const totalDurationSeconds = Math.max(1, Math.ceil((generator.buildDurationMs || generator.baseBuildDurationMs || 2000) / 1000));
+    const costValue = valueFromServer(generator.cost_data || typeInfo.cost_data, generator.cost_high || typeInfo.cost_high, baseCost);
+    const costPlain = toPlainValue(costValue);
+    const skipCostPlain = Math.max(1, Math.ceil((remainingSeconds / totalDurationSeconds) * costPlain));
+    return fromPlainValue(skipCostPlain);
+  })();
   const isRunning = generator.running !== false && !generator.isDeveloping;
   const statusColor = generator.isDeveloping ? '#4fa3ff' : isRunning ? '#f1c40f' : '#e74c3c';
   const currentUser = useStore(state => state.currentUser);
@@ -294,7 +304,7 @@ export default function GeneratorModal({ generator, onClose }) {
         ) : (
           <>
             <div style={{ marginBottom: '10px', color: '#9ba4b5' }}>
-              철거 비용: <span style={{ color: '#f39c12' }}>{demolishCost.toLocaleString()} 돈</span>
+              철거 비용: <span style={{ color: '#f39c12' }}>{formatResourceValue(fromPlainValue(demolishCostPlain))}</span>
             </div>
             <div style={{ marginBottom: '10px', color: '#c8d1e5' }}>
               초당 생산량: <span style={{ color: '#f1c40f', fontWeight: 800 }}>{productionPerSec.toLocaleString()} /초</span>
@@ -323,7 +333,7 @@ export default function GeneratorModal({ generator, onClose }) {
                     cursor: 'pointer'
                   }}
                 >
-                  즉시 완성 ({formatResourceValue(fromPlainValue(skipCost))})
+                  즉시 완성 ({formatResourceValue(skipCostValue)})
                 </button>
               </div>
             )}
@@ -372,7 +382,7 @@ export default function GeneratorModal({ generator, onClose }) {
                   cursor: 'pointer'
                 }}
               >
-                철거 (비용 {demolishCost})
+                철거 (비용 {formatResourceValue(fromPlainValue(demolishCostPlain))})
               </button>
               <button
                 onClick={onClose}
