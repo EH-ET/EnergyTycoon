@@ -85,7 +85,7 @@ export default function InfoTab() {
     : '-';
 
   const scoreText = typeof (myRank?.score ?? currentUser.rank_score) === 'number'
-    ? (myRank?.score ?? currentUser.rank_score).toLocaleString('ko-KR')
+    ? formatResourceValue(fromPlainValue(myRank?.score ?? currentUser.rank_score))
     : '-';
 
   return (

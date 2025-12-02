@@ -509,12 +509,20 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         raise HTTPException(status_code=404, detail="Generator type not found")
     
     # Calculate proportional cost using BigValue
-    total_duration = max(1, _build_duration(gt, gen.level))
-    full_cost_val = BigValue(gt.cost_data, gt.cost_high)
-    full_cost_plain = to_plain(full_cost_val)
-    # Proportional cost based on remaining time
-    proportional_plain = max(1, math.ceil((remaining / total_duration) * full_cost_plain))
-    cost_val = from_plain(proportional_plain)
+    try:
+        total_duration = max(1, _build_duration(gt, gen.level))
+        full_cost_val = BigValue(gt.cost_data, gt.cost_high)
+        full_cost_plain = to_plain(full_cost_val)
+        # Proportional cost based on remaining time
+        proportional_plain = max(1, math.ceil((remaining / total_duration) * full_cost_plain))
+        # Validate proportional_plain to prevent overflow
+        if proportional_plain > 10**15:  # Reasonable limit
+            raise HTTPException(status_code=400, detail="Skip cost too high")
+        cost_val = from_plain(proportional_plain)
+    except Exception as e:
+        import logging
+        logging.error(f"Skip build cost calculation error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Cost calculation failed: {str(e)}")
     
     money_value = get_user_money_value(user)
     if compare(money_value, cost_val) < 0:
