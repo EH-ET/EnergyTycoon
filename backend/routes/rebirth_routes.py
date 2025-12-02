@@ -96,8 +96,8 @@ async def perform_rebirth(auth=Depends(get_user_and_db)):
         # Reset energy to 0
         set_user_energy_value(user, from_plain(0))
         
-        # Deduct rebirth cost from money
-        set_user_money_value(user, subtract_values(money_value, rebirth_cost))
+        # Reset money to 10 (initial starting money)
+        set_user_money_value(user, from_plain(10))
         
         # Increment rebirth count
         user.rebirth_count = current_count + 1

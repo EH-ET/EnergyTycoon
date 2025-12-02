@@ -246,6 +246,7 @@ export async function autosaveProgress(token, payload = {}) {
   if (payload.energy_high != null) body.energy_high = payload.energy_high;
   if (payload.money_data != null) body.money_data = payload.money_data;
   if (payload.money_high != null) body.money_high = payload.money_high;
+  if (payload.play_time_ms != null) body.play_time_ms = payload.play_time_ms;
   if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
   const headers = attachCsrf({ "Content-Type": "application/json" });
   if (token) headers.authorization = `Bearer ${token}`;
@@ -274,6 +275,12 @@ export async function updateGeneratorState(generatorId, payload = {}, token) {
     credentials: "include",
     body: JSON.stringify(body),
   });
+  
+  // Handle 404 gracefully - generator may have been deleted (e.g., during rebirth)
+  if (res.status === 404) {
+    return null;
+  }
+  
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "발전기 상태 업데이트 실패");
   return data;

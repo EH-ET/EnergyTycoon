@@ -44,8 +44,10 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     db.commit()
     db.refresh(user)
     return {
-        "energy": user.energy,
-        "money": user.money,
+        "energy_data": user.energy_data,
+        "energy_high": user.energy_high,
+        "money_data": user.money_data,
+        "money_high": user.money_high,
         "rate": avg_rate,  # 평균 환율 반환
         "user": UserOut.model_validate(user),
     }
@@ -71,8 +73,10 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     db.commit()
     db.refresh(user)
     return {
-        "energy": user.energy,
-        "money": user.money,
+        "energy_data": user.energy_data,
+        "energy_high": user.energy_high,
+        "money_data": user.money_data,
+        "money_high": user.money_high,
         "rate": avg_rate,
         "gained": gained,
         "user": UserOut.model_validate(user),
