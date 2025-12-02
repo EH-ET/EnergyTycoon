@@ -87,9 +87,6 @@ export async function loadGeneratorTypes(state) {
 
 export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
   const payload = { user_id: userId, generator_type_id: generatorTypeId, x_position, world_position };
-  if (typeof energy === "number") {
-    payload.energy = energy;
-  }
   const headers = attachCsrf({ "Content-Type": "application/json" });
   if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/progress`, {
@@ -126,7 +123,7 @@ export async function exchangeEnergy(token, userId, amount, energy) {
     method: "POST",
     headers,
     credentials: "include",
-    body: JSON.stringify({ user_id: userId, amount, energy }),
+    body: JSON.stringify({ user_id: userId, amount }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "교환 실패");
@@ -245,8 +242,6 @@ export async function deleteAccount(password, token) {
 
 export async function autosaveProgress(token, payload = {}) {
   const body = {};
-  if (typeof payload.energy === "number") body.energy = payload.energy;
-  if (typeof payload.money === "number") body.money = payload.money;
   if (payload.energy_data != null) body.energy_data = payload.energy_data;
   if (payload.energy_high != null) body.energy_high = payload.energy_high;
   if (payload.money_data != null) body.money_data = payload.money_data;

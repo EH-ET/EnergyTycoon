@@ -99,44 +99,26 @@ def set_user_money_value(user, value: BigValue):
   normalized = normalize(value)
   user.money_data = normalized.data
   user.money_high = normalized.high
-  user.money = to_plain(normalized)
 
 
 def set_user_energy_value(user, value: BigValue):
   normalized = normalize(value)
   user.energy_data = normalized.data
   user.energy_high = normalized.high
-  user.energy = to_plain(normalized)
 
 
 def ensure_user_big_values(user, db=None):
   changed = False
-  money_missing = getattr(user, "money_data", None) is None or getattr(user, "money_high", None) is None
-  money_zero_but_plain = (
-      not money_missing and (getattr(user, "money_data", 0) == 0 and getattr(user, "money_high", 0) == 0)
-      and (getattr(user, "money", 0) or 0) > 0
-  )
-  if money_missing or money_zero_but_plain:
-    set_user_money_value(user, from_plain(getattr(user, "money", 0) or 0))
+  if getattr(user, "money_data", None) is None or getattr(user, "money_high", None) is None:
+    user.money_data = 0
+    user.money_high = 0
     changed = True
-  else:
-    normalized = get_user_money_value(user)
-    if normalized.data != user.money_data or normalized.high != user.money_high:
-      set_user_money_value(user, normalized)
-      changed = True
-  energy_missing = getattr(user, "energy_data", None) is None or getattr(user, "energy_high", None) is None
-  energy_zero_but_plain = (
-      not energy_missing and (getattr(user, "energy_data", 0) == 0 and getattr(user, "energy_high", 0) == 0)
-      and (getattr(user, "energy", 0) or 0) > 0
-  )
-  if energy_missing or energy_zero_but_plain:
-    set_user_energy_value(user, from_plain(getattr(user, "energy", 0) or 0))
+  
+  if getattr(user, "energy_data", None) is None or getattr(user, "energy_high", None) is None:
+    user.energy_data = 0
+    user.energy_high = 0
     changed = True
-  else:
-    normalized_energy = get_user_energy_value(user)
-    if normalized_energy.data != user.energy_data or normalized_energy.high != user.energy_high:
-      set_user_energy_value(user, normalized_energy)
-      changed = True
+    
   if changed and db is not None:
     db.add(user)
     db.commit()

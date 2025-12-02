@@ -146,12 +146,12 @@ async def signup(
     u = User(
         username=payload.username, 
         password=hash_pw(payload.password), 
-        energy=0, 
-        money=10,
-        rebirth_count=0
+        rebirth_count=0,
+        energy_data=0,
+        energy_high=0,
+        money_data=10000,
+        money_high=0
     )
-    set_user_money_value(u, from_plain(10))
-    set_user_energy_value(u, from_plain(0))
     db.add(u)
     db.commit()
     db.refresh(u)

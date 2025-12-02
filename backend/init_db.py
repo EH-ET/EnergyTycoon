@@ -52,7 +52,6 @@ def ensure_user_upgrade_columns():
                 ("heat_reduction", "INTEGER NOT NULL DEFAULT 0"),
                 ("tolerance_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
-                ("money", "INTEGER NOT NULL DEFAULT 10"),
                 ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
             ]
