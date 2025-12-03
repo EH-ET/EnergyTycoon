@@ -62,7 +62,7 @@
 .login-title {
   font-size: 32px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -120,7 +120,7 @@
 }
 
 .login-button.primary {
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%);
   color: white;
   box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
 }
