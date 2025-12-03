@@ -202,3 +202,48 @@ export function formatResourceValue(value) {
 
   return unit ? `${text}${unit}` : text;
 }
+
+/**
+ * Parse user input string to plain value
+ * Supports formats like: "123", "1.5K", "2M", "3.14B", etc.
+ * @param {string} input - User input string
+ * @returns {number} - Plain value (integer)
+ */
+export function parseUserInput(input) {
+  if (!input || typeof input !== 'string') {
+    const num = Number(input);
+    return isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+  }
+
+  const trimmed = input.trim().toUpperCase();
+  if (!trimmed) return 0;
+
+  // Extract number and unit
+  const match = trimmed.match(/^([\d.]+)([A-Z]*)$/);
+  if (!match) {
+    const num = Number(trimmed);
+    return isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+  }
+
+  const [, numStr, unit] = match;
+  const baseNum = parseFloat(numStr);
+  if (isNaN(baseNum) || baseNum < 0) return 0;
+
+  // Unit multipliers
+  const unitMultipliers = {
+    '': 1,
+    'K': 1_000,
+    'M': 1_000_000,
+    'B': 1_000_000_000,
+    'T': 1_000_000_000_000,
+    'QA': 1_000_000_000_000_000,
+    'QI': 1_000_000_000_000_000_000,
+    'SX': 1_000_000_000_000_000_000_000,
+    'SP': 1_000_000_000_000_000_000_000_000,
+    'OC': 1_000_000_000_000_000_000_000_000_000,
+    'N': 1_000_000_000_000_000_000_000_000_000_000,
+  };
+
+  const multiplier = unitMultipliers[unit] || 1;
+  return Math.max(0, Math.floor(baseNum * multiplier));
+}

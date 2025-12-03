@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
-import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
+import { fromPlainValue, formatResourceValue, toPlainValue, parseUserInput } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
 import { readStoredPlayTime } from '../../utils/playTime';
 
 export default function TradeTab() {
-  const [amount, setAmount] = useState(1);
+  const [amount, setAmount] = useState('1');
   const [message, setMessage] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +17,7 @@ export default function TradeTab() {
   const setExchangeRate = useStore(state => state.setExchangeRate);
   const syncUserState = useStore(state => state.syncUserState);
   const getMoneyValue = useStore(state => state.getMoneyValue);
+  const getEnergyValue = useStore(state => state.getEnergyValue);
 
   useEffect(() => {
     loadRate();
@@ -35,7 +36,9 @@ export default function TradeTab() {
   };
 
   const handleExchange = async () => {
-    const exchangeAmount = Number(amount) || 1;
+    // Parse user input (supports "1.5K", "2M", etc.)
+    const exchangeAmount = parseUserInput(amount);
+    
     if (exchangeAmount <= 0) {
       setAlertMessage('1 이상 입력하세요');
       return;
@@ -46,14 +49,20 @@ export default function TradeTab() {
       return;
     }
 
+    // Check if user has enough energy
+    const currentEnergy = toPlainValue(getEnergyValue());
+    if (currentEnergy < exchangeAmount) {
+      setAlertMessage(`에너지가 부족합니다. 보유: ${formatResourceValue(fromPlainValue(currentEnergy))}, 필요: ${formatResourceValue(fromPlainValue(exchangeAmount))}`);
+      return;
+    }
+
     try {
       setIsLoading(true);
 
       // 교환 전 현재 에너지/돈을 백엔드에 즉시 동기화
-      const { toEnergyServerPayload, toMoneyServerPayload, getEnergyValue, getMoneyValue } = useStore.getState();
+      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
-      const currentEnergy = toPlainValue(getEnergyValue());
       const currentMoney = toPlainValue(getMoneyValue());
       const playTimeMs = readStoredPlayTime();
 
@@ -88,7 +97,7 @@ export default function TradeTab() {
       setExchangeRate(data.rate || exchangeRate);
 
       const rateText = data.rate ? ` (rate ${data.rate.toFixed(2)})` : '';
-      setMessage(`성공: ${exchangeAmount} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
+      setMessage(`성공: ${formatResourceValue(fromPlainValue(exchangeAmount))} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
     } catch (e) {
       setAlertMessage(e.message || e);
     } finally {
@@ -98,14 +107,19 @@ export default function TradeTab() {
 
   const formatPlain = (plain) => formatResourceValue(fromPlainValue(Math.max(0, Number(plain) || 0)));
 
+  // Parse amount for display and calculations
+  const parsedAmount = parseUserInput(amount);
   const rateValue = typeof exchangeRate === 'number' ? exchangeRate : null;
   const expectedGain = rateValue != null && rateValue > 0
-    ? Math.max(1, Math.floor(Number(amount || 0) * rateValue))
+    ? Math.max(1, Math.floor(parsedAmount * rateValue))
     : 0;
-  const canTrade = Boolean(currentUser) && Number(amount) > 0 && expectedGain >= 1;
+  
+  // Check if user has enough energy
+  const currentEnergy = toPlainValue(getEnergyValue());
+  const canTrade = Boolean(currentUser) && parsedAmount > 0 && expectedGain >= 1 && currentEnergy >= parsedAmount;
 
   const rateText = typeof exchangeRate === 'number' ? exchangeRate.toFixed(2) : '-';
-  const expectedText = `${formatPlain(amount)} 에너지 → ${formatPlain(expectedGain)} 돈`;
+  const expectedText = `${formatPlain(parsedAmount)} 에너지 → ${formatPlain(expectedGain)} 돈`;
 
   const meterFill = useMemo(() => {
     const normalized = Math.max(0, Math.min(1, (exchangeRate || 0) / 100));
@@ -174,9 +188,8 @@ export default function TradeTab() {
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
-            type="number"
-            min="1"
-            placeholder="기본 1"
+            type="text"
+            placeholder="예: 1000, 1.5K, 2M"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             style={{
