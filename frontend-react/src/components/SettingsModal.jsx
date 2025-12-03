@@ -116,34 +116,6 @@ export default function SettingsModal({ open, onClose }) {
           </div>
         </div>
 
-        <div className="settings-actions" style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-          <button 
-            type="button" 
-            onClick={() => {
-              onClose();
-              setShowRebirthModal(true);
-            }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: '8px',
-              border: '1px solid #7c3aed',
-              background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
-              color: '#fff',
-              cursor: 'pointer',
-              fontWeight: '700',
-            }}
-          >
-            🔮 환생
-          </button>
-          <button type="button" onClick={onClose} style={{ flex: 1 }}>닫기</button>
-        </div>
-
-        <RebirthModal 
-          open={showRebirthModal} 
-          onClose={() => setShowRebirthModal(false)} 
-        />
-
         <hr style={{ margin: "16px 0", borderColor: "#333" }} />
         <div style={{ display: "grid", gap: "8px" }}>
           <label htmlFor="delete-password" style={{ fontWeight: 600 }}>회원 탈퇴</label>
