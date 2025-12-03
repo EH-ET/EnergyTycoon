@@ -451,8 +451,3 @@ main {
 .generator-stats {
   color: white;
 }
-
-.main.drag-over {
-  background: #e3f2fd;
-  border: 2px dashed #2196F3;
-}

@@ -90,59 +90,86 @@ export default function InfoTab() {
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      flex: 1,
-      minHeight: 0,
-      maxHeight: 'none',
-      overflowY: 'visible',
+      display: 'grid',
+      gridTemplateColumns: '1fr 1.5fr',
+      gap: '12px',
       padding: '12px',
-      paddingRight: '16px',
-      paddingBottom: '48px',
       color: '#cecece',
       background: '#0e0e0e',
       borderRadius: '8px',
       width: '100%',
-      boxSizing: 'border-box'
+      height: '100%',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
     }}>
-      <p>이름: {currentUser.username}</p>
-      <p>플레이시간: {formatPlayTime(playTime)}</p>
-      <p>환생 횟수: {currentUser.rebirth_count || 0}회</p>
-      <p>얻은 총 에너지량: {formattedEnergy}</p>
-      <p>얻은 총 돈: {formattedMoney}</p>
-      <p>등수: {rankText}{scoreText !== '-' ? ` (점수 ${scoreText})` : ''}</p>
-
+      {/* 왼쪽: 사용자 정보 */}
       <div style={{
-        marginTop: '18px',
-        marginBottom: '30px',
-        padding: '12px',
-        border: '1px solid #3c3c3c',
-        borderRadius: '8px',
-        background: '#141414',
-        paddingRight: '16px',
-        boxSizing: 'border-box',
+        padding: '16px',
+        background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
+        borderRadius: '12px',
+        color: '#fff',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        gap: '8px',
+        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
       }}>
-        <h4 style={{ margin: '0 0 8px', fontSize: '16px', color: '#f0f0f0' }}>상위 랭커</h4>
-        <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#bdbdbd' }}>{leaderboardStatus}</p>
-        <ol style={{ margin: 0, paddingLeft: '20px', color: '#dedede' }}>
-          {leaderboard.length === 0 ? (
-            <li>표시할 랭커가 없습니다.</li>
-          ) : (
-            leaderboard.map((entry) => {
-              const you = currentUser.username === entry.username ? ' (나)' : '';
-              const score = typeof entry.score === 'number' 
-                ? formatResourceValue(fromPlainValue(entry.score))
-                : '-';
-              return (
-                <li key={entry.rank}>
-                  {entry.rank}위 {entry.username} - {score}점{you}
-                </li>
-              );
-            })
-          )}
-        </ol>
+        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>내 정보</h3>
+        <div style={{ fontSize: '14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div><strong>이름:</strong> {currentUser.username}</div>
+          <div><strong>플레이시간:</strong> {formatPlayTime(playTime)}</div>
+          <div><strong>환생 횟수:</strong> {currentUser.rebirth_count || 0}회</div>
+          <div><strong>총 에너지:</strong> {formattedEnergy}</div>
+          <div><strong>총 돈:</strong> {formattedMoney}</div>
+          <div><strong>등수:</strong> {rankText}</div>
+          {scoreText !== '-' && <div><strong>점수:</strong> {scoreText}</div>}
+        </div>
+      </div>
+
+      {/* 오른쪽: 랭킹 리스트 */}
+      <div style={{
+        padding: '16px',
+        border: '2px solid #1e40af',
+        borderRadius: '12px',
+        background: '#141414',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h4 style={{ margin: 0, fontSize: '16px', color: '#3b82f6', fontWeight: 700 }}>🏆 랭킹</h4>
+          <span style={{ fontSize: '12px', color: '#bdbdbd' }}>{leaderboardStatus}</span>
+        </div>
+        <div style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          overflowX: 'hidden',
+          paddingRight: '8px'
+        }}>
+          <ol style={{ margin: 0, paddingLeft: '20px', color: '#dedede', fontSize: '13px' }}>
+            {leaderboard.length === 0 ? (
+              <li>표시할 랭커가 없습니다.</li>
+            ) : (
+              leaderboard.map((entry) => {
+                const you = currentUser.username === entry.username;
+                const score = typeof entry.score === 'number' 
+                  ? formatResourceValue(fromPlainValue(entry.score))
+                  : '-';
+                return (
+                  <li 
+                    key={entry.rank}
+                    style={{
+                      padding: '4px 0',
+                      color: you ? '#fbbf24' : '#dedede',
+                      fontWeight: you ? 700 : 400
+                    }}
+                  >
+                    <span style={{ color: '#3b82f6', fontWeight: 700 }}>{entry.rank}위</span> {entry.username} - {score}점{you ? ' (나)' : ''}
+                  </li>
+                );
+              })
+            )}
+          </ol>
+        </div>
       </div>
     </div>
   );
