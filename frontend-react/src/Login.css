@@ -74,7 +74,7 @@
   }
   50% { 
     box-shadow: 0 25px 70px rgba(54, 181, 255, 0.5);
-    transform: scale(1.1);
+    transform: scale(1.05);
   }
 }
 
@@ -156,7 +156,7 @@
 }
 
 .login-card:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
   border:3px solid #36b5ff;
 }
 
