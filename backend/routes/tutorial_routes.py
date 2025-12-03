@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from ..database import get_db
+from ..dependencies import get_user_and_db
 from ..models import User
-from ..auth_utils import get_current_user
 
 router = APIRouter()
 
@@ -19,10 +18,11 @@ class TutorialProgressIn(BaseModel):
 @router.put("/progress")
 def update_tutorial_progress(
     data: TutorialProgressIn,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Update tutorial progress for the current user."""
+    current_user, db = user_and_db
+    
     if not 0 <= data.step <= 11:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -38,10 +38,11 @@ def update_tutorial_progress(
 
 @router.post("/skip")
 def skip_tutorial(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Skip tutorial (set to 0)."""
+    current_user, db = user_and_db
+    
     current_user.tutorial = 0
     db.commit()
     db.refresh(current_user)
@@ -51,7 +52,8 @@ def skip_tutorial(
 
 @router.get("/status")
 def get_tutorial_status(
-    current_user: User = Depends(get_current_user)
+    user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Get current tutorial status."""
+    current_user, db = user_and_db
     return {"tutorial": current_user.tutorial}
