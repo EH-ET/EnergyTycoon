@@ -184,41 +184,50 @@ export default function Login({ onLoginSuccess }) {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div>
-          <h1 className="login-title">Energy Tycoon</h1>
-          <p className="login-subtitle">지속 가능한 에너지 제국을 시작하세요.</p>
-        </div>
-        <input
-          className="login-input"
-          type="text"
-          id="username"
-          placeholder="아이디"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          autoComplete="username"
+      <div className="login-left">
+        <img 
+          src="https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80" 
+          alt="Energy" 
+          className="login-image"
         />
-        <input
-          className="login-input"
-          type="password"
-          id="password"
-          placeholder="비밀번호"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          autoComplete="current-password"
-        />
-        <div className="login-actions">
-          <button className="login-button primary" id="loginBtn" onClick={handleLogin}>로그인</button>
-          <button className="login-button secondary" id="signupBtn" onClick={handleSignup}>회원가입</button>
-        </div>
-        <div
-          id="messageBox"
-          className={`login-message ${messageType}`}
-          aria-live="polite"
-        >
-          {message}
+      </div>
+      <div className="login-right">
+        <div className="login-card">
+          <div>
+            <h1 className="login-title">Energy Tycoon</h1>
+            <p className="login-subtitle">지속 가능한 에너지 제국을 시작하세요.</p>
+          </div>
+          <input
+            className="login-input"
+            type="text"
+            id="username"
+            placeholder="아이디"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            autoComplete="username"
+          />
+          <input
+            className="login-input"
+            type="password"
+            id="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            autoComplete="current-password"
+          />
+          <div className="login-actions">
+            <button className="login-button primary" id="loginBtn" onClick={handleLogin}>로그인</button>
+            <button className="login-button secondary" id="signupBtn" onClick={handleSignup}>회원가입</button>
+          </div>
+          <div
+            id="messageBox"
+            className={`login-message ${messageType}`}
+            aria-live="polite"
+          >
+            {message}
+          </div>
         </div>
       </div>
     </div>
