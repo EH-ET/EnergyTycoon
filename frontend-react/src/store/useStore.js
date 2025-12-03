@@ -104,7 +104,7 @@ export const useStore = create((set, get) => ({
     const user = get().currentUser;
     if (!user) return normalizeValue();
     if (!user.money_value) {
-      user.money_value = valueFromServer(user.money_data, user.money_high, user.money);
+      user.money_value = valueFromServer(user.money_data, user.money_high);
     }
     return user.money_value;
   },
@@ -113,7 +113,7 @@ export const useStore = create((set, get) => ({
     const user = get().currentUser;
     if (!user) return normalizeValue();
     if (!user.energy_value) {
-      user.energy_value = valueFromServer(user.energy_data, user.energy_high, user.energy);
+      user.energy_value = valueFromServer(user.energy_data, user.energy_high);
     }
     return user.energy_value;
   },
@@ -134,7 +134,6 @@ export const useStore = create((set, get) => ({
     user.money_view = normalized;
     user.money_data = normalized.data;
     user.money_high = normalized.high;
-    user.money = toPlainValue(normalized);
     set({ currentUser: { ...user } });
   },
 
@@ -146,7 +145,6 @@ export const useStore = create((set, get) => ({
     user.energy_view = normalized;
     user.energy_data = normalized.data;
     user.energy_high = normalized.high;
-    user.energy = toPlainValue(normalized);
     set({ currentUser: { ...user } });
   },
 
@@ -207,19 +205,17 @@ function normalizeDemandBonus(user) {
 function applyResourceValues(user) {
   if (!user) return;
   normalizeDemandBonus(user);
-  const energyValue = valueFromServer(user.energy_data, user.energy_high, user.energy);
+  const energyValue = valueFromServer(user.energy_data, user.energy_high);
   user.energy_value = energyValue;
   user.energy_view = energyValue;
   user.energy_data = energyValue.data;
   user.energy_high = energyValue.high;
-  user.energy = toPlainValue(energyValue);
 
-  const moneyValue = valueFromServer(user.money_data, user.money_high, user.money);
+  const moneyValue = valueFromServer(user.money_data, user.money_high);
   user.money_value = moneyValue;
   user.money_view = moneyValue;
   user.money_data = moneyValue.data;
   user.money_high = moneyValue.high;
-  user.money = toPlainValue(moneyValue);
 }
 
 function persistExchangeRate(rate) {

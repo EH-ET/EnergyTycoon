@@ -14,7 +14,6 @@ import GeneratorTab from './components/tabs/GeneratorTab';
 import TradeTab from './components/tabs/TradeTab';
 import UpgradeTab from './components/tabs/UpgradeTab';
 import InfoTab from './components/tabs/InfoTab';
-import RebirthTab from './components/tabs/RebirthTab';
 import Login from './pages/Login';
 import './App.css';
 
@@ -119,8 +118,6 @@ function App() {
         return <UpgradeTab />;
       case 'info':
         return <InfoTab />;
-      case 'rebirth':
-        return <RebirthTab />;
       default:
         return null;
     }
