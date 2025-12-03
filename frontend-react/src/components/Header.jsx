@@ -46,22 +46,29 @@ export default function Header() {
   };
 
   const refreshRank = async () => {
-    if (!currentUser?.user_id) return;
+    const current = useStore.getState().currentUser;
+    if (!current?.user_id) return;
+    
     setIsRankLoading(true);
     try {
       const token = getAuthToken();
-      if (!token || !currentUser?.user_id) {
+      if (!token) {
         setIsRankLoading(false);
         return;
       }
       const data = await fetchMyRank(token);
-      syncUserState({
-        ...currentUser,
-        rank: data.rank,
-        rank_score: data.score,
-      }, { persist: false });
+      
+      // Get latest state again before updating
+      const latestUser = useStore.getState().currentUser;
+      if (latestUser) {
+        syncUserState({
+          ...latestUser,
+          rank: data.rank,
+          rank_score: data.score,
+        }, { persist: false });
+      }
     } catch (e) {
-      // Silent fail
+      console.error('Failed to fetch rank:', e);
     } finally {
       setIsRankLoading(false);
     }
@@ -100,7 +107,7 @@ export default function Header() {
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleEsc);
     };
-  }, [showProfileModal, currentUser?.user_id]);
+  }, [showProfileModal]);
 
   const generatorCount = placedGenerators.length;
   const maxGenerators = 10 + (currentUser?.max_generators_bonus || 0);
