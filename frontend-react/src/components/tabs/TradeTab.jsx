@@ -149,69 +149,82 @@ export default function TradeTab() {
         border: '1px solid #1f2a3d',
         color: '#e8edf5',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
+        flexDirection: 'row',
+        gap: '16px'
       }}>
-        {/* 타이틀 */}
-        <div style={{ fontSize: '14px', color: '#9ba4b5', fontWeight: 600 }}>교환</div>
-        
-        {/* Range Input */}
-        <div>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '8px'
-          }}>
-            <span style={{ fontSize: '12px', color: '#7c8aa6' }}>보유 에너지의</span>
-            <span style={{ fontSize: '16px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
+        {/* Left Column: Controls */}
+        <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* 타이틀 */}
+          <div style={{ fontSize: '14px', color: '#9ba4b5', fontWeight: 600 }}>교환</div>
+          
+          {/* Range Input */}
+          <div>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '8px'
+            }}>
+              <span style={{ fontSize: '12px', color: '#7c8aa6' }}>보유 에너지의</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="100"
+              value={percentage}
+              onChange={(e) => setPercentage(Number(e.target.value))}
+              style={{
+                width: '100%',
+                height: '8px',
+                borderRadius: '4px',
+                outline: 'none',
+                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${percentage}%, #1f2a3d ${percentage}%, #1f2a3d 100%)`,
+                WebkitAppearance: 'none',
+                appearance: 'none'
+              }}
+            />
           </div>
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={percentage}
-            onChange={(e) => setPercentage(Number(e.target.value))}
+
+          {/* 교환 버튼 */}
+          <button
+            type="button"
+            onClick={handleExchange}
+            disabled={isLoading || !canTrade}
             style={{
-              width: '100%',
-              height: '8px',
-              borderRadius: '4px',
-              outline: 'none',
-              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${percentage}%, #1f2a3d ${percentage}%, #1f2a3d 100%)`,
-              WebkitAppearance: 'none',
-              appearance: 'none'
+              padding: '14px',
+              borderRadius: '10px',
+              border: 'none',
+              background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '16px',
+              cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer',
+              marginTop: 'auto'
             }}
-          />
+          >
+            {isLoading ? '교환 중...' : '교환'}
+          </button>
+
+          {message && (
+            <div style={{ padding: '8px', borderRadius: '8px', background: '#102036', color: '#9ef0b9', fontSize: '12px' }}>
+              {message}
+            </div>
+          )}
         </div>
 
-        {/* 교환 버튼 */}
-        <button
-          type="button"
-          onClick={handleExchange}
-          disabled={isLoading || !canTrade}
-          style={{
-            padding: '14px',
-            borderRadius: '10px',
-            border: 'none',
-            background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {isLoading ? '교환 중...' : '교환'}
-        </button>
-
-        {/* 환율 및 예상 결과 (가로 배치) */}
-        <div style={{ display: 'flex', gap: '12px' }}>
+        {/* Right Column: Info */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* 현재 환율 */}
           <div style={{ 
             flex: 1,
             padding: '12px',
             background: '#0d1117',
             borderRadius: '8px',
-            border: '1px solid #1f2a3d'
+            border: '1px solid #1f2a3d',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
           }}>
             <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>현재 환율</div>
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#fbbf24' }}>
@@ -221,24 +234,22 @@ export default function TradeTab() {
 
           {/* 예상 교환 */}
           <div style={{ 
-            flex: 1.2,
+            flex: 1,
             padding: '12px',
             background: '#0d1117',
             borderRadius: '8px',
-            border: '1px solid #1f2a3d'
+            border: '1px solid #1f2a3d',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
           }}>
             <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>예상 교환</div>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#e8edf5', lineHeight: '1.4' }}>
-              {formatPlain(exchangeAmountPlain)} 에너지 → {formatPlain(expectedGain)} 돈
+              {formatPlain(exchangeAmountPlain)} 에너지<br/>
+              → {formatPlain(expectedGain)} 돈
             </div>
           </div>
         </div>
-
-        {message && (
-          <div style={{ padding: '8px', borderRadius: '8px', background: '#102036', color: '#9ef0b9', fontSize: '12px' }}>
-            {message}
-          </div>
-        )}
       </div>
 
       <div style={{
