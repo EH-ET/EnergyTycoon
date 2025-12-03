@@ -229,9 +229,9 @@ export default function Login({ onLoginSuccess }) {
         }
       } catch (error) {
         if (!isMounted) return;
-        const msg = error?.message || '랭킹을 불러오지 못했어요.';
-        setBoardError(msg);
-        setBoardStatus('');
+        // 로그인 전이거나 인증 실패 시에는 부드러운 안내로 대체
+        setBoardError('');
+        setBoardStatus('로그인 후 내 랭킹을 확인할 수 있어요.');
         setLeaderboard([]);
       } finally {
         if (isMounted) setBoardLoading(false);
@@ -250,11 +250,11 @@ export default function Login({ onLoginSuccess }) {
           <p className="intro-lede">
             밝고 가벼운 톤으로, 랭킹 정보를 곁들인 양면 레이아웃입니다.
           </p>
-          <div className="leaderboard">
-            <div className="leaderboard-head">
-              <span className="badge badge-soft">라이브 랭킹</span>
-              <p className="board-status">
-                {boardLoading ? '랭킹 불러오는 중...' : boardStatus || '랭킹을 확인해보세요.'}
+            <div className="leaderboard">
+              <div className="leaderboard-head">
+                <span className="badge badge-soft">라이브 랭킹</span>
+                <p className="board-status">
+                  {boardLoading ? '랭킹 불러오는 중...' : boardStatus || '랭킹을 확인해보세요.'}
               </p>
             </div>
             <div className="leaderboard-list">
@@ -282,6 +282,9 @@ export default function Login({ onLoginSuccess }) {
               )}
               {!boardLoading && boardError && (
                 <div className="board-error">{boardError}</div>
+              )}
+              {!boardLoading && !boardError && !storedUsername && (
+                <div className="board-note">로그인하면 내 랭킹이 강조돼요.</div>
               )}
             </div>
           </div>
