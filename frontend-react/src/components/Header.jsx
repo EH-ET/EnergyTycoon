@@ -4,12 +4,14 @@ import { formatResourceValue } from '../utils/bigValue';
 import { useEnergyRate } from '../hooks/useEnergyTimer';
 import { fetchExchangeRate, fetchMyRank } from '../utils/apiClient';
 import SettingsModal from './SettingsModal';
+import RebirthModal from './RebirthModal';
 
 export default function Header() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMoneyModal, setShowMoneyModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showRebirthModal, setShowRebirthModal] = useState(false);
 
   const currentUser = useStore(state => state.currentUser);
   const placedGenerators = useStore(state => state.placedGenerators);
@@ -164,6 +166,14 @@ export default function Header() {
         </div>
       </div>
       <div className="header-right">
+        <button
+          type="button"
+          className="rebirth-trigger"
+          onClick={() => setShowRebirthModal(true)}
+        >
+          <span className="rebirth-icon">🔮</span>
+          <span className="rebirth-label">환생</span>
+        </button>
         <div className="stat-card">
           <div className="stat-icon generator-icon"></div>
           <div className="stat-info">
@@ -222,6 +232,10 @@ export default function Header() {
       <SettingsModal
         open={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
+      />
+      <RebirthModal
+        open={showRebirthModal}
+        onClose={() => setShowRebirthModal(false)}
       />
     </header>
   );
