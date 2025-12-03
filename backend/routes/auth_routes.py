@@ -155,7 +155,7 @@ async def signup(
     db.add(u)
     db.commit()
     db.refresh(u)
-    ensure_user_big_values(u, db)
+    # ensure_user_big_values(u, db)  # Redundant as we initialize them above
     access_token, refresh_token = issue_token_pair(u.user_id)
     if response:
         clear_auth_cookies(response)
