@@ -125,34 +125,35 @@ export default function TradeTab() {
   return (
     <div style={{
       display: 'flex',
-      gap: '10px',
-      padding: '8px',
+      gap: '12px',
+      padding: '12px',
       background: '#0b0e16',
-      borderRadius: '10px',
+      borderRadius: '12px',
       height: '100%',
       overflow: 'hidden'
     }}>
       <div style={{
-        flex: 1,
-        padding: '10px',
-        borderRadius: '10px',
+        flex: 1.5,
+        padding: '16px',
+        borderRadius: '12px',
         background: 'linear-gradient(160deg, #0f1729 0%, #0b1324 100%)',
         border: '1px solid #1f2a3d',
         color: '#e8edf5',
         display: 'flex',
         flexDirection: 'column',
-        gap: '8px'
+        gap: '12px',
+        justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: '11px', color: '#7c8aa6' }}>현재 환율</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#fbbf24' }}>
+            <div style={{ fontSize: '13px', color: '#7c8aa6', marginBottom: '4px' }}>현재 환율</div>
+            <div style={{ fontSize: '24px', fontWeight: 800, color: '#fbbf24' }}>
               1 에너지 → {rateText} 돈
             </div>
           </div>
           <div style={{
-            height: '6px',
-            width: '80px',
+            height: '8px',
+            width: '100px',
             background: '#111a2c',
             borderRadius: '999px',
             border: '1px solid #1f2a3d',
@@ -171,7 +172,7 @@ export default function TradeTab() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
             type="number"
             min="1"
@@ -180,12 +181,12 @@ export default function TradeTab() {
             onChange={(e) => setAmount(e.target.value)}
             style={{
               flex: 1,
-              padding: '8px',
-              borderRadius: '8px',
+              padding: '12px',
+              borderRadius: '10px',
               border: '1px solid #223148',
               background: '#0d1117',
               color: '#e8edf5',
-              fontSize: '14px'
+              fontSize: '16px'
             }}
           />
           <button
@@ -193,13 +194,13 @@ export default function TradeTab() {
             onClick={handleExchange}
             disabled={isLoading || !canTrade}
             style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
+              padding: '12px 24px',
+              borderRadius: '10px',
               border: 'none',
               background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
               color: '#fff',
               fontWeight: 700,
-              fontSize: '14px',
+              fontSize: '16px',
               cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap'
             }}
@@ -208,10 +209,10 @@ export default function TradeTab() {
           </button>
         </div>
         
-        <div style={{ fontSize: '11px', color: '#7c8aa6' }}>{expectedText}</div>
+        <div style={{ fontSize: '13px', color: '#7c8aa6' }}>{expectedText}</div>
 
         {message && (
-          <div style={{ padding: '6px', borderRadius: '6px', background: '#102036', color: '#9ef0b9', fontSize: '11px' }}>
+          <div style={{ padding: '8px', borderRadius: '8px', background: '#102036', color: '#9ef0b9', fontSize: '13px' }}>
             {message}
           </div>
         )}
@@ -219,40 +220,41 @@ export default function TradeTab() {
 
       <div style={{
         flex: 1,
-        borderRadius: '10px',
-        padding: '10px',
+        borderRadius: '12px',
+        padding: '16px',
         background: 'linear-gradient(160deg, #0f1729 0%, #0b1324 100%)',
         border: '1px solid #1f2a3d',
         color: '#e8edf5',
         display: 'flex',
         flexDirection: 'column',
-        gap: '6px'
+        gap: '10px',
+        justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: '11px', color: '#7c8aa6' }}>시장 스냅샷</div>
-            <div style={{ fontSize: '14px', fontWeight: 700 }}>수요 / 공급</div>
+            <div style={{ fontSize: '13px', color: '#7c8aa6', marginBottom: '4px' }}>시장 스냅샷</div>
+            <div style={{ fontSize: '16px', fontWeight: 700 }}>수요 / 공급</div>
           </div>
           <span style={{
-            padding: '2px 6px',
+            padding: '4px 10px',
             borderRadius: '999px',
             background: '#111a2c',
             border: '1px solid #223148',
-            fontSize: '10px',
+            fontSize: '11px',
             color: '#9ba4b5'
           }}>
             데모 뷰
           </span>
         </div>
-        <svg width="100%" height="90" viewBox="0 0 240 90" style={{ background: '#0d1117', borderRadius: '8px' }}>
-          <line x1="30" y1="10" x2="30" y2="75" stroke="#243044" strokeWidth="1" />
-          <line x1="30" y1="75" x2="230" y2="75" stroke="#243044" strokeWidth="1" />
-          <text x="10" y="20" fill="#55627a" fontSize="9">가격</text>
-          <text x="190" y="85" fill="#55627a" fontSize="9">수량</text>
-          <polyline points={`40,${40 - Math.min(30, (exchangeRate || 50) * 0.3)} 120,${40 + Math.min(30, (exchangeRate || 50) * 0.2)} 220,70`} stroke="#3b82f6" fill="none" strokeWidth="2" />
-          <polyline points={`40,60 120,${30 + Math.min(30, (exchangeRate || 50) * 0.15)} 220,20`} stroke="#fbbf24" fill="none" strokeWidth="2" />
+        <svg width="100%" height="110" viewBox="0 0 240 110" style={{ background: '#0d1117', borderRadius: '10px', padding: '8px' }}>
+          <line x1="30" y1="10" x2="30" y2="85" stroke="#243044" strokeWidth="1" />
+          <line x1="30" y1="85" x2="230" y2="85" stroke="#243044" strokeWidth="1" />
+          <text x="10" y="25" fill="#55627a" fontSize="10">가격</text>
+          <text x="190" y="100" fill="#55627a" fontSize="10">수량</text>
+          <polyline points={`40,${40 - Math.min(30, (exchangeRate || 50) * 0.3)} 120,${40 + Math.min(30, (exchangeRate || 50) * 0.2)} 220,70`} stroke="#3b82f6" fill="none" strokeWidth="2.5" />
+          <polyline points={`40,60 120,${30 + Math.min(30, (exchangeRate || 50) * 0.15)} 220,20`} stroke="#fbbf24" fill="none" strokeWidth="2.5" />
         </svg>
-        <div style={{ fontSize: '10px', color: '#7c8aa6' }}>
+        <div style={{ fontSize: '12px', color: '#7c8aa6' }}>
           시장 분위기를 미리 보여주는 데모 그래프입니다.
         </div>
       </div>
