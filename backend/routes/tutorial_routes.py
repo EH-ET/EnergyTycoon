@@ -21,7 +21,7 @@ def update_tutorial_progress(
     user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Update tutorial progress for the current user."""
-    current_user, db = user_and_db
+    current_user, db, _ = user_and_db
     
     if not 0 <= data.step <= 11:
         raise HTTPException(
@@ -41,7 +41,7 @@ def skip_tutorial(
     user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Skip tutorial (set to 0)."""
-    current_user, db = user_and_db
+    current_user, db, _ = user_and_db
     
     current_user.tutorial = 0
     db.commit()
@@ -55,5 +55,5 @@ def get_tutorial_status(
     user_and_db: tuple = Depends(get_user_and_db)
 ):
     """Get current tutorial status."""
-    current_user, db = user_and_db
+    current_user, db, _ = user_and_db
     return {"tutorial": current_user.tutorial}
