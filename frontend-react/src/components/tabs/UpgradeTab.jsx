@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { upgrades } from '../../utils/data';
@@ -48,45 +49,32 @@ export default function UpgradeTab() {
   }
 
   return (
-    <div
-      className="upgrade-grid"
-      style={{
-        display: 'flex',
-        flexWrap: 'nowrap',
-        gap: '10px',
-        padding: '10px',
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        scrollBehavior: 'smooth',
-        alignItems: 'stretch'
-      }}
-    >
+    <div className="upgrade-grid">
       {upgrades.map((upgrade, index) => {
         const levelValue = getUpgradeLevel(currentUser, upgrade);
         const costValue = getUpgradeCost(currentUser, upgrade);
         const costValueDisplay = formatResourceValue(fromPlainValue(costValue));
 
         return (
-          <div
-            key={index}
-            style={{
-              border: '1px solid #ccc',
-              padding: '10px',
-              textAlign: 'center',
-              background: '#f9f9f9',
-              borderRadius: '5px',
-              minWidth: '220px',
-              flex: '0 0 240px'
-            }}
-          >
-            <h3 style={{ marginTop: 0 }}>{upgrade.이름}</h3>
-            <p style={{ fontSize: '14px' }}>{upgrade.설명}</p>
-            <p style={{ fontWeight: 'bold' }}>비용: {costValueDisplay} 돈</p>
-            <p>현재 레벨: {levelValue}</p>
+          <div key={index} className="upgrade-card">
+            <div className="upgrade-header">
+              <h3 className="upgrade-title">{upgrade.이름}</h3>
+              <p className="upgrade-desc">{upgrade.설명}</p>
+            </div>
+            <div className="upgrade-stats">
+              <div className="upgrade-cost">
+                <span>비용</span>
+                <span>{costValueDisplay} 💰</span>
+              </div>
+              <div className="upgrade-level">
+                <span>현재 레벨</span>
+                <span>Lv. {levelValue}</span>
+              </div>
+            </div>
             <button
               type="button"
+              className="upgrade-btn"
               onClick={() => handleUpgrade(upgrade)}
-              style={{ padding: '8px 12px', cursor: 'pointer' }}
             >
               업그레이드
             </button>

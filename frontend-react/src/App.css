@@ -19,6 +19,8 @@ main {
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .main-content {
@@ -413,14 +415,19 @@ main {
 .generator-grid img {
   border-radius: 6px;
   flex-shrink: 0;
-  height: 100px;
+  height: min(100px, 12vh);
+  max-height: 100px;
+  width: auto;
+  object-fit: contain;
 }
 
 .generator-item {
-  flex: 0 0 170px;
+  flex: 0 0 auto;
+  min-width: 160px;
+  max-width: 200px;
   border: 3px solid #151515;
   border-radius: 8px;
-  padding: 8px;
+  padding: 1vh;
   background-color: #151515;
   cursor: default;
   display: flex;
