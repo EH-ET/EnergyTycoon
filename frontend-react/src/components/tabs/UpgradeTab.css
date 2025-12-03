@@ -120,7 +120,7 @@
   color: #0f172a;
 }
 
-.upgrade-btn {
+.upgrade-card-btn {
   background: linear-gradient(120deg, #2563eb, #7c3aed);
   color: #fff;
   font-weight: 800;
@@ -134,13 +134,13 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.upgrade-btn:hover {
+.upgrade-card-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
   filter: brightness(1.05);
 }
 
-.upgrade-btn:active {
+.upgrade-card-btn:active {
   transform: translateY(0);
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.24);
 }
