@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     demand_bonus: int
     play_time_ms: int
     rebirth_count: int
+    tutorial: int
 
     model_config = {"from_attributes": True}
 
