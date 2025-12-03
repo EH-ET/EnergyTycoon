@@ -15,7 +15,8 @@ class TutorialProgressIn(BaseModel):
     step: int
 
 
-@router.put("/progress")
+@router.put("/progress", include_in_schema=False)
+@router.put("/progress/")
 def update_tutorial_progress(
     data: TutorialProgressIn,
     user_and_db: tuple = Depends(get_user_and_db)
@@ -36,7 +37,8 @@ def update_tutorial_progress(
     return {"tutorial": current_user.tutorial, "message": "Tutorial progress updated"}
 
 
-@router.post("/skip")
+@router.post("/skip", include_in_schema=False)
+@router.post("/skip/")
 def skip_tutorial(
     user_and_db: tuple = Depends(get_user_and_db)
 ):
@@ -50,7 +52,8 @@ def skip_tutorial(
     return {"tutorial": current_user.tutorial, "message": "Tutorial skipped"}
 
 
-@router.get("/status")
+@router.get("/status", include_in_schema=False)
+@router.get("/status/")
 def get_tutorial_status(
     user_and_db: tuple = Depends(get_user_and_db)
 ):
