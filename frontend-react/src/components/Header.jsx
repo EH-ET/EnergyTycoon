@@ -57,31 +57,19 @@ export default function Header() {
     setIsRankLoading(true);
     try {
       const token = getAuthToken();
-      console.log('[Header] Token present:', !!token);
-
-      // Note: Even if token is null, we might have HttpOnly cookies
-      // so we proceed with the API call
       
-      console.log('[Header] Fetching rank from API...');
       const data = await fetchMyRank(token);
-      console.log('[Header] Rank API response:', data);
       
       // Get latest state again before updating
       const latestUser = useStore.getState().currentUser;
       if (latestUser) {
-        console.log('[Header] Updating user state with rank:', data.rank);
         syncUserState({
           ...latestUser,
           rank: data.rank,
           rank_score: data.score,
         }, { persist: false });
-      } else {
-        console.warn('[Header] User state became null during fetch');
       }
-    } catch (e) {
-      console.error('[Header] Failed to fetch rank:', e);
     } finally {
-      console.log('[Header] refreshRank finally block reached');
       setIsRankLoading(false);
     }
   };
