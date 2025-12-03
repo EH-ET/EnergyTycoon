@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
-import { getRebirthInfo, performRebirth } from '../utils/apiClient';
+import { fetchRebirthInfo, performRebirth } from '../utils/apiClient';
 import { formatResourceValue } from '../utils/bigValue';
 
 export default function RebirthModal({ open, onClose }) {
@@ -17,7 +17,7 @@ export default function RebirthModal({ open, onClose }) {
     const fetchInfo = async () => {
       try {
         const token = getAuthToken();
-        const data = await getRebirthInfo(token);
+        const data = await fetchRebirthInfo(token);
         setRebirthInfo(data);
       } catch (err) {
         setError('환생 정보를 불러오지 못했습니다.');
