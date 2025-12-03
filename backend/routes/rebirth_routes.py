@@ -20,11 +20,11 @@ from ..bigvalue import (
 router = APIRouter()
 
 # Rebirth cost formula: 1T × 8^n (where n = current rebirth count)
-BASE_REBIRTH_COST = 1_000_000_000_000  # 1 Trillion
+BASE_REBIRTH_COST = 15_000_000  # 15M
 
 
 def calculate_rebirth_cost(rebirth_count: int) -> BigValue:
-    """Calculate rebirth cost using formula: 1T × 8^n"""
+    """Calculate rebirth cost using formula: 15M × 8^n"""
     multiplier = 8 ** rebirth_count
     cost_plain = BASE_REBIRTH_COST * multiplier
     return from_plain(cost_plain)
