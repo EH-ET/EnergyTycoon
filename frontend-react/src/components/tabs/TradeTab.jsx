@@ -196,7 +196,7 @@ export default function TradeTab() {
               padding: '8px 16px',
               borderRadius: '8px',
               border: 'none',
-              background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #3b82f6, #fbbf24)',
+              background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
               color: '#fff',
               fontWeight: 700,
               fontSize: '14px',

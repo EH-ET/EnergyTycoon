@@ -57,27 +57,30 @@ export default function UpgradeTab() {
 
         return (
           <div key={index} className="upgrade-card">
-            <div className="upgrade-header">
+            <div className="upgrade-top">
+              <div className="upgrade-pill">Upgrade</div>
               <h3 className="upgrade-title">{upgrade.이름}</h3>
               <p className="upgrade-desc">{upgrade.설명}</p>
             </div>
-            <div className="upgrade-stats">
-              <div className="upgrade-cost">
-                <span>비용</span>
-                <span>{costValueDisplay} 💰</span>
+            <div className="upgrade-bottom">
+              <div className="upgrade-stats">
+                <div className="upgrade-info">
+                  <span className="label">비용</span>
+                  <span className="value">{costValueDisplay} 💰</span>
+                </div>
+                <div className="upgrade-info">
+                  <span className="label">현재 레벨</span>
+                  <span className="value">Lv. {levelValue}</span>
+                </div>
               </div>
-              <div className="upgrade-level">
-                <span>현재 레벨</span>
-                <span>Lv. {levelValue}</span>
-              </div>
+              <button
+                type="button"
+                className="upgrade-btn"
+                onClick={() => handleUpgrade(upgrade)}
+              >
+                업그레이드
+              </button>
             </div>
-            <button
-              type="button"
-              className="upgrade-btn"
-              onClick={() => handleUpgrade(upgrade)}
-            >
-              업그레이드
-            </button>
           </div>
         );
       })}
