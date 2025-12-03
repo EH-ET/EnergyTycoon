@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
-import { fromPlainValue, formatResourceValue, toPlainValue, parseUserInput, parseUserInputToPlain, comparePlainValue } from '../../utils/bigValue';
+import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
 import { readStoredPlayTime } from '../../utils/playTime';
 
 export default function TradeTab() {
-  const [amount, setAmount] = useState('1');
+  const [percentage, setPercentage] = useState(10); // 1-100%
   const [message, setMessage] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,26 +36,18 @@ export default function TradeTab() {
   };
 
   const handleExchange = async () => {
-    // Parse user input to BigValue (prevents overflow)
-    const exchangeAmountBigValue = parseUserInput(amount);
-    const exchangeAmountPlain = toPlainValue(exchangeAmountBigValue);
+    // Calculate amount from percentage of current energy
+    const currentEnergyValue = getEnergyValue();
+    const currentEnergyPlain = toPlainValue(currentEnergyValue);
+    const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
     
     if (exchangeAmountPlain <= 0) {
-      setAlertMessage('1 이상 입력하세요');
+      setAlertMessage('교환할 에너지가 없습니다');
       return;
     }
 
     if (!currentUser) {
       setAlertMessage('로그인이 필요합니다.');
-      return;
-    }
-
-    // Check if user has enough energy using BigValue comparison
-    const currentEnergyValue = getEnergyValue();
-    const comparison = comparePlainValue(currentEnergyValue, exchangeAmountPlain);
-    
-    if (comparison < 0) {
-      setAlertMessage(`에너지가 부족합니다. 보유: ${formatResourceValue(currentEnergyValue)}, 필요: ${formatResourceValue(exchangeAmountBigValue)}`);
       return;
     }
 
@@ -66,12 +58,11 @@ export default function TradeTab() {
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
-      const currentEnergy = toPlainValue(currentEnergyValue);
       const currentMoney = toPlainValue(getMoneyValue());
       const playTimeMs = readStoredPlayTime();
 
       const saveResult = await autosaveProgress(getAuthToken(), {
-        energy: currentEnergy,
+        energy: currentEnergyPlain,
         money: currentMoney,
         energy_data: energyPayload.data,
         energy_high: energyPayload.high,
@@ -90,7 +81,7 @@ export default function TradeTab() {
         getAuthToken(),
         currentUser.user_id,
         exchangeAmountPlain,
-        currentEnergy  // 최신 에너지 값 사용
+        currentEnergyPlain
       );
 
       if (data.user) {
@@ -101,7 +92,7 @@ export default function TradeTab() {
       setExchangeRate(data.rate || exchangeRate);
 
       const rateText = data.rate ? ` (rate ${data.rate.toFixed(2)})` : '';
-      setMessage(`성공: ${formatResourceValue(exchangeAmountBigValue)} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
+      setMessage(`성공: ${formatResourceValue(fromPlainValue(exchangeAmountPlain))} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
     } catch (e) {
       setAlertMessage(e.message || e);
     } finally {
@@ -111,22 +102,19 @@ export default function TradeTab() {
 
   const formatPlain = (plain) => formatResourceValue(fromPlainValue(Math.max(0, Number(plain) || 0)));
 
-  // Parse amount for display and calculations (using BigValue to prevent overflow)
-  const parsedAmountBigValue = parseUserInput(amount);
-  const parsedAmountPlain = toPlainValue(parsedAmountBigValue);
+  // Calculate amount from percentage
+  const currentEnergyValue = getEnergyValue();
+  const currentEnergyPlain = toPlainValue(currentEnergyValue);
+  const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
   
   const rateValue = typeof exchangeRate === 'number' ? exchangeRate : null;
   const expectedGain = rateValue != null && rateValue > 0
-    ? Math.max(1, Math.floor(parsedAmountPlain * rateValue))
+    ? Math.max(1, Math.floor(exchangeAmountPlain * rateValue))
     : 0;
   
-  // Check if user has enough energy using BigValue comparison
-  const currentEnergyValue = getEnergyValue();
-  const hasEnoughEnergy = comparePlainValue(currentEnergyValue, parsedAmountPlain) >= 0;
-  const canTrade = Boolean(currentUser) && parsedAmountPlain > 0 && expectedGain >= 1 && hasEnoughEnergy;
+  const canTrade = Boolean(currentUser) && exchangeAmountPlain > 0 && expectedGain >= 1;
 
   const rateText = typeof exchangeRate === 'number' ? exchangeRate.toFixed(2) : '-';
-  const expectedText = `${formatResourceValue(parsedAmountBigValue)} 에너지 → ${formatPlain(expectedGain)} 돈`;
 
   const meterFill = useMemo(() => {
     const normalized = Math.max(0, Math.min(1, (exchangeRate || 0) / 100));
@@ -162,77 +150,88 @@ export default function TradeTab() {
         color: '#e8edf5',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
-        justifyContent: 'space-between'
+        gap: '10px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '13px', color: '#7c8aa6', marginBottom: '4px' }}>현재 환율</div>
-            <div style={{ fontSize: '24px', fontWeight: 800, color: '#fbbf24' }}>
-              1 에너지 → {rateText} 돈
-            </div>
-          </div>
-          <div style={{
-            height: '8px',
-            width: '100px',
-            background: '#111a2c',
-            borderRadius: '999px',
-            border: '1px solid #1f2a3d',
-            overflow: 'hidden',
-            position: 'relative'
+        {/* 타이틀 */}
+        <div style={{ fontSize: '14px', color: '#9ba4b5', fontWeight: 600 }}>교환</div>
+        
+        {/* Range Input */}
+        <div>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '8px'
           }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              height: '100%',
-              width: meterFill,
-              background: 'linear-gradient(90deg, #3b82f6, #fbbf24)',
-              transition: 'width 0.3s ease'
-            }} />
+            <span style={{ fontSize: '12px', color: '#7c8aa6' }}>보유 에너지의</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
-            type="text"
-            placeholder="예: 1000, 1.5K, 2M"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            type="range"
+            min="1"
+            max="100"
+            value={percentage}
+            onChange={(e) => setPercentage(Number(e.target.value))}
             style={{
-              flex: 1,
-              padding: '12px',
-              borderRadius: '10px',
-              border: '1px solid #223148',
-              background: '#0d1117',
-              color: '#e8edf5',
-              fontSize: '16px'
+              width: '100%',
+              height: '8px',
+              borderRadius: '4px',
+              outline: 'none',
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${percentage}%, #1f2a3d ${percentage}%, #1f2a3d 100%)`,
+              WebkitAppearance: 'none',
+              appearance: 'none'
             }}
           />
-          <button
-            type="button"
-            onClick={handleExchange}
-            disabled={isLoading || !canTrade}
-            style={{
-              padding: '12px 24px',
-              borderRadius: '10px',
-              border: 'none',
-              background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '16px',
-              cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {isLoading ? '교환 중...' : '교환'}
-          </button>
         </div>
-        
-        <div style={{ fontSize: '13px', color: '#7c8aa6' }}>{expectedText}</div>
+
+        {/* 환율 표시 */}
+        <div style={{ 
+          padding: '10px 12px',
+          background: '#0d1117',
+          borderRadius: '8px',
+          border: '1px solid #1f2a3d'
+        }}>
+          <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>현재 환율</div>
+          <div style={{ fontSize: '16px', fontWeight: 700, color: '#fbbf24' }}>
+            1 에너지 → {rateText} 돈
+          </div>
+        </div>
+
+        {/* 예상 결과 */}
+        <div style={{ 
+          padding: '10px 12px',
+          background: '#0d1117',
+          borderRadius: '8px',
+          border: '1px solid #1f2a3d'
+        }}>
+          <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>예상 교환</div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: '#e8edf5' }}>
+            {formatPlain(exchangeAmountPlain)} 에너지<br/>
+            → {formatPlain(expectedGain)} 돈
+          </div>
+        </div>
+
+        {/* 교환 버튼 */}
+        <button
+          type="button"
+          onClick={handleExchange}
+          disabled={isLoading || !canTrade}
+          style={{
+            padding: '12px',
+            borderRadius: '10px',
+            border: 'none',
+            background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #a4dbff 100%)',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: '16px',
+            cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isLoading ? '교환 중...' : '교환'}
+        </button>
 
         {message && (
-          <div style={{ padding: '8px', borderRadius: '8px', background: '#102036', color: '#9ef0b9', fontSize: '13px' }}>
+          <div style={{ padding: '8px', borderRadius: '8px', background: '#102036', color: '#9ef0b9', fontSize: '12px' }}>
             {message}
           </div>
         )}
