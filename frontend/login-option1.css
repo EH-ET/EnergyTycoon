@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Manrope:wght@400;600&display=swap');
+
+:root {
+  --blue: #4fa3ff;
+  --ink: #1b2532;
+  --line: #e6eef7;
+  --bg: #f6faff;
+  --card: #ffffff;
+  --green: #34c759;
+  --amber: #ffb800;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 10%, rgba(79,163,255,0.12), transparent 35%), radial-gradient(circle at 90% 20%, rgba(52,199,89,0.08), transparent 32%), var(--bg);
+  font-family: 'Manrope', 'Space Grotesk', sans-serif;
+  color: var(--ink);
+}
+
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(79,163,255,0.08), rgba(52,199,89,0.05));
+  filter: blur(70px);
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.login-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 16px 48px;
+  gap: 16px;
+}
+
+.logo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+
+.logo-pill .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.logo-pill .title {
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.logo-pill .pill {
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(79,163,255,0.12);
+  color: var(--blue);
+  font-size: 13px;
+}
+
+.login-card {
+  width: min(480px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 28px 28px 32px;
+  box-shadow: 0 14px 45px rgba(20, 46, 85, 0.08);
+}
+
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  color: #7a8aa8;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  margin: 0;
+}
+
+.card-head h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.3px;
+}
+
+.card-head .sub {
+  margin: 0;
+  color: #526078;
+  font-size: 15px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 13px;
+  background: #f9fbff;
+}
+
+.chip-generator { color: #2b8a3e; background: rgba(52,199,89,0.1); }
+.chip-energy { color: #0a6cff; background: rgba(79,163,255,0.12); }
+.chip-money { color: #b68200; background: rgba(255,184,0,0.12); }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-form label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #33415c;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fdfefe;
+  font-size: 15px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(79,163,255,0.18);
+}
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #4fa3ff, #3b82f6);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(79,163,255,0.35);
+}
+
+.btn.primary:hover { transform: translateY(-1px); }
+.btn.primary:active { transform: translateY(0); box-shadow: 0 8px 18px rgba(79,163,255,0.3); }
+
+.btn.ghost {
+  background: #f5f8ff;
+  color: #2c4a7a;
+  border: 1px solid var(--line);
+}
+
+.btn.ghost:hover {
+  background: #ebf3ff;
+}
+
+.message {
+  margin-top: 12px;
+  min-height: 22px;
+  font-weight: 700;
+  text-align: center;
+  color: #2b8a3e;
+}
+
+@media (max-width: 640px) {
+  .login-card { padding: 22px 18px; }
+  .card-head h1 { font-size: 22px; }
+  .chip { font-size: 12px; }
+}

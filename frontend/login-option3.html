@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energy Tycoon | 로그인</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="login-option3.css">
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-copy">
+      <p class="badge">플로팅 히어로</p>
+      <h1>밝게 떠 있는 로그인 카드</h1>
+      <p class="lede">한 문장 소개와 함께 공중에 떠 있는 듯한 카드로 심플한 경험을 줍니다.</p>
+    </div>
+    <div class="floating-card">
+      <div class="card-head">
+        <p class="eyebrow">Login</p>
+        <h2>에너지 자산 이어가기</h2>
+      </div>
+      <form id="loginForm" class="login-form" novalidate>
+        <label for="username">아이디</label>
+        <input type="text" id="username" placeholder="아이디" autocomplete="username">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" placeholder="비밀번호" autocomplete="current-password">
+        <button type="button" id="loginBtn" class="btn primary">로그인</button>
+        <button type="button" id="signupBtn" class="btn secondary">회원가입</button>
+      </form>
+      <div class="message" id="messageBox"></div>
+      <div class="foot-hint">계정이 없나요? 회원가입 후 바로 플레이 가능합니다.</div>
+    </div>
+  </div>
+  <script src="login.js"></script>
+</body>
+</html>
