@@ -5,6 +5,7 @@ import { getAuthToken } from '../../store/useStore';
 import { upgrades } from '../../utils/data';
 import { postUpgrade } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 
 function getUpgradeLevel(user, upgrade) {
@@ -35,6 +36,11 @@ export default function UpgradeTab() {
     try {
       const newUser = await postUpgrade(upgrade.endpoint, getAuthToken());
       syncUserState(newUser);
+      
+      // Tutorial: Detect upgrade purchase
+      if (currentUser?.tutorial === 8) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
+      }
     } catch (e) {
       setAlertMessage(e.message);
     }

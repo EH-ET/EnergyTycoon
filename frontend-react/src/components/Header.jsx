@@ -3,6 +3,7 @@ import { useStore, getAuthToken } from '../store/useStore';
 import { formatResourceValue } from '../utils/bigValue';
 import { useEnergyRate } from '../hooks/useEnergyTimer';
 import { fetchExchangeRate, fetchMyRank } from '../utils/apiClient';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
 
@@ -30,6 +31,11 @@ export default function Header() {
   const handleProfileClick = (e) => {
     e.stopPropagation();
     setShowProfileModal(!showProfileModal);
+    
+    // Tutorial: Detect profile click
+    if (currentUser?.tutorial === 6) {
+      dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_PROFILE);
+    }
   };
 
   const handleOpenSettings = (event) => {
@@ -187,6 +193,10 @@ export default function Header() {
             onMouseEnter={() => {
               setShowMoneyModal(true);
               ensureExchangeRate();
+              // Tutorial: Detect money hover
+              if (currentUser?.tutorial === 5) {
+                dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_MONEY);
+              }
             }}
             onMouseLeave={() => setShowMoneyModal(false)}
           >
@@ -209,7 +219,13 @@ export default function Header() {
         <div className="stat-card">
           <div
             className="stat-icon energy-icon"
-            onMouseEnter={() => setShowEnergyModal(true)}
+            onMouseEnter={() => {
+              setShowEnergyModal(true);
+              // Tutorial: Detect energy hover
+              if (currentUser?.tutorial === 4) {
+                dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_ENERGY);
+              }
+            }}
             onMouseLeave={() => setShowEnergyModal(false)}
           >
             <div className={`energy-modal modal ${showEnergyModal ? 'is-visible' : ''}`}>
