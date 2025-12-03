@@ -186,8 +186,8 @@ export default function Login({ onLoginSuccess }) {
     <div className="login-page">
       <div className="login-left">
         <img 
-          src="https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80" 
-          alt="Energy" 
+          src="frontend-react/icon.png" 
+          alt="Energy"
           className="login-image"
         />
       </div>
