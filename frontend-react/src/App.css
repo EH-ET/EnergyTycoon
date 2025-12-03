@@ -50,6 +50,34 @@ main {
 
 }
 
+.rebirth-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #d8c4ff;
+  background: linear-gradient(135deg, #f3e8ff, #e0d4ff);
+  color: #352275;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rebirth-trigger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+}
+
+.rebirth-trigger:active {
+  transform: translateY(0);
+}
+
+.rebirth-icon {
+  font-size: 16px;
+}
+
 .profile {
   width: 48px;
   height: 48px;
