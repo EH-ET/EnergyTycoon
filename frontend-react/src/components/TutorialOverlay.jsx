@@ -127,6 +127,11 @@ export default function TutorialOverlay() {
 
   return (
     <>
+      {/* Progress Indicator at top center */}
+      <div className="tutorial-progress-indicator">
+        튜토리얼 진행 중: {currentStep.id} / 11
+      </div>
+      
       {/* Dark overlay */}
       <div className="tutorial-overlay" onClick={(e) => {
         if (e.target === e.currentTarget) {
