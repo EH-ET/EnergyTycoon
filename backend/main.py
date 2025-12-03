@@ -182,7 +182,7 @@ app.include_router(generator_routes.router)
 app.include_router(rank_routes.router)
 app.include_router(upgrade_routes.router)
 app.include_router(rebirth_routes.router)
-app.include_router(tutorial_routes.router, prefix="/api/tutorial", tags=["tutorial"])
+app.include_router(tutorial_routes.router, prefix="/tutorial", tags=["tutorial"])
 
 
 @app.get("/")
