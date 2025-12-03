@@ -75,7 +75,7 @@ export default function UpgradeTab() {
               </div>
               <button
                 type="button"
-                className="upgrade-btn"
+                className="upgrade-card-btn"
                 onClick={() => handleUpgrade(upgrade)}
               >
                 업그레이드
