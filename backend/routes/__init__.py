@@ -1,4 +1,4 @@
-from . import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes
+from . import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes, rebirth_routes, tutorial_routes
 
 __all__ = [
     "auth_routes",
@@ -7,4 +7,6 @@ __all__ = [
     "progress_routes",
     "rank_routes",
     "upgrade_routes",
+    "rebirth_routes",
+    "tutorial_routes",
 ]
