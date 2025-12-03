@@ -13,6 +13,7 @@ export default function Header() {
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRebirthModal, setShowRebirthModal] = useState(false);
+  const [isRankLoading, setIsRankLoading] = useState(false);
 
   const currentUser = useStore(state => state.currentUser);
   const placedGenerators = useStore(state => state.placedGenerators);
@@ -46,9 +47,13 @@ export default function Header() {
 
   const refreshRank = async () => {
     if (!currentUser?.user_id) return;
+    setIsRankLoading(true);
     try {
       const token = getAuthToken();
-      if (!token || !currentUser?.user_id) return;
+      if (!token || !currentUser?.user_id) {
+        setIsRankLoading(false);
+        return;
+      }
       const data = await fetchMyRank(token);
       syncUserState({
         ...currentUser,
@@ -57,6 +62,8 @@ export default function Header() {
       }, { persist: false });
     } catch (e) {
       // Silent fail
+    } finally {
+      setIsRankLoading(false);
     }
   };
 
@@ -140,9 +147,9 @@ export default function Header() {
               </p>
               <p className="modal-line profile-rank" style={{ margin: '0 0 12px' }}>
                 <strong style={{ color: '#fff' }}>랭킹:</strong> {
-                  typeof currentUser?.rank === 'number' 
-                    ? `${currentUser.rank}위` 
-                    : (showProfileModal ? '로딩 중...' : '-')
+                  isRankLoading 
+                    ? '로딩 중...' 
+                    : (typeof currentUser?.rank === 'number' ? `${currentUser.rank}위` : '-')
                 }
               </p>
               <div className="modal-actions" style={{ display: 'flex', gap: '8px' }}>
