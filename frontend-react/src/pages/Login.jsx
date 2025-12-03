@@ -186,7 +186,7 @@ export default function Login({ onLoginSuccess }) {
     <div className="login-page">
       <div className="login-left">
         <img 
-          src="frontend-react/icon.png" 
+          src="icon.png" 
           alt="Energy"
           className="login-image"
         />
