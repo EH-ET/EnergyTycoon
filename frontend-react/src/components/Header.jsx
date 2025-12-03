@@ -47,29 +47,44 @@ export default function Header() {
 
   const refreshRank = async () => {
     const current = useStore.getState().currentUser;
-    if (!current?.user_id) return;
+    console.log('[Header] refreshRank initiated. User ID:', current?.user_id);
+
+    if (!current?.user_id) {
+      console.log('[Header] No user ID, aborting refreshRank');
+      return;
+    }
     
     setIsRankLoading(true);
     try {
       const token = getAuthToken();
+      console.log('[Header] Token present:', !!token);
+
       if (!token) {
+        console.log('[Header] No token found, aborting');
         setIsRankLoading(false);
         return;
       }
+      
+      console.log('[Header] Fetching rank from API...');
       const data = await fetchMyRank(token);
+      console.log('[Header] Rank API response:', data);
       
       // Get latest state again before updating
       const latestUser = useStore.getState().currentUser;
       if (latestUser) {
+        console.log('[Header] Updating user state with rank:', data.rank);
         syncUserState({
           ...latestUser,
           rank: data.rank,
           rank_score: data.score,
         }, { persist: false });
+      } else {
+        console.warn('[Header] User state became null during fetch');
       }
     } catch (e) {
-      console.error('Failed to fetch rank:', e);
+      console.error('[Header] Failed to fetch rank:', e);
     } finally {
+      console.log('[Header] refreshRank finally block reached');
       setIsRankLoading(false);
     }
   };
