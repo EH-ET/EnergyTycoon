@@ -113,6 +113,8 @@ export function useEnergyTimer() {
       const { currentUser: userFromStore } = useStore.getState();
       const bonus = Number(userFromStore?.production_bonus) || 0;
       const rebirthCount = Number(userFromStore?.rebirth_count) || 0;
+      const userHeatReduction = Number(userFromStore?.heat_reduction) || 0;
+      const userToleranceBonus = Number(userFromStore?.tolerance_bonus) || 0;
       
       let multiplier = 1 + bonus * 0.1;
       
@@ -169,6 +171,8 @@ export function useEnergyTimer() {
 
         let heatRate = typeof next.heatRate === "number" ? next.heatRate : (meta ? Number(meta["발열"]) || 0 : 0);
         heatRate = applyHeatReduction(heatRate, upgrades);
+        const userHeatMultiplier = Math.max(0.1, 1 - 0.1 * userHeatReduction);
+        heatRate *= userHeatMultiplier;
         heatRate += (upgrades.production || 0) * 0.5;
         next.heat = Math.max(0, (next.heat || 0) + heatRate * deltaSeconds);
 
@@ -177,7 +181,7 @@ export function useEnergyTimer() {
           : typeof next.tolerance === "number"
             ? next.tolerance
             : (meta ? Number(meta["내열한계"]) || 0 : 0);
-        const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10;
+        const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10 + userToleranceBonus * 10;
         if (toleranceBuff > 0 && next.heat > toleranceBuff) {
           handleExplosion(next, removePlacedGenerator, getAuthToken(), updatePlacedGenerator);
         }

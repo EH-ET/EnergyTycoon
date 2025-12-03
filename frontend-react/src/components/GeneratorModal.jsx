@@ -160,7 +160,9 @@ export default function GeneratorModal({ generator, onClose }) {
 
   // baseTolerance가 없으면 기본값 100 사용
   const baseTolerance = generator.baseTolerance || generator.tolerance || 100;
-  const buffedTolerance = baseTolerance + (generator.upgrades?.tolerance || 0) * 10;
+  const currentUser = useStore(state => state.currentUser);
+  const userToleranceBonus = Number(currentUser?.tolerance_bonus) || 0;
+  const buffedTolerance = baseTolerance + (generator.upgrades?.tolerance || 0) * 10 + userToleranceBonus * 10;
   
   // Skip cost calculation using cost_data and cost_high directly
   const skipCostValue = (() => {
@@ -174,7 +176,6 @@ export default function GeneratorModal({ generator, onClose }) {
   })();
   const isRunning = generator.running !== false && !generator.isDeveloping;
   const statusColor = generator.isDeveloping ? '#4fa3ff' : isRunning ? '#f1c40f' : '#e74c3c';
-  const currentUser = useStore(state => state.currentUser);
 
   const computeProductionPerSec = () => {
     const idx = Number(generator.genIndex);
@@ -189,7 +190,9 @@ export default function GeneratorModal({ generator, onClose }) {
     const upgradeLevel = generator.upgrades?.production || 0;
     const upgraded = base * (1 + PRODUCTION_UPGRADE_FACTOR * upgradeLevel);
     const bonus = Number(currentUser?.production_bonus) || 0;
-    return upgraded * (1 + 0.1 * bonus);
+    const rebirthCount = Number(currentUser?.rebirth_count) || 0;
+    const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
+    return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier;
   };
 
   const productionPerSec = computeProductionPerSec();
