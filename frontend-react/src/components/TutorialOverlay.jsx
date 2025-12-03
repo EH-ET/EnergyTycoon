@@ -84,45 +84,70 @@ export default function TutorialOverlay() {
   }
 
   // Calculate position for tooltip
+  // Calculate position for tooltip
   const getTooltipPosition = () => {
     if (!highlightedElement) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     
     const rect = highlightedElement.getBoundingClientRect();
     const position = currentStep.position || 'bottom';
+    const screenWidth = window.innerWidth;
+    
+    // Check if element is near edges
+    const isNearRightEdge = rect.left > screenWidth * 0.7;
+    const isNearLeftEdge = rect.right < screenWidth * 0.3;
+    
+    let style = {};
     
     switch (position) {
       case 'top':
-        return {
-          top: `${rect.top - 20}px`,
-          left: `${rect.left + rect.width / 2}px`,
-          transform: 'translate(-50%, -100%)'
-        };
+        style.top = `${rect.top - 15}px`;
+        if (isNearRightEdge) {
+          style.right = '20px';
+          style.transform = 'translate(0, -100%)';
+        } else if (isNearLeftEdge) {
+          style.left = '20px';
+          style.transform = 'translate(0, -100%)';
+        } else {
+          style.left = `${rect.left + rect.width / 2}px`;
+          style.transform = 'translate(-50%, -100%)';
+        }
+        break;
+
       case 'bottom':
-        return {
-          top: `${rect.bottom + 20}px`,
-          left: `${rect.left + rect.width / 2}px`,
-          transform: 'translate(-50%, 0)'
-        };
+        style.top = `${rect.bottom + 15}px`;
+        if (isNearRightEdge) {
+          style.right = '20px';
+          style.transform = 'translate(0, 0)';
+        } else if (isNearLeftEdge) {
+          style.left = '20px';
+          style.transform = 'translate(0, 0)';
+        } else {
+          style.left = `${rect.left + rect.width / 2}px`;
+          style.transform = 'translate(-50%, 0)';
+        }
+        break;
+
       case 'left':
-        return {
-          top: `${rect.top + rect.height / 2}px`,
-          left: `${rect.left - 20}px`,
-          transform: 'translate(-100%, -50%)'
-        };
+        style.top = `${rect.top + rect.height / 2}px`;
+        style.left = `${rect.left - 15}px`;
+        style.transform = 'translate(-100%, -50%)';
+        break;
+
       case 'right':
-        return {
-          top: `${rect.top + rect.height / 2}px`,
-          left: `${rect.right + 20}px`,
-          transform: 'translate(0, -50%)'
-        };
+        style.top = `${rect.top + rect.height / 2}px`;
+        style.left = `${rect.right + 15}px`;
+        style.transform = 'translate(0, -50%)';
+        break;
+
       case 'center':
       default:
-        return {
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)'
-        };
+        style.top = '50%';
+        style.left = '50%';
+        style.transform = 'translate(-50%, -50%)';
+        break;
     }
+    
+    return style;
   };
 
   return (
