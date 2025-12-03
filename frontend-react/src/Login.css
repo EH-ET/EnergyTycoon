@@ -74,7 +74,7 @@
   }
   50% { 
     box-shadow: 0 25px 70px rgba(54, 181, 255, 0.5);
-    transform: scale(1.02);
+    transform: scale(1.1);
   }
 }
 
