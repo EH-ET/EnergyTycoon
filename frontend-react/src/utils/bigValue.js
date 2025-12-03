@@ -5,7 +5,7 @@ const DATA_LIMIT = 1_000_000;
 const BASE_UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
 const COMMON_UNITS = ["", "U", "D", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
 const HIGH_COMMON_UNITS = ["", "D", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "N"];
-const BIG_UNITS = ["", "d", "v", "Tr", "Qav", "Qiv", "Sev", "Spv", "Ocv", "Nv"];
+const BIG_UNITS = ["", "d", "V", "Tr", "Qav", "Qiv", "Sev", "Spv", "Ocv", "Nv"];
 const HUGE_UNITS = ["", "C", "Mi", "Mc", "Na", "Pi", "Fe", "At", "Ze", "Yo", "Xo", "Ve", "Me"];
 
 
@@ -204,46 +204,172 @@ export function formatResourceValue(value) {
 }
 
 /**
- * Parse user input string to plain value
+ * Reverse-engineer high value from unit string
+ * This is the inverse of getUnitForHigh()
+ * @param {string} unit - Unit string (e.g., "K", "M", "B", "Ud", "TC", etc.)
+ * @returns {number} - Corresponding high value
+ */
+export function getHighFromUnit(unit) {
+  if (!unit || unit === '') return 0;
+  
+  const trimmed = unit.trim().toUpperCase();
+  
+  // Check BASE_UNITS first (most common: "", K, M, B, T, Qa, Qi, Sx, Sp, Oc, N)
+  // Range 1-30 (each unit = 3 steps in high)
+  const baseIndex = BASE_UNITS.findIndex(u => u.toUpperCase() === trimmed);
+  if (baseIndex > 0) {
+    return baseIndex * 3;
+  }
+  
+  // Check for COMMON + BIG pattern (range 31-300)
+  // Examples: "Ud", "Dd", "Td", "UV", "DV", etc.
+  for (let bigIdx = 1; bigIdx < BIG_UNITS.length; bigIdx++) {
+    const bigUnit = BIG_UNITS[bigIdx].toUpperCase();
+    if (trimmed.endsWith(bigUnit)) {
+      const commonPart = trimmed.slice(0, -bigUnit.length);
+      const commonIdx = COMMON_UNITS.findIndex(u => u.toUpperCase() === commonPart);
+      if (commonIdx >= 0) {
+        return 31 + (bigIdx - 1) * 30 + commonIdx * 3;
+      }
+    }
+  }
+  
+  // Check for prefix + C + suffix pattern (range 301-3000)
+  // Examples: "C", "UC", "DC", "TC", "UdC", "DdC", etc.
+  if (trimmed.includes('C')) {
+    const cIndex = trimmed.indexOf('C');
+    const prefix = trimmed.slice(0, cIndex);
+    const suffix = trimmed.slice(cIndex + 1);
+    
+    // Get prefix value (0-8 for HIGH_COMMON, or compound for COMMON+BIG)
+    let prefixValue = 0;
+    if (prefix) {
+      // Try HIGH_COMMON first
+      const highCommonIdx = HIGH_COMMON_UNITS.findIndex(u => u.toUpperCase() === prefix);
+      if (highCommonIdx > 0) {
+        prefixValue = highCommonIdx;
+      } else {
+        // Try COMMON + BIG pattern
+        for (let bigIdx = 1; bigIdx < BIG_UNITS.length; bigIdx++) {
+          const bigUnit = BIG_UNITS[bigIdx].toUpperCase();
+          if (prefix.endsWith(bigUnit)) {
+            const commonPart = prefix.slice(0, -bigUnit.length);
+            const commonIdx = COMMON_UNITS.findIndex(u => u.toUpperCase() === commonPart);
+            if (commonIdx >= 0) {
+              prefixValue = 9 + (bigIdx - 1) * 10 + commonIdx;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    // Get suffix value
+    let suffixValue = 0;
+    if (suffix) {
+      // Recursively get high from suffix
+      suffixValue = getHighFromUnit(suffix);
+    }
+    
+    return 301 + prefixValue * 300 + suffixValue - 1;
+  }
+  
+  // Check for HUGE patterns (range > 3000)
+  // Examples: "Mi", "Mc", "Na", "UMi", "DMi", "UdMi", etc.
+  for (let hugeIdx = 2; hugeIdx < HUGE_UNITS.length; hugeIdx++) {
+    const hugeUnit = HUGE_UNITS[hugeIdx].toUpperCase();
+    if (trimmed.includes(hugeUnit)) {
+      const hugeIndex = trimmed.indexOf(hugeUnit);
+      const prefix = trimmed.slice(0, hugeIndex);
+      const suffix = trimmed.slice(hugeIndex + hugeUnit.length);
+      
+      // Calculate range size for this HUGE unit
+      let rangeSize = 3000;
+      for (let i = 2; i < hugeIdx; i++) {
+        rangeSize *= 1000;
+      }
+      
+      // Get prefix value (quotient)
+      let prefixValue = 0;
+      if (prefix) {
+        // Try to parse prefix as a unit
+        const prefixHigh = getHighFromUnit(prefix);
+        // Convert high to quotient (rough approximation)
+        prefixValue = Math.floor(prefixHigh / 3);
+      }
+      
+      // Get suffix value (remainder)
+      let suffixValue = 0;
+      if (suffix) {
+        suffixValue = getHighFromUnit(suffix) - 1;
+      }
+      
+      return 3001 + prefixValue * rangeSize + suffixValue;
+    }
+  }
+  
+  // If nothing matches, return 0
+  return 0;
+}
+
+/**
+ * Parse user input string to BigValue format (prevents overflow)
  * Supports formats like: "123", "1.5K", "2M", "3.14B", etc.
- * @param {string} input - User input string
- * @returns {number} - Plain value (integer)
+ * @param {string|number} input - User input string or number
+ * @returns {{data: number, high: number}} - BigValue format
  */
 export function parseUserInput(input) {
-  if (!input || typeof input !== 'string') {
-    const num = Number(input);
-    return isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+  if (!input) {
+    return normalizeValue({ data: 0, high: 0 });
   }
 
-  const trimmed = input.trim().toUpperCase();
-  if (!trimmed) return 0;
+  // If it's already a number, convert to BigValue
+  if (typeof input === 'number') {
+    return fromPlainValue(Math.max(0, Math.floor(input)));
+  }
+
+  const trimmed = String(input).trim().toUpperCase();
+  if (!trimmed) {
+    return normalizeValue({ data: 0, high: 0 });
+  }
 
   // Extract number and unit
   const match = trimmed.match(/^([\d.]+)([A-Z]*)$/);
   if (!match) {
-    const num = Number(trimmed);
-    return isNaN(num) ? 0 : Math.max(0, Math.floor(num));
+    const num = parseFloat(trimmed);
+    if (isNaN(num) || num < 0) {
+      return normalizeValue({ data: 0, high: 0 });
+    }
+    return fromPlainValue(Math.floor(num));
   }
 
   const [, numStr, unit] = match;
   const baseNum = parseFloat(numStr);
-  if (isNaN(baseNum) || baseNum < 0) return 0;
+  if (isNaN(baseNum) || baseNum < 0) {
+    return normalizeValue({ data: 0, high: 0 });
+  }
 
-  // Unit multipliers
-  const unitMultipliers = {
-    '': 1,
-    'K': 1_000,
-    'M': 1_000_000,
-    'B': 1_000_000_000,
-    'T': 1_000_000_000_000,
-    'QA': 1_000_000_000_000_000,
-    'QI': 1_000_000_000_000_000_000,
-    'SX': 1_000_000_000_000_000_000_000,
-    'SP': 1_000_000_000_000_000_000_000_000,
-    'OC': 1_000_000_000_000_000_000_000_000_000,
-    'N': 1_000_000_000_000_000_000_000_000_000_000,
-  };
+  // Use reverse-engineered high value from unit
+  const highValue = getHighFromUnit(unit);
+  
+  // Convert baseNum to data value
+  // data is stored as value * DATA_SCALE (1000)
+  // So if user enters "1.5K", that's 1500 plain value
+  // = 1500 * 1000 data with high 0
+  // But with K unit, high should be 3
+  // So we need: 1.5 * 1000 (DATA_SCALE) with high 3
+  const dataValue = Math.floor(baseNum * DATA_SCALE);
+  
+  return normalizeValue({ data: dataValue, high: highValue });
+}
 
-  const multiplier = unitMultipliers[unit] || 1;
-  return Math.max(0, Math.floor(baseNum * multiplier));
+/**
+ * Parse user input and convert to plain value (for backward compatibility)
+ * WARNING: May overflow for very large numbers. Use parseUserInput() for BigValue.
+ * @param {string|number} input - User input
+ * @returns {number} - Plain value (may overflow)
+ */
+export function parseUserInputToPlain(input) {
+  const bigValue = parseUserInput(input);
+  return toPlainValue(bigValue);
 }
