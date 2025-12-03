@@ -207,12 +207,19 @@ export function formatResourceValue(value) {
  * Reverse-engineer high value from unit string
  * This is the inverse of getUnitForHigh()
  * @param {string} unit - Unit string (e.g., "K", "M", "B", "Ud", "TC", etc.)
+ * @param {number} depth - Recursion depth (internal use only)
  * @returns {number} - Corresponding high value
  */
-export function getHighFromUnit(unit) {
+export function getHighFromUnit(unit, depth = 0) {
+  // Prevent infinite recursion
+  if (depth > 20) {
+    return 0;
+  }
+  
   if (!unit || unit === '') return 0;
   
   const trimmed = unit.trim().toUpperCase();
+  if (!trimmed) return 0;
   
   // Check BASE_UNITS first (most common: "", K, M, B, T, Qa, Qi, Sx, Sp, Oc, N)
   // Range 1-30 (each unit = 3 steps in high)
@@ -225,7 +232,7 @@ export function getHighFromUnit(unit) {
   // Examples: "Ud", "Dd", "Td", "UV", "DV", etc.
   for (let bigIdx = 1; bigIdx < BIG_UNITS.length; bigIdx++) {
     const bigUnit = BIG_UNITS[bigIdx].toUpperCase();
-    if (trimmed.endsWith(bigUnit)) {
+    if (trimmed.endsWith(bigUnit) && trimmed.length > bigUnit.length) {
       const commonPart = trimmed.slice(0, -bigUnit.length);
       const commonIdx = COMMON_UNITS.findIndex(u => u.toUpperCase() === commonPart);
       if (commonIdx >= 0) {
@@ -236,8 +243,8 @@ export function getHighFromUnit(unit) {
   
   // Check for prefix + C + suffix pattern (range 301-3000)
   // Examples: "C", "UC", "DC", "TC", "UdC", "DdC", etc.
-  if (trimmed.includes('C')) {
-    const cIndex = trimmed.indexOf('C');
+  const cIndex = trimmed.indexOf('C');
+  if (cIndex >= 0) {
     const prefix = trimmed.slice(0, cIndex);
     const suffix = trimmed.slice(cIndex + 1);
     
@@ -250,16 +257,22 @@ export function getHighFromUnit(unit) {
         prefixValue = highCommonIdx;
       } else {
         // Try COMMON + BIG pattern
+        let found = false;
         for (let bigIdx = 1; bigIdx < BIG_UNITS.length; bigIdx++) {
           const bigUnit = BIG_UNITS[bigIdx].toUpperCase();
-          if (prefix.endsWith(bigUnit)) {
+          if (prefix.endsWith(bigUnit) && prefix.length > bigUnit.length) {
             const commonPart = prefix.slice(0, -bigUnit.length);
             const commonIdx = COMMON_UNITS.findIndex(u => u.toUpperCase() === commonPart);
             if (commonIdx >= 0) {
               prefixValue = 9 + (bigIdx - 1) * 10 + commonIdx;
+              found = true;
               break;
             }
           }
+        }
+        // If prefix doesn't match any pattern, this is not a valid C unit
+        if (!found && prefix.length > 0) {
+          return 0;
         }
       }
     }
@@ -267,8 +280,12 @@ export function getHighFromUnit(unit) {
     // Get suffix value
     let suffixValue = 0;
     if (suffix) {
-      // Recursively get high from suffix
-      suffixValue = getHighFromUnit(suffix);
+      // Recursively get high from suffix (with depth limit)
+      suffixValue = getHighFromUnit(suffix, depth + 1);
+      // If suffix is invalid, the whole unit is invalid
+      if (suffixValue === 0 && suffix.length > 0) {
+        return 0;
+      }
     }
     
     return 301 + prefixValue * 300 + suffixValue - 1;
@@ -278,8 +295,9 @@ export function getHighFromUnit(unit) {
   // Examples: "Mi", "Mc", "Na", "UMi", "DMi", "UdMi", etc.
   for (let hugeIdx = 2; hugeIdx < HUGE_UNITS.length; hugeIdx++) {
     const hugeUnit = HUGE_UNITS[hugeIdx].toUpperCase();
-    if (trimmed.includes(hugeUnit)) {
-      const hugeIndex = trimmed.indexOf(hugeUnit);
+    const hugeIndex = trimmed.indexOf(hugeUnit);
+    
+    if (hugeIndex >= 0) {
       const prefix = trimmed.slice(0, hugeIndex);
       const suffix = trimmed.slice(hugeIndex + hugeUnit.length);
       
@@ -292,8 +310,12 @@ export function getHighFromUnit(unit) {
       // Get prefix value (quotient)
       let prefixValue = 0;
       if (prefix) {
-        // Try to parse prefix as a unit
-        const prefixHigh = getHighFromUnit(prefix);
+        // Try to parse prefix as a unit (with depth limit)
+        const prefixHigh = getHighFromUnit(prefix, depth + 1);
+        // If prefix is invalid, skip this HUGE unit
+        if (prefixHigh === 0 && prefix.length > 0) {
+          continue;
+        }
         // Convert high to quotient (rough approximation)
         prefixValue = Math.floor(prefixHigh / 3);
       }
@@ -301,14 +323,19 @@ export function getHighFromUnit(unit) {
       // Get suffix value (remainder)
       let suffixValue = 0;
       if (suffix) {
-        suffixValue = getHighFromUnit(suffix) - 1;
+        suffixValue = getHighFromUnit(suffix, depth + 1);
+        // If suffix is invalid, skip this HUGE unit
+        if (suffixValue === 0 && suffix.length > 0) {
+          continue;
+        }
+        suffixValue = suffixValue - 1;
       }
       
       return 3001 + prefixValue * rangeSize + suffixValue;
     }
   }
   
-  // If nothing matches, return 0
+  // If nothing matches, return 0 (invalid unit)
   return 0;
 }
 
