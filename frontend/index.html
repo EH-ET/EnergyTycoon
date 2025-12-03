@@ -1,62 +1,22 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Energy Tycoon | 로그인</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>energy tycoon</title>
   <link rel="icon" href="icon.png">
   <link rel="stylesheet" href="login.css">
 </head>
 <body>
-  <div class="split-layout">
-    <section class="panel intro">
-      <div class="badge">듀얼 패널</div>
-      <h1>에너지 도시로 돌아오세요</h1>
-      <p class="lede">밝고 가벼운 톤으로, 랭킹 정보를 곁들인 양면 레이아웃입니다.</p>
-      <div class="mini-cards">
-        <div class="mini-card">
-          <div class="icon circle blue"></div>
-          <div>
-            <p class="label">현재 랭킹</p>
-            <p class="value">#24</p>
-          </div>
-        </div>
-        <div class="mini-card">
-          <div class="icon circle green"></div>
-          <div>
-            <p class="label">상위 비율</p>
-            <p class="value">상위 12%</p>
-          </div>
-        </div>
-        <div class="mini-card">
-          <div class="icon circle amber"></div>
-          <div>
-            <p class="label">이번 주 상승</p>
-            <p class="value">+3 계단</p>
-          </div>
-        </div>
-      </div>
-      <div class="footnote">* 메인 페이지의 밝은 카드 톤을 그대로 가져왔어요.</div>
-    </section>
-
-    <section class="panel form-panel">
-      <div class="form-card">
-        <div class="form-head">
-          <p class="eyebrow">Sign in</p>
-          <h2>로그인하고 성장 재개</h2>
-          <p class="sub">간단한 폼과 선명한 버튼으로 빠르게 시작하세요.</p>
-        </div>
-        <form id="loginForm" class="login-form" novalidate>
-          <label for="username">아이디</label>
-          <input type="text" id="username" placeholder="아이디" autocomplete="username">
-          <label for="password">비밀번호</label>
-          <input type="password" id="password" placeholder="비밀번호" autocomplete="current-password">
-          <button type="button" id="loginBtn" class="btn primary">로그인</button>
-          <button type="button" id="signupBtn" class="btn outline">회원가입</button>
-        </form>
-        <div class="message" id="messageBox"></div>
-      </div>
-    </section>
+  <div class="login-container">
+    <h2>로그인 & 회원가입</h2>
+    <form id="loginForm" novalidate>
+      <input type="text" id="username" placeholder="아이디" autocomplete="username" />
+      <input type="password" id="password" placeholder="비밀번호" autocomplete="current-password" />
+      <button type="button" id="loginBtn">로그인</button>
+      <button type="button" id="signupBtn">회원가입</button>
+    </form>
+    <div class="message" id="messageBox"></div>
   </div>
   <script src="login.js"></script>
 </body>
