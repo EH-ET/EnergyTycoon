@@ -19,13 +19,11 @@ export function useAutosave() {
         const playTimeMs = readStoredPlayTime();
 
         await autosaveProgress(token, {
-          energy: currentUser.energy,
-          money: currentUser.money,
           energy_data: energyPayload.data,
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
-          play_time_ms: playTimeMs,
+          play_time_ms: Math.floor(playTimeMs || 0),
         });
       } catch (e) {
         // Silent fail
