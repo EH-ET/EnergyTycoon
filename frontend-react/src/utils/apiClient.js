@@ -327,3 +327,45 @@ export async function performRebirth(token) {
   return data;
 }
 
+
+// ============= Tutorial API =============
+
+export async function updateTutorialProgress(step, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/tutorial/progress`, {
+    method: "PUT",
+    headers,
+    credentials: "include",
+    body: JSON.stringify({ step })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "튜토리얼 업데이트 실패");
+  return data;
+}
+
+export async function skipTutorial(token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/tutorial/skip`, {
+    method: "POST",
+    headers,
+    credentials: "include"
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "튜토리얼 건너뛰기 실패");
+  return data;
+}
+
+export async function getTutorialStatus(token) {
+  const headers = attachCsrf();
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/tutorial/status`, {
+    method: "GET",
+    headers,
+    credentials: "include"
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "튜토리얼 상태 불러오기 실패");
+  return data;
+}

@@ -3,6 +3,7 @@ import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
 import { saveProgress } from '../utils/apiClient';
 import { makeImageSrcByIndex, computeMaxGenerators } from '../utils/generatorHelpers';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import GeneratorModal from './GeneratorModal';
 import AlertModal from './AlertModal';
 import { clampOffset, SCROLL_RANGE, BG_FALLBACK_WIDTH } from '../hooks/useViewport';
@@ -44,6 +45,21 @@ export default function Main() {
     }
   }, [selectedGeneratorId, selectedGenerator]);
   const setBackgroundSize = useStore(state => state.setBackgroundSize);
+
+  // Tutorial: Detect scroll
+  useEffect(() => {
+    const handleScroll = (e) => {
+      if (currentUser?.tutorial === 1) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.SCROLL);
+      }
+    };
+    
+    const mainEl = mainRef.current;
+    if (mainEl) {
+      mainEl.addEventListener('scroll', handleScroll);
+      return () => mainEl.removeEventListener('scroll', handleScroll);
+    }
+  }, [currentUser]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -153,6 +169,11 @@ export default function Main() {
       };
 
       addPlacedGenerator(entry);
+      
+      // Tutorial: Detect generator purchase
+      if (currentUser?.tutorial === 2) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_GENERATOR);
+      }
     } catch (err) {
       setAlertMessage('설치 실패: ' + (err.message || err));
     }
@@ -282,7 +303,13 @@ export default function Main() {
                   className="placed-generator"
                   onClick={() => {
                     const id = generator.generator_id ?? generator.id;
-                    if (id != null) setSelectedGeneratorId(id);
+                    if (id != null) {
+                      setSelectedGeneratorId(id);
+                      // Tutorial: Detect generator click
+                      if (currentUser?.tutorial === 9) {
+                        dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_GENERATOR);
+                      }
+                    }
                   }}
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}

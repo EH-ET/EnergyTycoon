@@ -14,6 +14,7 @@ import GeneratorTab from './components/tabs/GeneratorTab';
 import TradeTab from './components/tabs/TradeTab';
 import UpgradeTab from './components/tabs/UpgradeTab';
 import InfoTab from './components/tabs/InfoTab';
+import TutorialOverlay from './components/TutorialOverlay';
 import Login from './pages/Login';
 import './App.css';
 
@@ -152,6 +153,7 @@ function App() {
       <Footer>
         {renderTab()}
       </Footer>
+      <TutorialOverlay />
     </>
   );
 }

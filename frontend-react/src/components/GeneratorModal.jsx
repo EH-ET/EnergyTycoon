@@ -4,6 +4,7 @@ import { demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGen
 import { computeSkipCost } from '../utils/generatorHelpers';
 import { formatResourceValue, fromPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
 import { generators } from '../utils/data';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import AlertModal from './AlertModal';
 
 const DEMOLISH_COST_RATE = 0.5;
@@ -149,6 +150,12 @@ export default function GeneratorModal({ generator, onClose }) {
       }
 
       setShowUpgrade(false);
+      
+      // Tutorial: Detect generator upgrade
+      const currentUser = useStore.getState().currentUser;
+      if (currentUser?.tutorial === 10) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.UPGRADE_GENERATOR);
+      }
     } catch (err) {
       setAlertMessage(err.message || '업그레이드 실패');
     }
