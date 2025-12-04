@@ -33,8 +33,10 @@ export const useStore = create((set, get) => ({
   autosaveTimer: null,
   userOffsetX: 0,
   exchangeRate: loadExchangeRate(),
+  saveStatus: null, // { status: 'success' | 'error', timestamp: number }
 
   // Actions
+  setSaveStatus: (status) => set({ saveStatus: { status, timestamp: Date.now() } }),
   setContentMode: (mode) => set({ contentMode: mode }),
 
   setCurrentUser: (user) => set({ currentUser: user }),

@@ -114,6 +114,18 @@ export default function Header() {
     ensureExchangeRate();
   }, [currentUser?.user_id]);
 
+  const saveStatus = useStore(state => state.saveStatus);
+  const [saveMessage, setSaveMessage] = useState(null);
+
+  useEffect(() => {
+    if (!saveStatus) return;
+    setSaveMessage(saveStatus.status);
+    const timer = setTimeout(() => {
+      setSaveMessage(null);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [saveStatus]);
+
   return (
     <header className="header">
       <div className="header-left">
@@ -182,6 +194,18 @@ export default function Header() {
             </div>
           )}
         </div>
+        {saveMessage && (
+          <span style={{
+            marginLeft: '12px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            color: saveMessage === 'success' ? '#2ecc71' : '#e74c3c',
+            opacity: 0.9,
+            transition: 'opacity 0.3s'
+          }}>
+            {saveMessage === 'success' ? 'save' : "can't save"}
+          </span>
+        )}
       </div>
       <div className="header-right">
         <button
