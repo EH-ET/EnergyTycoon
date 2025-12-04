@@ -178,7 +178,7 @@ export default function GeneratorModal({ generator, onClose }) {
   const skipCostValue = (() => {
     if (!generator.isDeveloping || !generator.buildCompleteTs) return fromPlainValue(0);
     const remainingSeconds = Math.max(0, Math.ceil((generator.buildCompleteTs - Date.now()) / 1000));
-    const totalDurationSeconds = Math.max(1, Math.ceil((generator.buildDurationMs || generator.baseBuildDurationMs || 2000) / 1000));
+    const totalDurationSeconds = Math.max(1, typeInfo.install_seconds || Math.ceil((generator.buildDurationMs || generator.baseBuildDurationMs || 2000) / 1000));
     const costValue = valueFromServer(generator.cost_data || typeInfo.cost_data, generator.cost_high || typeInfo.cost_high, baseCost);
     const costPlain = toPlainValue(costValue);
     const skipCostPlain = Math.max(1, Math.ceil((remainingSeconds / totalDurationSeconds) * costPlain));

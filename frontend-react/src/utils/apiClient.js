@@ -78,7 +78,12 @@ export async function loadGeneratorTypes(state) {
         state.generatorTypeInfoMap[fallbackName] = { id: typeId, cost };
       }
       state.generatorTypeIdToName[typeId] = fallbackName || typeName;
-      state.generatorTypesById[typeId] = { name: fallbackName || typeName, cost, index: resolvedIndex };
+      state.generatorTypesById[typeId] = { 
+        name: fallbackName || typeName, 
+        cost, 
+        index: resolvedIndex,
+        install_seconds: t.install_seconds || 0
+      };
     });
   } catch (e) {
     // Silent fail
