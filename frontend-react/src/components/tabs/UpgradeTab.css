@@ -145,3 +145,82 @@
   transform: translateY(0);
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.24);
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .upgrade-grid {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .upgrade-card {
+    min-width: 280px;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .upgrade-title {
+    font-size: 16px;
+  }
+
+  .upgrade-desc {
+    font-size: 12px;
+  }
+
+  .upgrade-bottom {
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 12px;
+  }
+
+  .upgrade-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .upgrade-card-btn {
+    width: 100%;
+    min-width: unset;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .upgrade-grid {
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .upgrade-card {
+    min-width: 240px;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .upgrade-pill {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .upgrade-title {
+    font-size: 15px;
+  }
+
+  .upgrade-desc {
+    font-size: 11px;
+  }
+
+  .upgrade-info .label {
+    font-size: 10px;
+  }
+
+  .upgrade-info .value {
+    font-size: 14px;
+  }
+
+  .upgrade-card-btn {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+}
