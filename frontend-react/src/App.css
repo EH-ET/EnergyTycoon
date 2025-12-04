@@ -474,7 +474,42 @@ main {
   transform: scale(1.1);
 }
 
-.generator-tooltip { display: none; }
+.generator-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13, 17, 23, 0.95);
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  display: block; /* Ensure it's not hidden by default display:none */
+}
+
+.placed-generator:hover .generator-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+/* Add a small arrow */
+.generator-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: rgba(13, 17, 23, 0.95) transparent transparent transparent;
+}
 
 .generator-stats {
   color: white;

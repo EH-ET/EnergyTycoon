@@ -187,7 +187,8 @@ export default function GeneratorModal({ generator, onClose }) {
   const isRunning = generator.running !== false && !generator.isDeveloping;
   const statusColor = generator.isDeveloping ? '#4fa3ff' : isRunning ? '#f1c40f' : '#e74c3c';
 
-  const computeProductionPerSec = () => {
+  // Helper to get base production
+  const getBaseProduction = () => {
     const idx = Number(generator.genIndex);
     const meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
     if (!meta) return 0;
@@ -196,16 +197,98 @@ export default function GeneratorModal({ generator, onClose }) {
       meta["생산량(에너지높이)"],
       meta["생산량(에너지)"]
     );
-    const base = Math.max(0, toPlainValue(productionValue));
-    const upgradeLevel = generator.upgrades?.production || 0;
-    const upgraded = base * (1 + PRODUCTION_UPGRADE_FACTOR * upgradeLevel);
+    return Math.max(0, toPlainValue(productionValue));
+  };
+
+  const computeProduction = (level) => {
+    const base = getBaseProduction();
     const bonus = Number(currentUser?.production_bonus) || 0;
     const rebirthCount = Number(currentUser?.rebirth_count) || 0;
     const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
+    
+    const upgraded = base * (1 + PRODUCTION_UPGRADE_FACTOR * level);
     return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier;
   };
 
-  const productionPerSec = computeProductionPerSec();
+  const computeHeatRate = (level, prodLevel) => {
+    const baseHeat = generator.heatRate || 0; // 기본 발열
+    // 생산량 업그레이드에 따른 발열 증가: +0.5 per level
+    const productionHeat = prodLevel * 0.5;
+    
+    // 발열 감소 업그레이드: 10% 감소 per level (곱연산 적용: 0.9^level)
+    const reductionMultiplier = Math.pow(0.9, level);
+    
+    const userHeatReduction = Number(currentUser?.heat_reduction) || 0;
+    // 유저 보너스는 합연산으로 가정 (예: 5% 감소 -> * 0.95) 또는 로직 확인 필요. 
+    // 기존 로직이 명확하지 않으므로 일단 업그레이드만 적용하고 유저 보너스는 별도 적용
+    
+    // 기본 발열 + 생산 업그레이드 발열
+    let totalHeat = baseHeat + productionHeat;
+    
+    // 발열 감소 적용
+    totalHeat = totalHeat * reductionMultiplier;
+    
+    // 유저 보너스 (heat_reduction은 정수형 퍼센트라고 가정, 예: 10 -> 10% 감소)
+    if (userHeatReduction > 0) {
+      totalHeat = totalHeat * (1 - userHeatReduction / 100);
+    }
+    
+    return Math.max(0, totalHeat);
+  };
+
+  const computeTolerance = (level) => {
+    const base = generator.baseTolerance || 100;
+    const userBonus = Number(currentUser?.tolerance_bonus) || 0;
+    // 내열 증가: +10 per level
+    return base + (level * 10) + (userBonus * 10);
+  };
+
+  const productionPerSec = computeProduction(generator.upgrades?.production || 0);
+  
+  // 현재 발열량 계산
+  const currentHeatRate = computeHeatRate(
+    generator.upgrades?.heat_reduction || 0,
+    generator.upgrades?.production || 0
+  );
+
+  const renderUpgradeDesc = (key, currentLevel) => {
+    if (key === 'production') {
+      const curr = computeProduction(currentLevel);
+      const next = computeProduction(currentLevel + 1);
+      return (
+        <div style={{ fontSize: '12px', color: '#9ba4b5' }}>
+          생산량: <span style={{ color: '#f1c40f' }}>{formatResourceValue(fromPlainValue(curr))}</span>
+          {' → '}
+          <span style={{ color: '#2ecc71' }}>{formatResourceValue(fromPlainValue(next))}</span>
+        </div>
+      );
+    }
+    if (key === 'heat_reduction') {
+      // 발열 감소는 생산량 레벨에 의존하므로 현재 생산량 레벨 사용
+      const prodLevel = generator.upgrades?.production || 0;
+      const curr = computeHeatRate(currentLevel, prodLevel);
+      const next = computeHeatRate(currentLevel + 1, prodLevel);
+      return (
+        <div style={{ fontSize: '12px', color: '#9ba4b5' }}>
+          발열: <span style={{ color: '#e74c3c' }}>{curr.toFixed(2)}/초</span>
+          {' → '}
+          <span style={{ color: '#2ecc71' }}>{next.toFixed(2)}/초</span>
+        </div>
+      );
+    }
+    if (key === 'tolerance') {
+      const curr = computeTolerance(currentLevel);
+      const next = computeTolerance(currentLevel + 1);
+      return (
+        <div style={{ fontSize: '12px', color: '#9ba4b5' }}>
+          내열: <span style={{ color: '#f1c40f' }}>{curr}</span>
+          {' → '}
+          <span style={{ color: '#2ecc71' }}>{next}</span>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <>
@@ -241,8 +324,8 @@ export default function GeneratorModal({ generator, onClose }) {
           color: '#f6f8fa',
           padding: '22px',
           borderRadius: '14px',
-          minWidth: '300px',
-          maxWidth: '90vw',
+          minWidth: '650px', // Split view requires more width
+          maxWidth: '95vw',
           boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
           border: '1px solid #1f2a3d',
           position: 'relative',
@@ -264,18 +347,19 @@ export default function GeneratorModal({ generator, onClose }) {
         </div>
 
         {/* Split View: Left (Info) / Right (Upgrades) */}
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '20px', flexDirection: 'row', flexWrap: 'wrap' }}>
           {/* Left Column: Generator Info */}
-          <div style={{ flex: '1', minWidth: '300px' }}>
+          <div style={{ flex: '1 1 300px' }}>
             <p style={{ margin: '4px 0 10px', color: '#9ba4b5', fontSize: '13px' }}>
-              내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)}
+              내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)} 
+              <span style={{ color: '#e74c3c', marginLeft: '6px' }}>(+{currentHeatRate.toFixed(2)}/초)</span>
             </p>
 
             <div style={{ marginBottom: '10px', color: '#9ba4b5' }}>
               철거 비용: <span style={{ color: '#f39c12' }}>{formatResourceValue(fromPlainValue(demolishCostPlain))}</span>
             </div>
             <div style={{ marginBottom: '10px', color: '#c8d1e5' }}>
-              초당 생산량: <span style={{ color: '#f1c40f', fontWeight: 800 }}>{productionPerSec.toLocaleString()} /초</span>
+              초당 생산량: <span style={{ color: '#f1c40f', fontWeight: 800 }}>{formatResourceValue(fromPlainValue(productionPerSec))} /초</span>
             </div>
 
             {generator.isDeveloping && remainingTime > 0 && (
@@ -355,7 +439,7 @@ export default function GeneratorModal({ generator, onClose }) {
           </div>
 
           {/* Right Column: Upgrades */}
-          <div style={{ flex: '1', minWidth: '280px' }}>
+          <div style={{ flex: '1 1 300px' }}>
             <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#f6f8fa' }}>업그레이드</h4>
             {Object.entries(UPGRADE_CONFIG).map(([key, cfg]) => {
               const level = generator.upgrades?.[key] || 0;
@@ -372,10 +456,10 @@ export default function GeneratorModal({ generator, onClose }) {
                     marginBottom: '10px',
                   }}
                 >
-                  <div style={{ fontWeight: '600' }}>{cfg.label}</div>
-                  <p style={{ margin: '4px 0 8px', color: '#9ba4b5', fontSize: '12px' }}>{cfg.desc}</p>
-                  <div>레벨: {level}</div>
-                  <div style={{ color: '#f1c40f' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>{cfg.label}</div>
+                  {renderUpgradeDesc(key, level)}
+                  <div style={{ marginTop: '4px', fontSize: '13px' }}>레벨: {level}</div>
+                  <div style={{ color: '#f1c40f', fontSize: '13px' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
                   <button
                     onClick={() => handleUpgrade(key)}
                     style={{

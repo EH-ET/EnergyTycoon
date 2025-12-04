@@ -297,6 +297,57 @@ export default function Main() {
               const containerHeight = 600; // main 영역 대략적인 높이
               const defaultY = Math.max(32, containerHeight - 60);
 
+              // Helper calculations for tooltip
+              const getBaseProduction = () => {
+                const idx = Number(generator.genIndex);
+                const meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
+                if (!meta) return 0;
+                const productionValue = valueFromServer(
+                  meta["생산량(에너지수)"],
+                  meta["생산량(에너지높이)"],
+                  meta["생산량(에너지)"]
+                );
+                return Math.max(0, toPlainValue(productionValue));
+              };
+
+              const computeProduction = () => {
+                const base = getBaseProduction();
+                const bonus = Number(currentUser?.production_bonus) || 0;
+                const rebirthCount = Number(currentUser?.rebirth_count) || 0;
+                const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
+                const level = generator.upgrades?.production || 0;
+                const upgraded = base * (1 + 0.1 * level); // PRODUCTION_UPGRADE_FACTOR = 0.1
+                return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier;
+              };
+
+              const computeHeatRate = () => {
+                const baseHeat = generator.heatRate || 0;
+                const prodLevel = generator.upgrades?.production || 0;
+                const level = generator.upgrades?.heat_reduction || 0;
+                
+                const productionHeat = prodLevel * 0.5;
+                const reductionMultiplier = Math.pow(0.9, level);
+                const userHeatReduction = Number(currentUser?.heat_reduction) || 0;
+                
+                let totalHeat = baseHeat + productionHeat;
+                totalHeat = totalHeat * reductionMultiplier;
+                if (userHeatReduction > 0) {
+                  totalHeat = totalHeat * (1 - userHeatReduction / 100);
+                }
+                return Math.max(0, totalHeat);
+              };
+
+              const computeTolerance = () => {
+                const base = generator.baseTolerance || 100;
+                const userBonus = Number(currentUser?.tolerance_bonus) || 0;
+                const level = generator.upgrades?.tolerance || 0;
+                return base + (level * 10) + (userBonus * 10);
+              };
+
+              const prodPerSec = computeProduction();
+              const heatRate = computeHeatRate();
+              const tolerance = computeTolerance();
+
               return (
                 <div
                   key={generator.generator_id}
@@ -323,6 +374,16 @@ export default function Main() {
                     textAlign: 'center'
                   }}
                   >
+                    {/* Tooltip */}
+                    <div className="generator-tooltip">
+                      <div style={{ color: '#f1c40f', fontWeight: 'bold' }}>
+                        ⚡ {formatResourceValue(fromPlainValue(prodPerSec))}/s
+                      </div>
+                      <div style={{ color: '#e74c3c', fontSize: '11px', marginTop: '2px' }}>
+                        🔥 {Math.round(generator.heat || 0)} / {Math.round(tolerance)} (+{heatRate.toFixed(1)}/s)
+                      </div>
+                    </div>
+
                     <img
                       src={makeImageSrcByIndex(generator.genIndex)}
                       alt={generator.name}
