@@ -11,6 +11,7 @@ export default function InfoTab() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
   const [myRank, setMyRank] = useState(null);
+  const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
 
   useEffect(() => {
     if (!currentUser) return;
@@ -46,7 +47,7 @@ export default function InfoTab() {
 
     const loadLeaderboard = async () => {
       try {
-        const data = await fetchRanks(getAuthToken(), { limit: 100, offset: 0 });
+        const data = await fetchRanks(getAuthToken(), { limit: 100, offset: 0, criteria: rankCriteria });
         const ranks = data.ranks || [];
         setLeaderboard(ranks);
         if (ranks.length) {
@@ -62,7 +63,7 @@ export default function InfoTab() {
 
     loadRank();
     loadLeaderboard();
-  }, [currentUser]);
+  }, [currentUser, rankCriteria]);
 
   if (!currentUser) {
     return (
@@ -137,8 +138,34 @@ export default function InfoTab() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <h4 style={{ margin: 0, fontSize: '16px', color: '#3b82f6', fontWeight: 700 }}>🏆 랭킹</h4>
-          <span style={{ fontSize: '12px', color: '#bdbdbd' }}>{leaderboardStatus}</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {[
+              { key: 'money', label: '💰' },
+              { key: 'energy', label: '⚡' },
+              { key: 'playtime', label: '⏱️' },
+              { key: 'rebirth', label: '🔮' }
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setRankCriteria(key)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: rankCriteria === key ? '2px solid #3b82f6' : '1px solid #555',
+                  background: rankCriteria === key ? '#1e40af' : '#222',
+                  color: rankCriteria === key ? '#fff' : '#aaa',
+                  cursor: 'pointer',
+                  fontWeight: rankCriteria === key ? 700 : 400,
+                }}
+                title={key === 'money' ? '돈' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : '환생'}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+        <span style={{ fontSize: '12px', color: '#bdbdbd', marginBottom: '8px' }}>{leaderboardStatus}</span>
         <div style={{ 
           flex: 1, 
           overflowY: 'auto', 
