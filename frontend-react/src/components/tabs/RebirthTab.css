@@ -158,3 +158,104 @@
   text-align: center;
   padding: 20px;
 }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .rebirth-tab {
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  .rebirth-tab h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+  }
+
+  .rebirth-info {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .info-row {
+    padding: 10px 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-row .multiplier {
+    font-size: 16px;
+  }
+
+  .rebirth-description {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .rebirth-description h3 {
+    font-size: 16px;
+  }
+
+  .rebirth-description li {
+    font-size: 14px;
+  }
+
+  .rebirth-button {
+    padding: 14px;
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  .rebirth-history {
+    padding: 12px;
+  }
+
+  .rebirth-history h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .history-item .multiplier {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .rebirth-tab {
+    padding: 12px;
+  }
+
+  .rebirth-tab h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .rebirth-info {
+    padding: 12px;
+  }
+
+  .info-row {
+    padding: 8px 0;
+  }
+
+  .info-row .label,
+  .info-row .value {
+    font-size: 13px;
+  }
+
+  .rebirth-button {
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .history-item {
+    padding: 6px;
+    font-size: 12px;
+  }
+}

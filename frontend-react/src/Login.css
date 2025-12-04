@@ -279,14 +279,260 @@
 @media (max-width: 768px) {
   .login-page {
     flex-direction: column;
+    min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS Safari fix */
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .login-left {
-    min-height: 30vh;
-    padding: 40px;
+    min-height: 25vh;
+    padding: 30px 20px;
+    flex-shrink: 0;
+  }
+
+  /* Simplify decorative elements on mobile */
+  .login-left::before,
+  .login-left::after {
+    width: 300px;
+    height: 300px;
+  }
+
+  .login-left-content {
+    max-width: 100%;
+  }
+
+  .login-left-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+  }
+
+  .login-left-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .login-left-title {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .login-left-subtitle {
+    font-size: 15px;
+    margin-bottom: 20px;
+  }
+
+  .login-left-features {
+    gap: 16px;
+  }
+
+  .login-feature {
+    padding: 8px 16px;
+  }
+
+  .login-feature-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .login-feature-text {
+    font-size: 13px;
   }
   
   .login-right {
-    padding: 40px 20px;
+    padding: 30px 20px;
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 40px;
+    min-height: auto;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 32px 24px;
+    margin: 0;
+  }
+
+  .login-card:hover {
+    transform: none;
+  }
+
+  .login-title {
+    font-size: 26px;
+  }
+
+  .login-subtitle {
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .login-input {
+    padding: 14px 16px;
+    font-size: 16px; /* Prevent zoom on iOS */
+    margin-bottom: 14px;
+  }
+
+  .login-actions {
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .login-button {
+    padding: 14px;
+    font-size: 15px;
+  }
+
+  .login-message {
+    font-size: 13px;
+    padding: 10px;
+    margin-top: 16px;
+  }
+}
+
+/* Small mobile optimization */
+@media (max-width: 480px) {
+  .login-page {
+    display: block;
+  }
+
+  .login-left {
+    min-height: 20vh;
+    padding: 20px 16px;
+  }
+
+  .login-left-icon {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 16px;
+  }
+
+  .login-left-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .login-left-title {
+    font-size: 28px;
+  }
+
+  .login-left-subtitle {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+
+  /* Hide features on very small screens to save space */
+  .login-left-features {
+    display: none;
+  }
+
+  .login-right {
+    padding: 20px 16px;
+    padding-top: 30px;
+  }
+
+  .login-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .login-title {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  .login-input {
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  .login-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .login-button {
+    width: 100%;
+    padding: 13px;
+    font-size: 14px;
+  }
+}
+
+/* Portrait mode specific fixes for Android */
+@media (max-width: 768px) and (orientation: portrait) {
+  .login-page {
+    height: auto;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  .login-left {
+    min-height: 180px;
+    max-height: 25vh;
+  }
+
+  .login-right {
+    min-height: 0;
+    padding-bottom: 40px;
+  }
+
+  /* Ensure card is scrollable when keyboard appears */
+  .login-card {
+    margin-bottom: 20px;
+  }
+}
+
+/* Very small screens (e.g., iPhone SE) */
+@media (max-width: 375px) and (max-height: 667px) {
+  .login-left {
+    min-height: 140px;
+    padding: 16px;
+  }
+
+  .login-left-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 12px;
+  }
+
+  .login-left-icon svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .login-left-title {
+    font-size: 24px;
+  }
+
+  .login-left-subtitle {
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .login-right {
+    padding: 16px 12px;
+  }
+
+  .login-card {
+    padding: 20px 16px;
+  }
+
+  .login-title {
+    font-size: 22px;
+  }
+
+  .login-input {
+    padding: 11px 12px;
+  }
+
+  .login-button {
+    padding: 12px;
   }
 }

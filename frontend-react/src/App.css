@@ -1,8 +1,14 @@
 html, body {
   height: 100vh;
+  height: -webkit-fill-available; /* Mobile browsers fix */
   width: 100vw;
   margin:0;
   overflow: hidden;
+  position: fixed; /* Prevent address bar issues on mobile */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 main {
@@ -513,4 +519,458 @@ main {
 
 .generator-stats {
   color: white;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE DESIGN
+   ============================================ */
+
+/* Tablet (768px - 1024px) */
+@media (max-width: 1024px) {
+  .header {
+    padding: 12px 16px;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 6px 10px;
+  }
+
+  .stat-value {
+    font-size: 14px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+  }
+
+  .rebirth-trigger {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .build-bar {
+    height: 24vh;
+  }
+
+  .build-bar:hover {
+    height: 40vh;
+    transform: translateY(-12vh);
+  }
+
+  .btn-bar {
+    width: 12vw;
+  }
+
+  .content-area {
+    width: 88vw;
+  }
+
+  .generator-item {
+    min-width: 140px;
+    max-width: 180px;
+  }
+}
+
+/* Mobile (481px - 768px) */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  main {
+    height: 70vh;
+  }
+
+  .header {
+    padding: 10px 12px;
+    flex-wrap: nowrap;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 8px;
+    width: auto;
+    flex: 1;
+  }
+
+  .header-right {
+    justify-content: flex-end;
+  }
+
+  .profile {
+    width: 40px;
+    height: 40px;
+  }
+
+  .rebirth-trigger {
+    padding: 6px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .rebirth-label {
+    display: none; /* Hide text on mobile, show only icon */
+  }
+
+  .rebirth-icon {
+    font-size: 18px;
+  }
+
+  .stat-card {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .stat-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .stat-info {
+    min-width: 0;
+  }
+
+  .stat-value {
+    font-size: 12px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  /* Adjust modal positions for mobile */
+  .profile-modal {
+    top: 50px;
+    left: auto;
+    right: 0;
+    width: 160px;
+  }
+
+  .money-modal,
+  .energy-modal {
+    top: 50px;
+    width: 150px;
+    font-size: 12px;
+  }
+
+  /* Build bar adjustments */
+  .build-bar {
+    height: 30vh;
+  }
+
+  .build-bar:hover {
+    height: 45vh;
+    transform: translateY(-12vh);
+  }
+
+  .btn-bar {
+    width: 15vw;
+    height: 45vh;
+  }
+
+  .bbtn {
+    font-size: 18px;
+    height: 28px;
+  }
+
+  .content-area {
+    width: 85vw;
+  }
+
+  /* Generator grid for mobile */
+  .generator-grid {
+    gap: 10px;
+    padding: 0 6px;
+    margin: 0.5vw;
+  }
+
+  .generator-item {
+    min-width: 120px;
+    max-width: 150px;
+    padding: 0.8vh;
+  }
+
+  .generator-grid img {
+    height: min(80px, 10vh);
+    max-height: 80px;
+  }
+
+  .generator-tooltip {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  /* Settings modal */
+  .settings-modal {
+    width: min(340px, 85vw);
+    padding: 20px;
+  }
+}
+
+/* Small Mobile (max 480px) */
+@media (max-width: 480px) {
+  main {
+    height: 65vh;
+  }
+
+  .header {
+    padding: 8px 10px;
+  }
+
+  .header-left,
+  .header-right {
+    gap: 6px;
+  }
+
+  .profile {
+    width: 36px;
+    height: 36px;
+  }
+
+  .rebirth-trigger {
+    padding: 5px 8px;
+  }
+
+  .rebirth-icon {
+    font-size: 16px;
+  }
+
+  .stat-card {
+    padding: 5px 6px;
+    gap: 5px;
+    border-radius: 8px;
+  }
+
+  .stat-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+  }
+
+  .stat-value {
+    font-size: 11px;
+  }
+
+  .stat-label {
+    font-size: 8px;
+  }
+
+  /* Hide labels on very small screens */
+  .stat-label {
+    display: none;
+  }
+
+  /* Adjust modals */
+  .profile-modal {
+    width: 140px;
+    padding: 10px;
+    font-size: 13px;
+  }
+
+  .money-modal,
+  .energy-modal {
+    width: 130px;
+    font-size: 11px;
+    padding: 6px;
+  }
+
+  /* Build bar */
+  .build-bar {
+    height: 35vh;
+  }
+
+  .build-bar:hover {
+    height: 50vh;
+    transform: translateY(-12vh);
+  }
+
+  .btn-bar {
+    width: 18vw;
+    height: 50vh;
+  }
+
+  .bbtn {
+    font-size: 16px;
+    height: 26px;
+  }
+
+  .content-area {
+    width: 82vw;
+  }
+
+  /* Generator items */
+  .generator-grid {
+    gap: 8px;
+    padding: 0 4px;
+    margin: 0.3vw;
+  }
+
+  .generator-item {
+    min-width: 100px;
+    max-width: 130px;
+    padding: 0.6vh;
+    border-width: 2px;
+  }
+
+  .generator-item:hover {
+    transform: scale(1.05);
+    border-width: 2px;
+  }
+
+  .generator-grid img {
+    height: min(70px, 9vh);
+    max-height: 70px;
+  }
+
+  .generator-tooltip {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  /* Settings */
+  .settings-modal {
+    width: min(300px, 90vw);
+    padding: 16px;
+  }
+
+  .settings-modal h3 {
+    font-size: 18px;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  main {
+    height: 60vh;
+  }
+
+  .build-bar {
+    height: 40vh;
+  }
+
+  .build-bar:hover {
+    height: 60vh;
+    transform: translateY(-15vh);
+  }
+
+  .header {
+    padding: 6px 10px;
+  }
+
+  .stat-card {
+    padding: 4px 6px;
+  }
+}
+
+/* Touch-friendly enhancements for mobile */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch targets */
+  .bbtn,
+  .generator-item,
+  .profile-trigger,
+  .rebirth-trigger,
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .generator-item:hover,
+  .bbtn:hover {
+    transform: none;
+  }
+
+  /* Active states for touch feedback */
+  .generator-item:active {
+    transform: scale(0.98);
+    background-color: #0a0a0a;
+  }
+
+  .bbtn:active {
+    transform: scale(0.97);
+  }
+
+  .rebirth-trigger:active {
+    transform: translateY(1px);
+  }
+}
+
+/* Android portrait mode specific fixes */
+@media (max-width: 768px) and (orientation: portrait) {
+  html, body {
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  main {
+    height: 68vh;
+    min-height: 300px;
+  }
+
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #ffffff;
+  }
+
+  .build-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32vh;
+  }
+
+  .build-bar:hover {
+    height: 48vh;
+  }
+}
+
+/* Support for safe areas (notch, rounded corners) */
+@supports (padding: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    html, body {
+      padding-top: env(safe-area-inset-top);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .header {
+      padding-top: calc(10px + env(safe-area-inset-top));
+      padding-left: calc(12px + env(safe-area-inset-left));
+      padding-right: calc(12px + env(safe-area-inset-right));
+    }
+
+    .build-bar {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+}
+
+/* Prevent zoom on input focus (Android) */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Fix for Android Chrome address bar */
+@media (max-width: 768px) {
+  #root {
+    height: 100%;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
+  }
 }
