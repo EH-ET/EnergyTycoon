@@ -248,11 +248,17 @@ export async function autosaveProgress(token, payload = {}) {
   if (payload.money_high != null) body.money_high = payload.money_high;
   if (payload.play_time_ms != null) body.play_time_ms = payload.play_time_ms;
   if (payload.generators && Array.isArray(payload.generators)) {
-    body.generators = payload.generators.map(g => ({
-      generator_id: g.generator_id || g.id,
-      heat: typeof g.heat === 'number' ? Math.max(0, Math.floor(g.heat)) : null,
-      running: g.running != null ? Boolean(g.running) : null,
-    })).filter(g => g.generator_id);
+    const filtered = payload.generators
+      .map(g => ({
+        generator_id: g.generator_id || g.id,
+        heat: typeof g.heat === 'number' ? Math.max(0, Math.floor(g.heat)) : null,
+        running: g.running != null ? Boolean(g.running) : null,
+      }))
+      .filter(g => g.generator_id);
+    
+    if (filtered.length > 0) {
+      body.generators = filtered;
+    }
   }
   if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
   const headers = attachCsrf({ "Content-Type": "application/json" });

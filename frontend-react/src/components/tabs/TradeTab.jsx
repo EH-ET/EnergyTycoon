@@ -101,8 +101,13 @@ export default function TradeTab() {
       } else if (typeof e === 'string') {
         errorMsg = e;
       } else if (e && typeof e === 'object') {
-        errorMsg = e.detail || e.message || JSON.stringify(e);
+        try {
+          errorMsg = e.detail || e.message || JSON.stringify(e);
+        } catch {
+          errorMsg = '교환 실패 (에러 정보 확인 불가)';
+        }
       }
+      console.error('Exchange error:', e);
       setAlertMessage(errorMsg);
     } finally {
       setIsLoading(false);

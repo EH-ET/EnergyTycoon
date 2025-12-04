@@ -19,12 +19,14 @@ export function useAutosave() {
         const moneyPayload = toMoneyServerPayload();
         const playTimeMs = readStoredPlayTime();
 
-        // Collect generator states
-        const generators = placedGenerators.map(g => ({
-          generator_id: g.generator_id || g.id,
-          heat: g.heat,
-          running: g.running,
-        }));
+        // Collect generator states (only valid ones with IDs)
+        const generators = placedGenerators
+          .filter(g => g && (g.generator_id || g.id))
+          .map(g => ({
+            generator_id: g.generator_id || g.id,
+            heat: typeof g.heat === 'number' ? g.heat : 0,
+            running: g.running !== false,
+          }));
 
         await autosaveProgress(token, {
           energy_data: energyPayload.data,
@@ -32,9 +34,10 @@ export function useAutosave() {
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
           play_time_ms: Math.floor(playTimeMs || 0),
-          generators,
+          generators: generators.length > 0 ? generators : undefined,
         });
       } catch (e) {
+        console.error('Autosave failed:', e);
         // Silent fail
       }
     };
