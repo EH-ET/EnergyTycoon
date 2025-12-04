@@ -25,7 +25,6 @@ function computeUpgradeCost(entry, key) {
 }
 
 export default function GeneratorModal({ generator, onClose }) {
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [alertMessage, setAlertMessage] = useState('');
   const [confirmDemolish, setConfirmDemolish] = useState(false);
@@ -154,8 +153,6 @@ export default function GeneratorModal({ generator, onClose }) {
           upgrades,
         }));
       }
-
-      setShowUpgrade(false);
       
       // Tutorial: Detect generator upgrade
       const currentUser = useStore.getState().currentUser;
@@ -265,67 +262,15 @@ export default function GeneratorModal({ generator, onClose }) {
             {generator.isDeveloping ? '건설 중' : isRunning ? '운영 중' : '중단'}
           </span>
         </div>
-        <p style={{ margin: '4px 0 10px', color: '#9ba4b5', fontSize: '13px' }}>
-          내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)}
-        </p>
-        {showUpgrade ? (
-          <>
-            <h3 style={{ marginTop: 0, color: '#f6f8fa' }}>발전기 업그레이드</h3>
-            {Object.entries(UPGRADE_CONFIG).map(([key, cfg]) => {
-              const level = generator.upgrades?.[key] || 0;
-              const cost = computeUpgradeCost(generator, key);
 
-              return (
-                <div
-                  key={key}
-                  style={{
-                    border: '1px solid #223148',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    background: '#0f1729',
-                    marginBottom: '10px',
-                  }}
-                >
-                  <div style={{ fontWeight: '600' }}>{cfg.label}</div>
-                  <p style={{ margin: '4px 0 8px', color: '#9ba4b5' }}>{cfg.desc}</p>
-                  <div>레벨: {level}</div>
-                  <div style={{ color: '#f1c40f' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
-                  <button
-                    onClick={() => handleUpgrade(key)}
-                    style={{
-                      marginTop: '6px',
-                      width: '100%',
-                      background: '#1f6feb',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '10px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    업그레이드
-                  </button>
-                </div>
-              );
-            })}
-            <button
-              onClick={() => setShowUpgrade(false)}
-              style={{
-                width: '100%',
-                marginTop: '12px',
-                padding: '10px',
-                borderRadius: '10px',
-                border: '1px solid #223148',
-                background: '#0f1729',
-                color: '#c8d1e5',
-                cursor: 'pointer',
-              }}
-            >
-              닫기
-            </button>
-          </>
-        ) : (
-          <>
+        {/* Split View: Left (Info) / Right (Upgrades) */}
+        <div style={{ display: 'flex', gap: '16px' }}>
+          {/* Left Column: Generator Info */}
+          <div style={{ flex: '1', minWidth: '300px' }}>
+            <p style={{ margin: '4px 0 10px', color: '#9ba4b5', fontSize: '13px' }}>
+              내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)}
+            </p>
+
             <div style={{ marginBottom: '10px', color: '#9ba4b5' }}>
               철거 비용: <span style={{ color: '#f39c12' }}>{formatResourceValue(fromPlainValue(demolishCostPlain))}</span>
             </div>
@@ -378,21 +323,6 @@ export default function GeneratorModal({ generator, onClose }) {
                 {generator.running === false ? '운영 재개' : '운영 중단'}
               </button>
               <button
-                onClick={() => setShowUpgrade(true)}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid #223148',
-                  background: '#0f1729',
-                  color: '#c8d1e5',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                업그레이드
-              </button>
-              <button
                 onClick={handleDemolishClick}
                 style={{
                   width: '100%',
@@ -422,8 +352,50 @@ export default function GeneratorModal({ generator, onClose }) {
                 닫기
               </button>
             </div>
-          </>
-        )}
+          </div>
+
+          {/* Right Column: Upgrades */}
+          <div style={{ flex: '1', minWidth: '280px' }}>
+            <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#f6f8fa' }}>업그레이드</h4>
+            {Object.entries(UPGRADE_CONFIG).map(([key, cfg]) => {
+              const level = generator.upgrades?.[key] || 0;
+              const cost = computeUpgradeCost(generator, key);
+
+              return (
+                <div
+                  key={key}
+                  style={{
+                    border: '1px solid #223148',
+                    padding: '10px',
+                    borderRadius: '8px',
+                    background: '#0f1729',
+                    marginBottom: '10px',
+                  }}
+                >
+                  <div style={{ fontWeight: '600' }}>{cfg.label}</div>
+                  <p style={{ margin: '4px 0 8px', color: '#9ba4b5', fontSize: '12px' }}>{cfg.desc}</p>
+                  <div>레벨: {level}</div>
+                  <div style={{ color: '#f1c40f' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
+                  <button
+                    onClick={() => handleUpgrade(key)}
+                    style={{
+                      marginTop: '6px',
+                      width: '100%',
+                      background: '#1f6feb',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    업그레이드
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
     </>
