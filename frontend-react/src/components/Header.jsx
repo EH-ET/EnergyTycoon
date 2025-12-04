@@ -47,10 +47,8 @@ export default function Header() {
 
   const refreshRank = async () => {
     const current = useStore.getState().currentUser;
-    console.log('[Header] refreshRank initiated. User ID:', current?.user_id);
 
     if (!current?.user_id) {
-      console.log('[Header] No user ID, aborting refreshRank');
       return;
     }
     
