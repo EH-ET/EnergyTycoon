@@ -194,10 +194,10 @@ export async function demolishGenerator(generatorId, token) {
   return data;
 }
 
-export async function fetchMyRank(token) {
+export async function fetchMyRank(token, criteria = 'money') {
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/rank`, {
+  const res = await fetch(`${API_BASE}/rank?criteria=${criteria}`, {
     headers,
     credentials: "include",
   });
