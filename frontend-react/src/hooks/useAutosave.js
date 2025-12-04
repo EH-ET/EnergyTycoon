@@ -36,9 +36,10 @@ export function useAutosave() {
           play_time_ms: Math.floor(playTimeMs || 0),
           generators: generators.length > 0 ? generators : undefined,
         });
+        useStore.getState().setSaveStatus('success');
       } catch (e) {
         console.error('Autosave failed:', e);
-        // Silent fail
+        useStore.getState().setSaveStatus('error');
       }
     };
 
