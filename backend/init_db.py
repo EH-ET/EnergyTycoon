@@ -55,6 +55,7 @@ def ensure_user_upgrade_columns():
                 ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
                 ("tutorial", "INTEGER NOT NULL DEFAULT 1"),
+                ("sold_energy", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -94,6 +95,11 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial INTEGER NOT NULL DEFAULT 1"
                 )
                 existing.add("tutorial")
+            if "sold_energy" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sold_energy INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("sold_energy")
             # Backfill and clean up legacy column if it still exists
             if "supply_bonus" in existing:
                 conn.exec_driver_sql(
@@ -156,8 +162,16 @@ def ensure_play_time_column():
             existing = {row[0] for row in rows}
             if "play_time_ms" not in existing:
                 conn.exec_driver_sql(
-                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS play_time_ms INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS play_time_ms BIGINT NOT NULL DEFAULT 0"
                 )
+            else:
+                # Migrate INTEGER to BIGINT if needed
+                type_check = conn.exec_driver_sql(
+                    "SELECT data_type FROM information_schema.columns "
+                    "WHERE table_name = 'users' AND column_name = 'play_time_ms'"
+                ).fetchone()
+                if type_check and type_check[0] == 'integer':
+                    conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN play_time_ms TYPE BIGINT")
 
 
 def ensure_generator_columns():

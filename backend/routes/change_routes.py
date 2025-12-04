@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
-from ..game_logic import current_market_rate, calculate_progressive_exchange, MARKET_STATE
+from ..game_logic import current_market_rate, calculate_progressive_exchange
 from ..schemas import ExchangeIn, UserOut
 from ..models import User
 from ..bigvalue import (
@@ -40,7 +40,10 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     money_value = add_plain(get_user_money_value(user), gained)
     set_user_energy_value(user, energy_value)
     set_user_money_value(user, money_value)
-    MARKET_STATE["sold_energy"] += payload.amount
+    
+    # Update user's sold_energy
+    user.sold_energy = (getattr(user, 'sold_energy', 0) or 0) + payload.amount
+    
     db.commit()
     db.refresh(user)
     return {

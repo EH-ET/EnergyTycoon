@@ -3,32 +3,70 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import User
-from ..bigvalue import get_user_money_value, to_plain
+from ..bigvalue import get_user_money_value, get_user_energy_value, to_plain
 
 router = APIRouter()
 
 
-def _user_score(u: User) -> int:
-    return to_plain(get_user_money_value(u))
+def _user_score(u: User, criteria: str = "money") -> int:
+    """Calculate user score based on criteria."""
+    if criteria == "energy":
+        return to_plain(get_user_energy_value(u))
+    elif criteria == "playtime":
+        return getattr(u, 'play_time_ms', 0) or 0
+    elif criteria == "rebirth":
+        return getattr(u, 'rebirth_count', 0) or 0
+    else:  # money (default)
+        return to_plain(get_user_money_value(u))
+
+
+def _get_order_by(criteria: str):
+    """Get SQLAlchemy order_by clause based on criteria."""
+    if criteria == "energy":
+        return [User.energy_high.desc(), User.energy_data.desc(), User.user_id]
+    elif criteria == "playtime":
+        return [User.play_time_ms.desc(), User.user_id]
+    elif criteria == "rebirth":
+        return [User.rebirth_count.desc(), User.money_high.desc(), User.money_data.desc(), User.user_id]
+    else:  # money (default)
+        return [User.money_high.desc(), User.money_data.desc(), User.user_id]
 
 
 @router.get("/rank")
-async def rank(auth=Depends(get_user_and_db)):
+async def rank(criteria: str = "money", auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    ordered = db.query(User).order_by(User.money_high.desc(), User.money_data.desc(), User.user_id).all()
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Fetching rank for user {user.username} with criteria: {criteria}")
+    
+    order_clause = _get_order_by(criteria)
+    logger.info(f"Order clause: {order_clause}")
+    
+    ordered = db.query(User).order_by(*order_clause).all()
     for idx, u in enumerate(ordered):
         if u.user_id == user.user_id:
-            return {"username": u.username, "rank": idx + 1, "score": _user_score(u)}
+            score = _user_score(u, criteria)
+            logger.info(f"User {user.username} rank: {idx + 1}, score: {score}, criteria: {criteria}")
+            return {"username": u.username, "rank": idx + 1, "score": score, "criteria": criteria}
     raise HTTPException(status_code=404, detail="User not found")
 
 
 @router.get("/ranks")
-async def ranks(limit: int = 100, offset: int = 0, auth=Depends(get_user_and_db)):
+async def ranks(limit: int = 100, offset: int = 0, criteria: str = "money", auth=Depends(get_user_and_db)):
     _, db, _ = auth
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Fetching ranks with criteria: {criteria}, limit: {limit}, offset: {offset}")
+    
     if limit <= 0 or offset < 0:
         raise HTTPException(status_code=422, detail="Invalid query parameters")
-    base_query = db.query(User).order_by(User.money_high.desc(), User.money_data.desc(), User.user_id)
+    
+    order_clause = _get_order_by(criteria)
+    logger.info(f"Order clause: {order_clause}")
+    
+    base_query = db.query(User).order_by(*order_clause)
     total = base_query.count()
     users = base_query.offset(offset).limit(limit).all()
-    out = [{"username": u.username, "rank": offset + i + 1, "score": _user_score(u)} for i, u in enumerate(users)]
-    return {"total": total, "limit": limit, "offset": offset, "ranks": out}
+    out = [{"username": u.username, "rank": offset + i + 1, "score": _user_score(u, criteria)} for i, u in enumerate(users)]
+    logger.info(f"Returning {len(out)} ranks with criteria: {criteria}")
+    return {"total": total, "limit": limit, "offset": offset, "criteria": criteria, "ranks": out}
