@@ -38,7 +38,7 @@ export default function InfoTab() {
 
     const loadRank = async () => {
       try {
-        const data = await fetchMyRank(getAuthToken());
+        const data = await fetchMyRank(getAuthToken(), rankCriteria);
         setMyRank(data);
       } catch (e) {
         console.error('rank load failed', e);
@@ -85,9 +85,18 @@ export default function InfoTab() {
     ? `${myRank?.rank ?? currentUser.rank}위`
     : '-';
 
-  const scoreText = typeof (myRank?.score ?? currentUser.rank_score) === 'number'
-    ? formatResourceValue(fromPlainValue(myRank?.score ?? currentUser.rank_score))
-    : '-';
+  let scoreText = '-';
+  const rawScore = myRank?.score ?? currentUser.rank_score;
+  
+  if (typeof rawScore === 'number') {
+    if (rankCriteria === 'playtime') {
+      scoreText = formatPlayTime(rawScore);
+    } else if (rankCriteria === 'rebirth') {
+      scoreText = `${rawScore}회`;
+    } else {
+      scoreText = formatResourceValue(fromPlainValue(rawScore));
+    }
+  }
 
   return (
     <div style={{
