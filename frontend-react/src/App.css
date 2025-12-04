@@ -374,20 +374,46 @@ main {
   transform: scale(1.05);
 }
 
+.bbtn.active {
+  background-color: #1a1a1a;
+  border: #00bfff 3px solid;
+  transform: scale(1.08);
+}
+
 .generator-btn:hover {
   color:#0130ff;
+}
+
+.generator-btn.active {
+  color: #0130ff;
+  font-weight: 900;
 }
 
 .trade-btn:hover {
   color:#00ff1a;
 }
 
+.trade-btn.active {
+  color: #00ff1a;
+  font-weight: 900;
+}
+
 .upgrade-btn:hover {
-  color: rgb(247, 0, 255);
+  color:#ff00d9;
+}
+
+.upgrade-btn.active {
+  color: #ff00d9;
+  font-weight: 900;
 }
 
 .info-btn:hover {
-  color:yellow
+  color:#ffc800;
+}
+
+.info-btn.active {
+  color: #ffc800;
+  font-weight: 900;
 }
 
 .content-area {

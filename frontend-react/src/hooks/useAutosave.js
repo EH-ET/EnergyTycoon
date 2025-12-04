@@ -7,6 +7,7 @@ export function useAutosave() {
   const currentUser = useStore(state => state.currentUser);
   const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
   const toMoneyServerPayload = useStore(state => state.toMoneyServerPayload);
+  const placedGenerators = useStore(state => state.placedGenerators);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -18,12 +19,20 @@ export function useAutosave() {
         const moneyPayload = toMoneyServerPayload();
         const playTimeMs = readStoredPlayTime();
 
+        // Collect generator states
+        const generators = placedGenerators.map(g => ({
+          generator_id: g.generator_id || g.id,
+          heat: g.heat,
+          running: g.running,
+        }));
+
         await autosaveProgress(token, {
           energy_data: energyPayload.data,
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
           play_time_ms: Math.floor(playTimeMs || 0),
+          generators,
         });
       } catch (e) {
         // Silent fail
@@ -34,5 +43,5 @@ export function useAutosave() {
     const timer = setInterval(save, 30000);
 
     return () => clearInterval(timer);
-  }, [currentUser]);
+  }, [currentUser, placedGenerators, toEnergyServerPayload, toMoneyServerPayload]);
 }

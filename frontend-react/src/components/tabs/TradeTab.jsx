@@ -94,7 +94,16 @@ export default function TradeTab() {
       const rateText = data.rate ? ` (rate ${data.rate.toFixed(2)})` : '';
       setMessage(`성공: ${formatResourceValue(fromPlainValue(exchangeAmountPlain))} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
     } catch (e) {
-      setAlertMessage(e.message || e);
+      // Safely handle error objects
+      let errorMsg = '교환 실패';
+      if (e instanceof Error) {
+        errorMsg = e.message || errorMsg;
+      } else if (typeof e === 'string') {
+        errorMsg = e;
+      } else if (e && typeof e === 'object') {
+        errorMsg = e.detail || e.message || JSON.stringify(e);
+      }
+      setAlertMessage(errorMsg);
     } finally {
       setIsLoading(false);
     }
