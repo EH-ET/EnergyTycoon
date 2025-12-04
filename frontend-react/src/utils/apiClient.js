@@ -126,7 +126,10 @@ export async function exchangeEnergy(token, userId, amount, energy) {
     body: JSON.stringify({ user_id: userId, amount }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "교환 실패");
+  if (!res.ok) {
+    const errorMsg = typeof data.detail === 'string' ? data.detail : '교환 실패';
+    throw new Error(errorMsg);
+  }
   return data;
 }
 
@@ -249,12 +252,12 @@ export async function autosaveProgress(token, payload = {}) {
   if (payload.play_time_ms != null) body.play_time_ms = payload.play_time_ms;
   if (payload.generators && Array.isArray(payload.generators)) {
     const filtered = payload.generators
+      .filter(g => g && (g.generator_id || g.id))
       .map(g => ({
         generator_id: g.generator_id || g.id,
-        heat: typeof g.heat === 'number' ? Math.max(0, Math.floor(g.heat)) : null,
-        running: g.running != null ? Boolean(g.running) : null,
-      }))
-      .filter(g => g.generator_id);
+        heat: typeof g.heat === 'number' ? Math.max(0, Math.floor(g.heat)) : 0,
+        running: g.running !== false, // true unless explicitly false
+      }));
     
     if (filtered.length > 0) {
       body.generators = filtered;
