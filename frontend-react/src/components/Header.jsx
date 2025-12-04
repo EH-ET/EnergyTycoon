@@ -196,14 +196,19 @@ export default function Header() {
         </div>
         {saveMessage && (
           <span style={{
-            marginLeft: '12px',
-            fontSize: '14px',
+            marginLeft: '16px',
+            fontSize: '13px',
             fontWeight: 'bold',
+            padding: '4px 12px',
+            borderRadius: '12px',
+            background: saveMessage === 'success' ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)',
             color: saveMessage === 'success' ? '#2ecc71' : '#e74c3c',
-            opacity: 0.9,
-            transition: 'opacity 0.3s'
+            border: `1px solid ${saveMessage === 'success' ? '#2ecc71' : '#e74c3c'}`,
+            boxShadow: `0 0 10px ${saveMessage === 'success' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(231, 76, 60, 0.3)'}`,
+            transition: 'all 0.3s ease',
+            animation: 'fadeIn 0.3s'
           }}>
-            {saveMessage === 'success' ? 'save' : "can't save"}
+            {saveMessage === 'success' ? 'Saved' : 'Save Failed'}
           </span>
         )}
       </div>
