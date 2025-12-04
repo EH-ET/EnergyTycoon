@@ -26,6 +26,7 @@ class User(Base):
     rebirth_count = Column(Integer, default=0, server_default="0", nullable=False)
     tutorial = Column(Integer, default=1, server_default="1", nullable=False)
     sold_energy = Column(Integer, default=0, server_default="0", nullable=False)
+    supercoin = Column(Integer, default=0, server_default="0", nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)
@@ -76,3 +77,15 @@ class MapProgress(Base):
     generator = relationship("Generator", back_populates="map_progresses")
 
     __table_args__ = (UniqueConstraint("user_id", "generator_id", name="_user_generator_uc"),)
+
+
+class Inquiry(Base):
+    __tablename__ = "inquiries"
+
+    inquiry_id = Column(String, primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String, ForeignKey("users.user_id"), nullable=False)
+    type = Column(String, nullable=False)  # bug, vulnerability, proposal, other
+    content = Column(String, nullable=False)
+    created_at = Column(BigInteger, nullable=False)  # timestamp in milliseconds
+
+    user = relationship("User")
