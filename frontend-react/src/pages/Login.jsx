@@ -80,6 +80,7 @@ export default function Login({ onLoginSuccess }) {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
 
   const showMessage = (msg, type = 'success') => {
     setMessage(msg);
@@ -219,43 +220,111 @@ export default function Login({ onLoginSuccess }) {
         </div>
       </div>
       <div className="login-right">
-        <div className="login-card">
-          <div>
-            <h1 className="login-title">Energy Tycoon</h1>
-            <p className="login-subtitle">지속 가능한 에너지 제국을 시작하세요.</p>
+        {!isSignup ? (
+          <div className="login-card">
+            <div>
+              <h1 className="login-title">로그인</h1>
+              <p className="login-subtitle">계정에 로그인하세요.</p>
+            </div>
+            <input
+              className="login-input"
+              type="text"
+              id="username"
+              placeholder="아이디"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              autoComplete="username"
+            />
+            <input
+              className="login-input"
+              type="password"
+              id="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              autoComplete="current-password"
+            />
+            <button className="login-button primary" onClick={handleLogin}>로그인</button>
+            <div
+              id="messageBox"
+              className={`login-message ${messageType}`}
+              aria-live="polite"
+            >
+              {message}
+            </div>
+            <div style={{ marginTop: '16px', textAlign: 'center', color: '#9ba4b5', fontSize: '14px' }}>
+              계정이 없으신가요?{' '}
+              <button 
+                onClick={() => { setIsSignup(true); setMessage(''); }}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: '#3b82f6', 
+                  cursor: 'pointer', 
+                  textDecoration: 'underline',
+                  fontSize: '14px',
+                  padding: 0
+                }}
+              >
+                회원가입
+              </button>
+            </div>
           </div>
-          <input
-            className="login-input"
-            type="text"
-            id="username"
-            placeholder="아이디"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            autoComplete="username"
-          />
-          <input
-            className="login-input"
-            type="password"
-            id="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            autoComplete="current-password"
-          />
-          <div className="login-actions">
-            <button className="login-button primary" id="loginBtn" onClick={handleLogin}>로그인</button>
-            <button className="login-button secondary" id="signupBtn" onClick={handleSignup}>회원가입</button>
+        ) : (
+          <div className="login-card">
+            <div>
+              <h1 className="login-title">회원가입</h1>
+              <p className="login-subtitle">새 계정을 만드세요.</p>
+            </div>
+            <input
+              className="login-input"
+              type="text"
+              id="signup-username"
+              placeholder="아이디"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+              autoComplete="username"
+            />
+            <input
+              className="login-input"
+              type="password"
+              id="signup-password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
+              autoComplete="new-password"
+            />
+            <button className="login-button primary" onClick={handleSignup}>회원가입</button>
+            <div
+              id="messageBox"
+              className={`login-message ${messageType}`}
+              aria-live="polite"
+            >
+              {message}
+            </div>
+            <div style={{ marginTop: '16px', textAlign: 'center', color: '#9ba4b5', fontSize: '14px' }}>
+              이미 계정이 있으신가요?{' '}
+              <button 
+                onClick={() => { setIsSignup(false); setMessage(''); }}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: '#3b82f6', 
+                  cursor: 'pointer', 
+                  textDecoration: 'underline',
+                  fontSize: '14px',
+                  padding: 0
+                }}
+              >
+                로그인
+              </button>
+            </div>
           </div>
-          <div
-            id="messageBox"
-            className={`login-message ${messageType}`}
-            aria-live="polite"
-          >
-            {message}
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -178,11 +178,21 @@ export default function InfoTab() {
             ) : (
               leaderboard.map((entry) => {
                 const you = currentUser.username === entry.username;
-                const score = typeof entry.score === 'number' 
-                  ? formatResourceValue(fromPlainValue(entry.score))
-                  : '-';
+                let score;
+                if (rankCriteria === 'playtime') {
+                  // Format playtime as time
+                  score = formatPlayTime(entry.score || 0);
+                } else if (rankCriteria === 'rebirth') {
+                  // Show rebirth count as number
+                  score = `${entry.score || 0}회`;
+                } else {
+                  // Money or Energy - use BigValue formatting
+                  score = typeof entry.score === 'number'
+                    ? formatResourceValue(fromPlainValue(entry.score))
+                    : '-';
+                }
                 return (
-                  <li 
+                  <li
                     key={entry.rank}
                     style={{
                       padding: '4px 0',
@@ -190,7 +200,7 @@ export default function InfoTab() {
                       fontWeight: you ? 700 : 400
                     }}
                   >
-                    <span style={{ color: '#3b82f6', fontWeight: 700 }}>{entry.rank}위</span> {entry.username} - {score}점{you ? ' (나)' : ''}
+                    <span style={{ color: '#3b82f6', fontWeight: 700 }}>{entry.rank}위</span> {entry.username} - {score}{rankCriteria === 'rebirth' ? '' : '점'}{you ? ' (나)' : ''}
                   </li>
                 );
               })
