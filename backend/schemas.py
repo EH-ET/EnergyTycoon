@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -64,7 +64,7 @@ class ProgressAutoSaveIn(BaseModel):
     money_data: Optional[int] = None
     money_high: Optional[int] = None
     play_time_ms: Optional[int] = Field(default=None, ge=0)
-    generators: Optional[list[GeneratorStateUpdate]] = None
+    generators: Optional[List[GeneratorStateUpdate]] = None
 
 
 class GeneratorUpgradeRequest(BaseModel):

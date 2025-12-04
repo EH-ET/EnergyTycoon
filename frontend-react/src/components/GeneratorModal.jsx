@@ -9,9 +9,9 @@ import AlertModal from './AlertModal';
 
 const DEMOLISH_COST_RATE = 0.5;
 const UPGRADE_CONFIG = {
-  production: { label: "생산량 증가", desc: "에너지 생산 +10%/레벨, 발열 +0.5/레벨", baseMultiplier: 0.5, growth: 1.25 },
-  heat_reduction: { label: "발열 감소", desc: "발열 10% 감소/레벨", baseMultiplier: 0.4, growth: 1.2 },
-  tolerance: { label: "내열 증가", desc: "내열 +10/레벨", baseMultiplier: 0.45, growth: 1.2 },
+  production: { label: "생산량 증가", desc: "에너지 생산 +10%/레벨, 발열 +0.5/레벨", baseMultiplier: 1, growth: 1.25 },
+  heat_reduction: { label: "발열 감소", desc: "발열 10% 감소/레벨", baseMultiplier: 0.8, growth: 1.2 },
+  tolerance: { label: "내열 증가", desc: "내열 +10/레벨", baseMultiplier: 0.9, growth: 1.2 },
 };
 const PRODUCTION_UPGRADE_FACTOR = 0.1;
 
@@ -28,6 +28,7 @@ export default function GeneratorModal({ generator, onClose }) {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
   const [alertMessage, setAlertMessage] = useState('');
+  const [confirmDemolish, setConfirmDemolish] = useState(false);
 
   const syncUserState = useStore(state => state.syncUserState);
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
@@ -58,7 +59,12 @@ export default function GeneratorModal({ generator, onClose }) {
     return () => clearInterval(timer);
   }, [generator]);
 
+  const handleDemolishClick = () => {
+    setConfirmDemolish(true);
+  };
+
   const handleDemolish = async () => {
+    setConfirmDemolish(false);
     try {
       const token = getAuthToken();
       const res = await demolishGenerator(generator.generator_id, token);
@@ -210,6 +216,13 @@ export default function GeneratorModal({ generator, onClose }) {
         message={alertMessage}
         onClose={() => setAlertMessage('')}
       />
+      {confirmDemolish && (
+        <AlertModal
+          message={`이 발전기를 철거하시겠습니까? 비용: ${formatResourceValue(fromPlainValue(demolishCostPlain))}`}
+          onClose={() => setConfirmDemolish(false)}
+          onConfirm={handleDemolish}
+        />
+      )}
     <div
       style={{
         position: 'fixed',
@@ -380,7 +393,7 @@ export default function GeneratorModal({ generator, onClose }) {
                 업그레이드
               </button>
               <button
-                onClick={handleDemolish}
+                onClick={handleDemolishClick}
                 style={{
                   width: '100%',
                   padding: '12px',
