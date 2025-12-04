@@ -285,6 +285,23 @@ export default function Header() {
             </div>
           </div>
         </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ 
+            background: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
+            fontSize: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            🪙
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">슈퍼코인</div>
+            <div className="stat-value supercoin-value">
+              {currentUser?.supercoin || 0}
+            </div>
+          </div>
+        </div>
       </div>
       <SettingsModal
         open={showSettingsModal}

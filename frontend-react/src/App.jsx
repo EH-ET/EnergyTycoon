@@ -14,17 +14,31 @@ import GeneratorTab from './components/tabs/GeneratorTab';
 import TradeTab from './components/tabs/TradeTab';
 import UpgradeTab from './components/tabs/UpgradeTab';
 import InfoTab from './components/tabs/InfoTab';
+import InquiryTab from './components/tabs/InquiryTab';
 import TutorialOverlay from './components/TutorialOverlay';
 import Login from './pages/Login';
+import AdminPage from './pages/AdminPage';
 import './App.css';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdminPage, setIsAdminPage] = useState(false);
   const contentMode = useStore(state => state.contentMode);
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const setGeneratorTypes = useStore(state => state.setGeneratorTypes);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
+
+  // Simple routing - check if URL hash is #admin
+  useEffect(() => {
+    const checkAdminRoute = () => {
+      setIsAdminPage(window.location.hash === '#admin');
+    };
+    
+    checkAdminRoute();
+    window.addEventListener('hashchange', checkAdminRoute);
+    return () => window.removeEventListener('hashchange', checkAdminRoute);
+  }, []);
 
   const fetchAndSyncProgress = async (user, token, typeMapById) => {
     if (!user?.user_id) {
@@ -149,6 +163,8 @@ function App() {
         return <UpgradeTab />;
       case 'info':
         return <InfoTab />;
+      case 'inquiry':
+        return <InquiryTab />;
       default:
         return null;
     }
@@ -156,6 +172,11 @@ function App() {
 
   if (isLoading) {
     return <div>Loading...</div>;
+  }
+
+  // Admin Page Route
+  if (isAdminPage) {
+    return <AdminPage />;
   }
 
   if (!currentUser) {

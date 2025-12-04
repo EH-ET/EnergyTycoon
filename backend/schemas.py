@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     play_time_ms: int
     rebirth_count: int
     tutorial: int
+    supercoin: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -76,3 +77,17 @@ class DeleteAccountIn(BaseModel):
     password: str
 
 
+class InquiryCreate(BaseModel):
+    type: str
+    content: str
+
+
+class InquiryOut(BaseModel):
+    inquiry_id: str
+    user_id: str
+    username: Optional[str] = None  # To display username in admin page
+    type: str
+    content: str
+    created_at: int
+
+    model_config = {"from_attributes": True}

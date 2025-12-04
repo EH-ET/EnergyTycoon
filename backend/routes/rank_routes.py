@@ -16,6 +16,8 @@ def _user_score(u: User, criteria: str = "money") -> int:
         return getattr(u, 'play_time_ms', 0) or 0
     elif criteria == "rebirth":
         return getattr(u, 'rebirth_count', 0) or 0
+    elif criteria == "supercoin":
+        return getattr(u, 'supercoin', 0) or 0
     else:  # money (default)
         return to_plain(get_user_money_value(u))
 
@@ -28,6 +30,8 @@ def _get_order_by(criteria: str):
         return [User.play_time_ms.desc(), User.user_id]
     elif criteria == "rebirth":
         return [User.rebirth_count.desc(), User.money_high.desc(), User.money_data.desc(), User.user_id]
+    elif criteria == "supercoin":
+        return [User.supercoin.desc(), User.money_high.desc(), User.money_data.desc(), User.user_id]
     else:  # money (default)
         return [User.money_high.desc(), User.money_data.desc(), User.user_id]
 

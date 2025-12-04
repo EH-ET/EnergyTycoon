@@ -412,6 +412,59 @@ export async function refreshAccessToken() {
     return true; // Successfully refreshed
   } catch (e) {
     console.error("Token refresh failed:", e);
-    return false;
   }
+}
+
+// ============= Inquiry API =============
+
+export async function createInquiry(type, content, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/inquiries`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: JSON.stringify({ type, content }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "문의 제출 실패");
+  return data;
+}
+
+export async function fetchInquiries(token) {
+  const headers = {};
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/inquiries`, {
+    headers,
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "문의 목록 조회 실패");
+  return data;
+}
+
+export async function acceptInquiry(inquiryId, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/inquiries/${encodeURIComponent(inquiryId)}/accept`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "문의 수락 실패");
+  return data;
+}
+
+export async function rejectInquiry(inquiryId, token) {
+  const headers = attachCsrf({ "Content-Type": "application/json" });
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/inquiries/${encodeURIComponent(inquiryId)}/reject`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "문의 거절 실패");
+  return data;
 }

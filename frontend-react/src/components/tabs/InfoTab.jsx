@@ -93,6 +93,8 @@ export default function InfoTab() {
       scoreText = formatPlayTime(rawScore);
     } else if (rankCriteria === 'rebirth') {
       scoreText = `${rawScore}회`;
+    } else if (rankCriteria === 'supercoin') {
+      scoreText = `${rawScore}개`;
     } else {
       scoreText = formatResourceValue(fromPlainValue(rawScore));
     }
@@ -152,7 +154,8 @@ export default function InfoTab() {
               { key: 'money', label: '💰' },
               { key: 'energy', label: '⚡' },
               { key: 'playtime', label: '⏱️' },
-              { key: 'rebirth', label: '🔮' }
+              { key: 'rebirth', label: '🔮' },
+              { key: 'supercoin', label: '🪙' }
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -167,7 +170,7 @@ export default function InfoTab() {
                   cursor: 'pointer',
                   fontWeight: rankCriteria === key ? 700 : 400,
                 }}
-                title={key === 'money' ? '돈' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : '환생'}
+                title={key === 'money' ? '돈' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : key === 'rebirth' ? '환생' : '슈퍼코인'}
               >
                 {label}
               </button>
@@ -194,6 +197,9 @@ export default function InfoTab() {
                 } else if (rankCriteria === 'rebirth') {
                   // Show rebirth count as number
                   score = `${entry.score || 0}회`;
+                } else if (rankCriteria === 'supercoin') {
+                  // Show supercoin count
+                  score = `${entry.score || 0}개`;
                 } else {
                   // Money or Energy - use BigValue formatting
                   score = typeof entry.score === 'number'
@@ -209,7 +215,7 @@ export default function InfoTab() {
                       fontWeight: you ? 700 : 400
                     }}
                   >
-                    <span style={{ color: '#3b82f6', fontWeight: 700 }}>{entry.rank}위</span> {entry.username} - {score}{rankCriteria === 'rebirth' ? '' : '점'}{you ? ' (나)' : ''}
+                    <span style={{ color: '#3b82f6', fontWeight: 700 }}>{entry.rank}위</span> {entry.username} - {score}{rankCriteria === 'rebirth' || rankCriteria === 'supercoin' || rankCriteria === 'playtime' ? '' : '점'}{you ? ' (나)' : ''}
                   </li>
                 );
               })
