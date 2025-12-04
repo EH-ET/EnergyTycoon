@@ -51,18 +51,20 @@ class UpgradeRequest(BaseModel):
     energy: Optional[int] = Field(default=None, ge=0)
 
 
+class GeneratorStateUpdate(BaseModel):
+    generator_id: Optional[str] = None
+    running: Optional[bool] = None
+    heat: Optional[int] = Field(default=None, ge=0)
+    explode: Optional[bool] = False
+
+
 class ProgressAutoSaveIn(BaseModel):
     energy_data: Optional[int] = None
     energy_high: Optional[int] = None
     money_data: Optional[int] = None
     money_high: Optional[int] = None
     play_time_ms: Optional[int] = Field(default=None, ge=0)
-
-
-class GeneratorStateUpdate(BaseModel):
-    running: Optional[bool] = None
-    heat: Optional[int] = Field(default=None, ge=0)
-    explode: Optional[bool] = False
+    generators: Optional[list[GeneratorStateUpdate]] = None
 
 
 class GeneratorUpgradeRequest(BaseModel):
