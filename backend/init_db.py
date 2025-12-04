@@ -56,6 +56,7 @@ def ensure_user_upgrade_columns():
                 ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
                 ("tutorial", "INTEGER NOT NULL DEFAULT 1"),
                 ("sold_energy", "INTEGER NOT NULL DEFAULT 0"),
+                ("supercoin", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -122,6 +123,13 @@ def ensure_user_upgrade_columns():
                     if type_check and type_check[0] == 'integer':
                         # Convert INTEGER to BIGINT
                         conn.exec_driver_sql(f"ALTER TABLE users ALTER COLUMN {col} TYPE BIGINT")
+            
+            # Add supercoin column if it doesn't exist
+            if "supercoin" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS supercoin INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("supercoin")
 
 
 def ensure_big_value_columns():
