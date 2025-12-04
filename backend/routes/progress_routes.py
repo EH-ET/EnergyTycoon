@@ -308,7 +308,9 @@ def _gen_upgrade_meta(key: str):
 
 def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> int:
     meta = _gen_upgrade_meta(key)
-    base_cost = getattr(gt, "cost", 10) or 10
+    # Use BigValue cost from cost_data and cost_high
+    cost_val = BigValue(gt.cost_data, gt.cost_high)
+    base_cost = to_plain(cost_val)
     current_level = getattr(mp, meta["field"], 0) or 0
     total = 0
     for i in range(amount):
@@ -457,6 +459,29 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     if payload.play_time_ms is not None:
         user.play_time_ms = max(0, int(payload.play_time_ms))
         updated = True
+    
+    # Update generators (heat, running)
+    if payload.generators:
+        gen_updates = {g.generator_id: g for g in payload.generators if g.generator_id}
+        if gen_updates:
+            # Fetch relevant generators owned by user
+            gens = (
+                db.query(Generator)
+                .filter(
+                    Generator.generator_id.in_(gen_updates.keys()),
+                    Generator.owner_id == user.user_id
+                )
+                .all()
+            )
+            for g in gens:
+                update_data = gen_updates.get(g.generator_id)
+                if update_data:
+                    if update_data.heat is not None:
+                        g.heat = max(0, int(update_data.heat))
+                        updated = True
+                    if update_data.running is not None:
+                        g.running = bool(update_data.running)
+                        updated = True
     
     if not updated:
         raise HTTPException(status_code=400, detail="No fields provided to autosave")
