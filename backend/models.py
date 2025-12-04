@@ -27,6 +27,11 @@ class User(Base):
     tutorial = Column(Integer, default=1, server_default="1", nullable=False)
     sold_energy = Column(Integer, default=0, server_default="0", nullable=False)
     supercoin = Column(Integer, default=0, server_default="0", nullable=False)
+    
+    # Special upgrades
+    build_speed_reduction = Column(Integer, default=0, server_default="0", nullable=False)
+    energy_multiplier = Column(Integer, default=0, server_default="0", nullable=False)
+    exchange_rate_multiplier = Column(Integer, default=0, server_default="0", nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)

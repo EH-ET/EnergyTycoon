@@ -73,12 +73,18 @@ export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSecon
   });
   const bonus = currentUser ? Number(currentUser.production_bonus) || 0 : 0;
   const rebirthCount = currentUser ? Number(currentUser.rebirth_count) || 0 : 0;
+  const energyMultiplier = currentUser ? Number(currentUser.energy_multiplier) || 0 : 0;
   
   let multiplier = 1 + bonus * 0.1;
   
   // Apply rebirth multiplier: 2^n
   if (rebirthCount > 0) {
     multiplier *= Math.pow(2, rebirthCount);
+  }
+  
+  // Apply energy multiplier from special upgrades: 2^n
+  if (energyMultiplier > 0) {
+    multiplier *= Math.pow(2, energyMultiplier);
   }
   
   return baseTotal * multiplier;
@@ -113,6 +119,7 @@ export function useEnergyTimer() {
       const { currentUser: userFromStore } = useStore.getState();
       const bonus = Number(userFromStore?.production_bonus) || 0;
       const rebirthCount = Number(userFromStore?.rebirth_count) || 0;
+      const energyMultiplier = Number(userFromStore?.energy_multiplier) || 0;
       const userHeatReduction = Number(userFromStore?.heat_reduction) || 0;
       const userToleranceBonus = Number(userFromStore?.tolerance_bonus) || 0;
       
@@ -121,6 +128,11 @@ export function useEnergyTimer() {
       // Apply rebirth multiplier: 2^n
       if (rebirthCount > 0) {
         multiplier *= Math.pow(2, rebirthCount);
+      }
+      
+      // Apply energy multiplier from special upgrades: 2^n
+      if (energyMultiplier > 0) {
+        multiplier *= Math.pow(2, energyMultiplier);
       }
 
       let energyGain = 0;

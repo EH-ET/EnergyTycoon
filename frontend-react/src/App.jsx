@@ -13,6 +13,7 @@ import Footer from './components/Footer';
 import GeneratorTab from './components/tabs/GeneratorTab';
 import TradeTab from './components/tabs/TradeTab';
 import UpgradeTab from './components/tabs/UpgradeTab';
+import SpecialTab from './components/tabs/SpecialTab';
 import InfoTab from './components/tabs/InfoTab';
 import InquiryTab from './components/tabs/InquiryTab';
 import TutorialOverlay from './components/TutorialOverlay';
@@ -32,10 +33,15 @@ function App() {
   // Simple routing - check if URL hash is #admin
   useEffect(() => {
     const checkAdminRoute = () => {
-      setIsAdminPage(window.location.hash === '#admin');
+      const isAdmin = window.location.hash === '#admin';
+      console.log('Checking admin route:', window.location.hash, isAdmin);
+      setIsAdminPage(isAdmin);
     };
     
+    // Check immediately
     checkAdminRoute();
+    
+    // Listen for hash changes
     window.addEventListener('hashchange', checkAdminRoute);
     return () => window.removeEventListener('hashchange', checkAdminRoute);
   }, []);
@@ -161,6 +167,8 @@ function App() {
         return <TradeTab />;
       case 'upgrade':
         return <UpgradeTab />;
+      case 'special':
+        return <SpecialTab />;
       case 'info':
         return <InfoTab />;
       case 'inquiry':

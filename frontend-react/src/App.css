@@ -413,6 +413,15 @@ main {
   font-weight: 900;
 }
 
+.special-btn:hover {
+  color:#ffd700;
+}
+
+.special-btn.active {
+  color: #ffd700;
+  font-weight: 900;
+}
+
 .info-btn:hover {
   color:#ffc800;
 }
@@ -485,7 +494,7 @@ main {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(13, 17, 23, 0.25);
+  background: rgba(13, 17, 23, 0.4);
   border: 1px solid #30363d;
   border-radius: 8px;
   padding: 8px 12px;

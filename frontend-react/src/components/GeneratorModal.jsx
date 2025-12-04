@@ -211,12 +211,12 @@ export default function GeneratorModal({ generator, onClose }) {
   };
 
   const computeHeatRate = (level, prodLevel) => {
-    const baseHeat = generator.heatRate || 0; // 기본 발열
+    const baseHeat = Number(generator.heatRate) || 0; // 기본 발열
     // 생산량 업그레이드에 따른 발열 증가: +0.5 per level
-    const productionHeat = prodLevel * 0.5;
+    const productionHeat = Number(prodLevel) * 0.5;
     
     // 발열 감소 업그레이드: 10% 감소 per level (곱연산 적용: 0.9^level)
-    const reductionMultiplier = Math.pow(0.9, level);
+    const reductionMultiplier = Math.pow(0.9, Number(level));
     
     const userHeatReduction = Number(currentUser?.heat_reduction) || 0;
     // 유저 보너스는 합연산으로 가정 (예: 5% 감소 -> * 0.95) 또는 로직 확인 필요. 

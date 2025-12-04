@@ -73,6 +73,13 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
             rebirth_multiplier = 2 ** rebirth_count
             rate *= rebirth_multiplier
     
+    # Apply exchange rate multiplier from special upgrades (2^level)
+    if user:
+        exchange_mult_level = getattr(user, "exchange_rate_multiplier", 0) or 0
+        if exchange_mult_level > 0:
+            exchange_multiplier = 2 ** exchange_mult_level
+            rate *= exchange_multiplier
+    
     return max(0.0001, rate)
 
 
