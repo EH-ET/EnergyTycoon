@@ -479,7 +479,7 @@ main {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(13, 17, 23, 0.95);
+  background: rgba(13, 17, 23, 0.25);
   border: 1px solid #30363d;
   border-radius: 8px;
   padding: 8px 12px;
