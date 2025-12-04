@@ -36,8 +36,8 @@ export function parseServerPlayTime(user) {
   ];
   for (const c of candidates) {
     const num = Number(c);
-    if (!Number.isFinite(num) || num <= 0) continue;
-    if (num < 1000000) return num * 1000;
+    if (!Number.isFinite(num) || num < 0) continue;
+    // Server always stores in milliseconds, so just return the value
     return num;
   }
   return 0;

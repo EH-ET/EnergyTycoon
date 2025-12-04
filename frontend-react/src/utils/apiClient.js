@@ -78,7 +78,12 @@ export async function loadGeneratorTypes(state) {
         state.generatorTypeInfoMap[fallbackName] = { id: typeId, cost };
       }
       state.generatorTypeIdToName[typeId] = fallbackName || typeName;
-      state.generatorTypesById[typeId] = { name: fallbackName || typeName, cost, index: resolvedIndex };
+      state.generatorTypesById[typeId] = { 
+        name: fallbackName || typeName, 
+        cost, 
+        index: resolvedIndex,
+        install_seconds: t.install_seconds || 0
+      };
     });
   } catch (e) {
     // Silent fail
@@ -214,10 +219,11 @@ export async function skipGeneratorBuild(generatorId, token) {
   return data;
 }
 
-export async function fetchRanks(token, { limit = 10, offset = 0 } = {}) {
+export async function fetchRanks(token, { limit = 10, offset = 0, criteria = 'money' } = {}) {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   params.set("offset", String(offset));
+  params.set("criteria", criteria);
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
