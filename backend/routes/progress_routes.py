@@ -308,7 +308,9 @@ def _gen_upgrade_meta(key: str):
 
 def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> int:
     meta = _gen_upgrade_meta(key)
-    base_cost = getattr(gt, "cost", 10) or 10
+    # Use BigValue cost from cost_data and cost_high
+    cost_val = BigValue(gt.cost_data, gt.cost_high)
+    base_cost = to_plain(cost_val)
     current_level = getattr(mp, meta["field"], 0) or 0
     total = 0
     for i in range(amount):
