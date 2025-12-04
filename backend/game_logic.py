@@ -40,13 +40,21 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
 
     Args:
         user: 사용자 (보너스 적용용)
-        sold_override: 판매량 오버라이드 (None이면 현재 MARKET_STATE 사용)
+        sold_override: 판매량 오버라이드 (None이면 user.sold_energy 사용)
 
     Returns:
         1 에너지당 돈 환율
     """
-    base_cost = MARKET_STATE["base_cost"]
-    sold = sold_override if sold_override is not None else MARKET_STATE["sold_energy"]
+    base_cost = 1.0  # 기본 비용
+    
+    # sold_override가 있으면 사용, 없으면 user.sold_energy 사용, 둘 다 없으면 0
+    if sold_override is not None:
+        sold = sold_override
+    elif user and hasattr(user, 'sold_energy'):
+        sold = getattr(user, 'sold_energy', 0) or 0
+    else:
+        sold = 0
+    
     growth = _cost_growth_from_sales(sold)
     # 수요(시장) 보너스가 있을수록 필요한 에너지 감소
     bonus = 1.0
@@ -82,7 +90,7 @@ def calculate_progressive_exchange(user: Optional[User], amount: int) -> tuple[i
     if amount <= 0:
         return 0, 0.0
 
-    current_sold = MARKET_STATE["sold_energy"]
+    current_sold = getattr(user, 'sold_energy', 0) or 0 if user else 0
     total_gained = 0
 
     # 성능 최적화: 100 단위로 묶어서 계산 (너무 작으면 정확도 저하, 너무 크면 성능 저하)

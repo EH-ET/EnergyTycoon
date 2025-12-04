@@ -102,10 +102,8 @@ async def perform_rebirth(auth=Depends(get_user_and_db)):
         # Increment rebirth count
         user.rebirth_count = current_count + 1
         
-        # Reset global market state (sold_energy) to prevent extreme inflation persistence
-        # Note: This affects all users if multi-user, but essential for single-player experience
-        from ..game_logic import MARKET_STATE
-        MARKET_STATE["sold_energy"] = 0
+        # Reset user's sold_energy (per-user market state)
+        user.sold_energy = 0
         
         db.commit()
         db.refresh(user)
