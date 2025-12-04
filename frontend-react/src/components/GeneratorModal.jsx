@@ -324,7 +324,7 @@ export default function GeneratorModal({ generator, onClose }) {
           color: '#f6f8fa',
           padding: '22px',
           borderRadius: '14px',
-          minWidth: '650px', // Split view requires more width
+          minWidth: '700px', // Split view requires more width
           maxWidth: '95vw',
           boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
           border: '1px solid #1f2a3d',
@@ -349,7 +349,7 @@ export default function GeneratorModal({ generator, onClose }) {
         {/* Split View: Left (Info) / Right (Upgrades) */}
         <div style={{ display: 'flex', gap: '20px', flexDirection: 'row', flexWrap: 'wrap' }}>
           {/* Left Column: Generator Info */}
-          <div style={{ flex: '1 1 300px' }}>
+          <div style={{ flex: '1 1 280px' }}>
             <p style={{ margin: '4px 0 10px', color: '#9ba4b5', fontSize: '13px' }}>
               내열: {Math.round(buffedTolerance)} / 발열: {Math.round(generator.heat || 0)} 
               <span style={{ color: '#e74c3c', marginLeft: '6px' }}>(+{currentHeatRate.toFixed(2)}/초)</span>
@@ -439,7 +439,7 @@ export default function GeneratorModal({ generator, onClose }) {
           </div>
 
           {/* Right Column: Upgrades */}
-          <div style={{ flex: '1 1 300px' }}>
+          <div style={{ flex: '1 1 280px' }}>
             <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#f6f8fa' }}>업그레이드</h4>
             {Object.entries(UPGRADE_CONFIG).map(([key, cfg]) => {
               const level = generator.upgrades?.[key] || 0;
