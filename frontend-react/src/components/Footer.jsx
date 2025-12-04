@@ -27,6 +27,12 @@ export default function Footer({ children }) {
             업그레이드
           </button>
           <button
+            className={`special-btn bbtn ${contentMode === 'special' ? 'active' : ''}`}
+            onClick={() => setContentMode('special')}
+          >
+            특수
+          </button>
+          <button
             className={`info-btn bbtn ${contentMode === 'info' ? 'active' : ''}`}
             onClick={() => setContentMode('info')}
           >

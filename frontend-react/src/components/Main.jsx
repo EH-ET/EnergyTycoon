@@ -322,9 +322,10 @@ export default function Main() {
               };
 
               const computeHeatRate = () => {
-                const baseHeat = generator.heatRate || 0;
-                const prodLevel = generator.upgrades?.production || 0;
-                const level = generator.upgrades?.heat_reduction || 0;
+                const baseHeat = Number(generator.heatRate) || 0;
+                const upgrades = generator.upgrades || {};
+                const prodLevel = Number(upgrades.production) || 0;
+                const level = Number(upgrades.heat_reduction) || 0;
                 
                 const productionHeat = prodLevel * 0.5;
                 const reductionMultiplier = Math.pow(0.9, level);

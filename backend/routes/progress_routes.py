@@ -59,13 +59,21 @@ def _demolish_cost(generator_type: GeneratorType) -> BigValue:
     return from_plain(half_plain)
 
 
-def _build_duration(generator_type: Optional[GeneratorType] = None, level: Optional[int] = None) -> int:
+def _build_duration(generator_type: Optional[GeneratorType] = None, level: Optional[int] = None, user: Optional[User] = None) -> int:
+    base_duration = 2  # Default: 2 seconds if no build time in data
     if generator_type and getattr(generator_type, "name", None):
         seconds = get_build_time_by_name(generator_type.name)
         if seconds:
-            return max(1, int(seconds))
-    # 기본값: 데이터에 설치시간이 없으면 2초로 고정
-    return 2
+            base_duration = max(1, int(seconds))
+    
+    # Apply build speed reduction from special upgrades
+    if user:
+        build_speed_reduction = getattr(user, "build_speed_reduction", 0) or 0
+        # 10% reduction per level, max 90% reduction (level 9)
+        reduction_rate = min(build_speed_reduction * 0.1, 0.9)
+        base_duration = int(base_duration * (1 - reduction_rate))
+    
+    return max(1, base_duration)  # Minimum 1 second
 
 
 def _maybe_complete_build(generator: Generator, now: Optional[int] = None) -> bool:
@@ -191,7 +199,7 @@ async def save_progress(payload: ProgressSaveIn, auth=Depends(get_user_and_db)):
     )
     db.add(g)
     set_user_money_value(user, subtract_values(money_value, cost_val))
-    build_duration = _build_duration(gt, g.level)
+    build_duration = _build_duration(gt, g.level, user)
     g.isdeveloping = True
     g.build_complete_ts = int(time.time() + build_duration)
     db.commit()
@@ -279,7 +287,7 @@ async def update_generator_state(generator_id: str, payload: GeneratorStateUpdat
         gen.isdeveloping = True
         gen.running = False
         gen.heat = 0
-        gen.build_complete_ts = int(time.time() + _build_duration(getattr(gen, "generator_type", None), gen.level))
+        gen.build_complete_ts = int(time.time() + _build_duration(getattr(gen, "generator_type", None), gen.level, user))
         changed = True
     
     if not changed:
@@ -397,6 +405,12 @@ def _calculate_total_energy_production(user: User, db: Session) -> int:
             
             gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
             total_production += int(gen_production)
+        
+        # Apply energy multiplier from special upgrades (2^level)
+        energy_multiplier_level = getattr(user, "energy_multiplier", 0) or 0
+        if energy_multiplier_level > 0:
+            energy_multiplier = 2 ** energy_multiplier_level
+            total_production = int(total_production * energy_multiplier)
         
         return total_production
     except Exception as e:
@@ -535,7 +549,7 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     
     # Calculate proportional cost using BigValue
     try:
-        total_duration = max(1, _build_duration(gt, gen.level))
+        total_duration = max(1, _build_duration(gt, gen.level, user))
         full_cost_val = BigValue(gt.cost_data, gt.cost_high)
         full_cost_plain = to_plain(full_cost_val)
         # Proportional cost based on remaining time

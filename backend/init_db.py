@@ -57,6 +57,9 @@ def ensure_user_upgrade_columns():
                 ("tutorial", "INTEGER NOT NULL DEFAULT 1"),
                 ("sold_energy", "INTEGER NOT NULL DEFAULT 0"),
                 ("supercoin", "INTEGER NOT NULL DEFAULT 0"),
+                ("build_speed_reduction", "INTEGER NOT NULL DEFAULT 0"),
+                ("energy_multiplier", "INTEGER NOT NULL DEFAULT 0"),
+                ("exchange_rate_multiplier", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -130,6 +133,23 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS supercoin INTEGER NOT NULL DEFAULT 0"
                 )
                 existing.add("supercoin")
+            
+            # Add special upgrade columns
+            if "build_speed_reduction" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS build_speed_reduction INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("build_speed_reduction")
+            if "energy_multiplier" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_multiplier INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("energy_multiplier")
+            if "exchange_rate_multiplier" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS exchange_rate_multiplier INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("exchange_rate_multiplier")
 
 
 def ensure_big_value_columns():
