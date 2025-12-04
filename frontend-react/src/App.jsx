@@ -73,17 +73,18 @@ function App() {
         generatorTypesById: {},
       };
 
-      // 서버 호출 완료를 기다리지 않고 바로 렌더 진행
-      loadGeneratorTypes(state)
-        .catch(() => {})
-        .finally(() => {
-          setGeneratorTypes(
-            state.generatorTypeMap,
-            state.generatorTypeInfoMap,
-            state.generatorTypeIdToName,
-            state.generatorTypesById
-          );
-        });
+      // FIX: 발전기 타입을 먼저 완전히 로드 (Race Condition 방지)
+      try {
+        await loadGeneratorTypes(state);
+        setGeneratorTypes(
+          state.generatorTypeMap,
+          state.generatorTypeInfoMap,
+          state.generatorTypeIdToName,
+          state.generatorTypesById
+        );
+      } catch (e) {
+        console.error("Failed to load generator types:", e);
+      }
 
       // 저장된 사용자 데이터 로드
       const stored = loadUserData();
@@ -96,13 +97,42 @@ function App() {
         syncUserState(stored);
         ensureSessionStart();
 
-        // 진행도 로드
-        fetchAndSyncProgress(stored, token, state.generatorTypesById).catch(() => {
-          // API 에러면 로그아웃 처리
+        // 진행도 로드 (generator types가 이미 로드됨)
+        try {
+          await fetchAndSyncProgress(stored, token, state.generatorTypesById);
+        } catch (e) {
+          // 401/403 에러인 경우 토큰 갱신 시도
+          const isAuthError = e.message?.includes('401') || e.message?.includes('403') || 
+                             e.message?.includes('Unauthorized') || e.message?.includes('인증');
+          
+          if (isAuthError) {
+            console.log('Auth error detected, attempting token refresh...');
+            
+            // Refresh token으로 access token 갱신 시도
+            const { refreshAccessToken } = await import('./utils/apiClient');
+            const refreshed = await refreshAccessToken();
+            
+            if (refreshed) {
+              console.log('Token refreshed successfully, retrying progress load...');
+              try {
+                // 토큰 갱신 성공 시 원래 요청 재시도
+                await fetchAndSyncProgress(stored, getAuthToken(), state.generatorTypesById);
+                return; // 성공하면 여기서 종료
+              } catch (retryError) {
+                console.error('Retry after refresh failed:', retryError);
+              }
+            } else {
+              console.log('Token refresh failed - refresh token expired or invalid');
+            }
+          }
+          
+          // FIX: 토큰 갱신 실패 또는 다른 에러 시 로그아웃 처리
+          console.error('Session expired or invalid:', e);
           localStorage.clear();
           sessionStorage.clear();
+          useStore.getState().setCurrentUser(null);
           setIsLoading(false);
-        });
+        }
       }
     };
 

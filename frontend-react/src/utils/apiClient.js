@@ -369,3 +369,27 @@ export async function getTutorialStatus(token) {
   if (!res.ok) throw new Error(data.detail || "튜토리얼 상태 불러오기 실패");
   return data;
 }
+
+/**
+ * Refresh access token using refresh token (stored in HttpOnly cookie)
+ * @returns {Promise<boolean>} true if refresh succeeded, false otherwise
+ */
+export async function refreshAccessToken() {
+  try {
+    const headers = attachCsrf();
+    const res = await fetch(`${API_BASE}/refresh/access`, {
+      method: "POST",
+      headers,
+      credentials: "include" // Send refresh token cookie
+    });
+    
+    if (!res.ok) {
+      return false; // Refresh token expired or invalid
+    }
+    
+    return true; // Successfully refreshed
+  } catch (e) {
+    console.error("Token refresh failed:", e);
+    return false;
+  }
+}
