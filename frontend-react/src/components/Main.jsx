@@ -7,7 +7,7 @@ import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents'
 import GeneratorModal from './GeneratorModal';
 import AlertModal from './AlertModal';
 import { clampOffset, SCROLL_RANGE, BG_FALLBACK_WIDTH } from '../hooks/useViewport';
-import { valueFromServer, toPlainValue, formatResourceValue } from '../utils/bigValue';
+import { valueFromServer, toPlainValue, formatResourceValue, fromPlainValue } from '../utils/bigValue';
 
 const DEFAULT_TOLERANCE = 100;
 
