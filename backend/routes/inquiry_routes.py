@@ -9,6 +9,15 @@ from ..schemas import InquiryCreate, InquiryOut
 
 router = APIRouter()
 
+# Admin user ID - only this user can access admin functions
+ADMIN_USER_ID = "2ebc9ede-8865-46f6-b02c-aa7ee731c787"
+
+
+def check_admin(user: User):
+    """Check if user is admin. Raises HTTPException if not."""
+    if user.user_id != ADMIN_USER_ID:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
 
 @router.post("/inquiries", response_model=InquiryOut)
 async def create_inquiry(inquiry: InquiryCreate, auth=Depends(get_user_and_db)):
@@ -46,7 +55,10 @@ async def create_inquiry(inquiry: InquiryCreate, auth=Depends(get_user_and_db)):
 @router.get("/inquiries", response_model=List[InquiryOut])
 async def get_inquiries(auth=Depends(get_user_and_db)):
     """Get all inquiries (for admin page)."""
-    _, db, _ = auth
+    user, db, _ = auth
+    
+    # Check if user is admin
+    check_admin(user)
     
     inquiries = db.query(Inquiry).order_by(Inquiry.created_at.desc()).all()
     
@@ -72,7 +84,10 @@ async def get_inquiries(auth=Depends(get_user_and_db)):
 @router.post("/inquiries/{inquiry_id}/accept")
 async def accept_inquiry(inquiry_id: str, auth=Depends(get_user_and_db)):
     """Accept an inquiry - give user +1 supercoin and delete inquiry."""
-    _, db, _ = auth
+    user, db, _ = auth
+    
+    # Check if user is admin
+    check_admin(user)
     
     inquiry = db.query(Inquiry).filter(Inquiry.inquiry_id == inquiry_id).first()
     if not inquiry:
@@ -94,7 +109,10 @@ async def accept_inquiry(inquiry_id: str, auth=Depends(get_user_and_db)):
 @router.post("/inquiries/{inquiry_id}/reject")
 async def reject_inquiry(inquiry_id: str, auth=Depends(get_user_and_db)):
     """Reject an inquiry - just delete it."""
-    _, db, _ = auth
+    user, db, _ = auth
+    
+    # Check if user is admin
+    check_admin(user)
     
     inquiry = db.query(Inquiry).filter(Inquiry.inquiry_id == inquiry_id).first()
     if not inquiry:

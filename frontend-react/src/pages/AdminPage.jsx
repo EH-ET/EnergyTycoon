@@ -24,7 +24,14 @@ export default function AdminPage() {
       const data = await fetchInquiries(token);
       setInquiries(data);
     } catch (err) {
-      setError(err.message || '문의 목록을 불러오지 못했습니다.');
+      const errorMessage = err.message || '문의 목록을 불러오지 못했습니다.';
+      
+      // Check if it's an admin access error
+      if (errorMessage.includes('403') || errorMessage.includes('Admin access required')) {
+        setError('⛔ 관리자 권한이 필요합니다. 이 페이지는 관리자만 접근할 수 있습니다.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -98,6 +105,7 @@ export default function AdminPage() {
   }
 
   if (error) {
+    const isAdminError = error.includes('관리자 권한') || error.includes('Admin access');
     return (
       <div className="admin-page">
         <div className="admin-header">
@@ -106,7 +114,14 @@ export default function AdminPage() {
             게임으로 돌아가기
           </button>
         </div>
-        <div className="admin-error">{error}</div>
+        <div className={`admin-error ${isAdminError ? 'admin-forbidden' : ''}`}>
+          {error}
+          {isAdminError && (
+            <div style={{ marginTop: '20px', fontSize: '14px', color: '#999' }}>
+              일반 사용자는 이 페이지에 접근할 수 없습니다.
+            </div>
+          )}
+        </div>
       </div>
     );
   }
