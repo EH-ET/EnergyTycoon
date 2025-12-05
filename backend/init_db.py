@@ -118,8 +118,7 @@ def ensure_user_upgrade_columns():
                 existing.add("sold_energy_high")
             # Backfill and clean up legacy column if it still exists
             if "supply_bonus" in existing:
-                    "UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus) WHERE demand_bonus IS NULL"
-                )
+                conn.exec_driver_sql("UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus) WHERE demand_bonus IS NULL")
                 conn.exec_driver_sql("ALTER TABLE users DROP COLUMN supply_bonus")
             
             # Migrate sold_energy -> sold_energy_data if needed
