@@ -103,7 +103,8 @@ async def perform_rebirth(auth=Depends(get_user_and_db)):
         user.rebirth_count = current_count + 1
         
         # Reset user's sold_energy (per-user market state)
-        user.sold_energy = 0
+        user.sold_energy_data = 0
+        user.sold_energy_high = 0
         
         db.commit()
         db.refresh(user)

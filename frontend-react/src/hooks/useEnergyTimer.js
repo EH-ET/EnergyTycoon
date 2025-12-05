@@ -102,6 +102,7 @@ export function useEnergyTimer() {
 
   const energySaveTimerRef = useRef(null);
   const lastSavedEnergyRef = useRef(null);
+  const lastSaveTimeRef = useRef(0); // Initialize with 0
 
   useEffect(() => {
     if (!userId) return;
@@ -208,11 +209,21 @@ export function useEnergyTimer() {
         const nextValue = addPlainValue(getEnergyValue(), totalGain);
         setEnergyValue(nextValue);
 
-        // 에너지 변경 시 0.5초 debounce로 백엔드 저장
+        // 에너지 변경 시 5초 debounce로 백엔드 저장
+        // 너무 잦은 저장을 방지하기 위해 이전 저장 시간 체크 필요
         if (energySaveTimerRef.current) {
           clearTimeout(energySaveTimerRef.current);
         }
+        
         energySaveTimerRef.current = setTimeout(async () => {
+          const currentTime = Date.now();
+          // Prevent saving if less than ENERGY_SAVE_DELAY has passed since the last save
+          if (currentTime - lastSaveTimeRef.current < ENERGY_SAVE_DELAY) {
+            // Reschedule if needed, or just let the next tick handle it
+            // For now, we'll just exit and rely on the next debounce to trigger
+            return;
+          }
+
           try {
             const token = getAuthToken();
             const energyPayload = toEnergyServerPayload();
@@ -228,6 +239,7 @@ export function useEnergyTimer() {
                 play_time_ms: playTimeMs,
               });
               lastSavedEnergyRef.current = currentEnergy;
+              lastSaveTimeRef.current = Date.now(); // Update save time
             }
           } catch (e) {
             // Silent fail

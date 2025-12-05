@@ -25,7 +25,8 @@ class User(Base):
     play_time_ms = Column(BigInteger, default=0, server_default="0", nullable=False)
     rebirth_count = Column(Integer, default=0, server_default="0", nullable=False)
     tutorial = Column(Integer, default=1, server_default="1", nullable=False)
-    sold_energy = Column(Integer, default=0, server_default="0", nullable=False)
+    sold_energy_data = Column(BigInteger, default=0, server_default="0", nullable=False)
+    sold_energy_high = Column(BigInteger, default=0, server_default="0", nullable=False)
     supercoin = Column(Integer, default=0, server_default="0", nullable=False)
     
     # Special upgrades

@@ -55,7 +55,6 @@ def ensure_user_upgrade_columns():
                 ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
                 ("tutorial", "INTEGER NOT NULL DEFAULT 1"),
-                ("sold_energy", "INTEGER NOT NULL DEFAULT 0"),
                 ("supercoin", "INTEGER NOT NULL DEFAULT 0"),
                 ("build_speed_reduction", "INTEGER NOT NULL DEFAULT 0"),
                 ("energy_multiplier", "INTEGER NOT NULL DEFAULT 0"),
@@ -69,6 +68,14 @@ def ensure_user_upgrade_columns():
                 conn.exec_driver_sql("UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus)")
                 try:
                     conn.exec_driver_sql("ALTER TABLE users DROP COLUMN supply_bonus")
+                except Exception:
+                    pass
+            
+            # Migrate sold_energy -> sold_energy_data if needed
+            if "sold_energy" in cols and "sold_energy_data" in cols:
+                conn.exec_driver_sql("UPDATE users SET sold_energy_data = sold_energy WHERE sold_energy_data = 0 AND sold_energy > 0")
+                try:
+                    conn.exec_driver_sql("ALTER TABLE users DROP COLUMN sold_energy")
                 except Exception:
                     pass
         return
@@ -99,23 +106,32 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial INTEGER NOT NULL DEFAULT 1"
                 )
                 existing.add("tutorial")
-            if "sold_energy" not in existing:
+            if "sold_energy_data" not in existing:
                 conn.exec_driver_sql(
-                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sold_energy INTEGER NOT NULL DEFAULT 0"
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sold_energy_data BIGINT NOT NULL DEFAULT 0"
                 )
-                existing.add("sold_energy")
+                existing.add("sold_energy_data")
+            if "sold_energy_high" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS sold_energy_high BIGINT NOT NULL DEFAULT 0"
+                )
+                existing.add("sold_energy_high")
             # Backfill and clean up legacy column if it still exists
             if "supply_bonus" in existing:
-                conn.exec_driver_sql(
                     "UPDATE users SET demand_bonus = COALESCE(demand_bonus, supply_bonus) WHERE demand_bonus IS NULL"
                 )
                 conn.exec_driver_sql("ALTER TABLE users DROP COLUMN supply_bonus")
+            
+            # Migrate sold_energy -> sold_energy_data if needed
+            if "sold_energy" in existing and "sold_energy_data" in existing:
+                conn.exec_driver_sql("UPDATE users SET sold_energy_data = sold_energy WHERE sold_energy_data = 0 AND sold_energy > 0")
+                conn.exec_driver_sql("ALTER TABLE users DROP COLUMN sold_energy")
             conn.exec_driver_sql("UPDATE users SET demand_bonus = 0 WHERE demand_bonus IS NULL")
             conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET DEFAULT 0")
             conn.exec_driver_sql("ALTER TABLE users ALTER COLUMN demand_bonus SET NOT NULL")
             
             # Migrate BigValue columns to BIGINT to prevent overflow
-            bigvalue_columns = ["energy_data", "energy_high", "money_data", "money_high"]
+            bigvalue_columns = ["energy_data", "energy_high", "money_data", "money_high", "sold_energy_data", "sold_energy_high"]
             for col in bigvalue_columns:
                 if col in existing:
                     # Check if column is already BIGINT
@@ -162,6 +178,8 @@ def ensure_big_value_columns():
         ("money_high", "INTEGER NOT NULL DEFAULT 0"),
         ("energy_data", "INTEGER NOT NULL DEFAULT 0"),
         ("energy_high", "INTEGER NOT NULL DEFAULT 0"),
+        ("sold_energy_data", "INTEGER NOT NULL DEFAULT 0"),
+        ("sold_energy_high", "INTEGER NOT NULL DEFAULT 0"),
     ]
     with engine.begin() as conn:
         existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('users')")}
