@@ -42,7 +42,7 @@ export default function Footer({ children }) {
             className={`inquiry-btn bbtn ${contentMode === 'inquiry' ? 'active' : ''}`}
             onClick={() => setContentMode('inquiry')}
           >
-            문의하기
+            문의
           </button>
         </div>
         <div className="content-area">
