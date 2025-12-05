@@ -17,10 +17,8 @@ export default function AdminPage() {
     setError(null);
     try {
       const token = getAuthToken();
-      if (!token) {
-        goBack();
-        return;
-      }
+      // Token might be null if using HttpOnly cookies, but fetchInquiries will use credentials
+
       const data = await fetchInquiries(token);
       setInquiries(data);
     } catch (err) {

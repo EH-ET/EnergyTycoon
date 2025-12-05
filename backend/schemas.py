@@ -27,6 +27,7 @@ class UserOut(BaseModel):
     build_speed_reduction: int = 0
     energy_multiplier: int = 0
     exchange_rate_multiplier: int = 0
+    sold_energy: int = 0
 
     model_config = {"from_attributes": True}
 
