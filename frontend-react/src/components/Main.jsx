@@ -335,9 +335,11 @@ export default function Main() {
                 
                 let totalHeat = baseHeat + productionHeat;
                 totalHeat = totalHeat * reductionMultiplier;
-                if (userHeatReduction > 0) {
-                  totalHeat = totalHeat * (1 - userHeatReduction / 100);
-                }
+                
+                // User bonus: 10% reduction per level (max 90% reduction)
+                const userMultiplier = Math.max(0.1, 1 - userHeatReduction * 0.1);
+                totalHeat = totalHeat * userMultiplier;
+                
                 return Math.max(0, totalHeat);
               };
 
