@@ -1,6 +1,6 @@
 // 서버와 통신하는 함수 모음
 import { API_BASE, generators } from "./data.js";
-import { valueFromServer, toPlainValue } from "./bigValue.js";
+import { valueFromServer, toPlainValue, fromPlainValue } from "./bigValue.js";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_STORAGE_KEY = "et_csrf";
@@ -124,11 +124,19 @@ export async function loadProgress(userId, token) {
 export async function exchangeEnergy(token, userId, amount, energy) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
   if (token) headers.authorization = `Bearer ${token}`;
+  
+  // Convert plain amount to BigValue for backend
+  const amountBV = fromPlainValue(amount);
+  
   const res = await fetch(`${API_BASE}/change/energy2money`, {
     method: "POST",
     headers,
     credentials: "include",
-    body: JSON.stringify({ user_id: userId, amount }),
+    body: JSON.stringify({ 
+      user_id: userId, 
+      amount_data: amountBV.data,
+      amount_high: amountBV.high
+    }),
   });
   const data = await res.json();
   if (!res.ok) {
