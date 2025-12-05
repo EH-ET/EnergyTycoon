@@ -315,10 +315,12 @@ export default function Main() {
                 const base = getBaseProduction();
                 const bonus = Number(currentUser?.production_bonus) || 0;
                 const rebirthCount = Number(currentUser?.rebirth_count) || 0;
+                const energyMultiplier = Number(currentUser?.energy_multiplier) || 0;
                 const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
+                const energyMult = energyMultiplier > 0 ? Math.pow(2, energyMultiplier) : 1;
                 const level = generator.upgrades?.production || 0;
                 const upgraded = base * (1 + 0.1 * level); // PRODUCTION_UPGRADE_FACTOR = 0.1
-                return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier;
+                return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier * energyMult;
               };
 
               const computeHeatRate = () => {

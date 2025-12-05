@@ -24,6 +24,9 @@ class UserOut(BaseModel):
     rebirth_count: int
     tutorial: int
     supercoin: int = 0
+    build_speed_reduction: int = 0
+    energy_multiplier: int = 0
+    exchange_rate_multiplier: int = 0
 
     model_config = {"from_attributes": True}
 
