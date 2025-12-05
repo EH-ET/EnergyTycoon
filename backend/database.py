@@ -35,6 +35,11 @@ _ensure_sqlite_dir(DATABASE_URL)
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
+    pool_size=20,              # Increased from default 5
+    max_overflow=40,           # Increased from default 10
+    pool_timeout=60,           # Increased from default 30 seconds
+    pool_recycle=3600,         # Recycle connections after 1 hour
+    pool_pre_ping=True,        # Check connection health before using
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
