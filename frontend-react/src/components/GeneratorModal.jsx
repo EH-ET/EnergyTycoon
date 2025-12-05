@@ -221,8 +221,6 @@ export default function GeneratorModal({ generator, onClose }) {
     const reductionMultiplier = Math.pow(0.9, Number(level));
     
     const userHeatReduction = Number(currentUser?.heat_reduction) || 0;
-    // 유저 보너스는 합연산으로 가정 (예: 5% 감소 -> * 0.95) 또는 로직 확인 필요. 
-    // 기존 로직이 명확하지 않으므로 일단 업그레이드만 적용하고 유저 보너스는 별도 적용
     
     // 기본 발열 + 생산 업그레이드 발열
     let totalHeat = baseHeat + productionHeat;
@@ -230,10 +228,9 @@ export default function GeneratorModal({ generator, onClose }) {
     // 발열 감소 적용
     totalHeat = totalHeat * reductionMultiplier;
     
-    // 유저 보너스 (heat_reduction은 정수형 퍼센트라고 가정, 예: 10 -> 10% 감소)
-    if (userHeatReduction > 0) {
-      totalHeat = totalHeat * (1 - userHeatReduction / 100);
-    }
+    // 유저 보너스: 10% 감소 per level (max 90% reduction)
+    const userMultiplier = Math.max(0.1, 1 - userHeatReduction * 0.1);
+    totalHeat = totalHeat * userMultiplier;
     
     return Math.max(0, totalHeat);
   };

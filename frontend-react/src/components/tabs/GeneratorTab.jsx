@@ -41,10 +41,17 @@ export default function GeneratorTab() {
     const baseTolerance = gen.내열한계 || 0;
     const finalTolerance = baseTolerance + toleranceBonus * 10;
     
+    // Build Duration: base * (1 - build_speed_reduction * 0.1)
+    const baseDuration = gen["설치시간(초)"] || 0;
+    const buildSpeedReduction = currentUser?.build_speed_reduction || 0;
+    const reductionRate = Math.min(buildSpeedReduction * 0.1, 0.9);
+    const finalDuration = Math.max(1, Math.floor(baseDuration * (1 - reductionRate)));
+    
     return {
       production: { data: Math.floor(finalProduction * 1000), high: 0 },
       heat: finalHeat,
       tolerance: finalTolerance,
+      buildDuration: finalDuration,
     };
   };
 
@@ -137,7 +144,12 @@ export default function GeneratorTab() {
             설치비용: {formatResourceValue(hovered.cost)}
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
-            설치시간: {hovered.gen["설치시간(초)"]}s
+            설치시간: {hovered.dynamicStats ? hovered.dynamicStats.buildDuration : hovered.gen["설치시간(초)"]}s
+            {hovered.dynamicStats && currentUser?.build_speed_reduction > 0 && (
+              <span style={{ color: '#4ade80', fontSize: '11px', marginLeft: '4px' }}>
+                (감소 적용됨)
+              </span>
+            )}
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
             생산량: {hovered.dynamicStats ? formatResourceValue(hovered.dynamicStats.production) : formatResourceValue(hovered.production)}
