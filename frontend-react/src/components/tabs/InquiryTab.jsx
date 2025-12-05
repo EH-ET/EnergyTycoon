@@ -42,15 +42,15 @@ export default function InquiryTab() {
   };
 
   return (
-    <div className="inquiry-tab" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '20px', boxSizing: 'border-box' }}>
-      <h2 className="inquiry-title" style={{ margin: '0 0 8px 0' }}>문의</h2>
-      <p className="inquiry-description" style={{ margin: '0 0 16px 0' }}>
+    <div className="inquiry-tab" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <h2 className="inquiry-title">문의하기</h2>
+      <p className="inquiry-description">
         버그 제보, 취약점 발견, 발전기 제안 등을 해주시면 검토 후 슈퍼코인을 지급해드립니다!
       </p>
 
       <div className="inquiry-content-wrapper" style={{ display: 'flex', gap: '20px', flex: 1, minHeight: 0 }}>
         {/* Left Sidebar: Types */}
-        <div className="inquiry-sidebar" style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+        <div className="inquiry-sidebar" style={{ width: '180px', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
           <label className="inquiry-label" style={{ marginBottom: '4px' }}>문의 종류</label>
           {INQUIRY_TYPES.map(type => (
             <button
@@ -75,8 +75,8 @@ export default function InquiryTab() {
         </div>
 
         {/* Right Main: Input & Submit */}
-        <div className="inquiry-main-form" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="inquiry-main-form" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <label className="inquiry-label" style={{ marginBottom: '8px' }}>문의 내용</label>
             <textarea
               className="inquiry-textarea"
@@ -87,7 +87,6 @@ export default function InquiryTab() {
               style={{
                 flex: 1,
                 width: '100%',
-                minHeight: '100px',
                 padding: '16px',
                 borderRadius: '12px',
                 border: '1px solid #374151',
@@ -95,13 +94,12 @@ export default function InquiryTab() {
                 color: '#f3f4f6',
                 resize: 'none',
                 fontSize: '14px',
-                lineHeight: '1.5',
-                boxSizing: 'border-box'
+                lineHeight: '1.5'
               }}
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px' }}>
             {message && (
               <span className={`inquiry-message ${message.type}`} style={{ fontSize: '14px', color: message.type === 'success' ? '#4ade80' : '#f87171' }}>
                 {message.text}
