@@ -16,14 +16,39 @@ class BigValue:
 def normalize(value: Optional[BigValue]) -> BigValue:
   if not value:
     return BigValue(0, 0)
-  data = max(0, int(value.data or 0))
-  high = max(0, int(value.high or 0))
+  data = int(value.data or 0)
+  high = int(value.high or 0)
+  
+  if data == 0:
+      return BigValue(0, 0)
+  
+  # data가 음수일 경우 부호 처리
+  sign = 1
+  if data < 0:
+      sign = -1
+      data = -data
+
+  if data < DATA_LIMIT:
+      return BigValue(data * sign, high)
+
+  # 대수적 방법으로 오버헤드 없이 high 계산
+  import math
+  # data의 자릿수 근사: log10
+  try:
+      exponent_diff = int(math.log10(data)) - 5 
+  except ValueError:
+       # data가 0 이하인 경우 등 안전장치
+       exponent_diff = 0
+
+  if exponent_diff > 0:
+      high += exponent_diff
+      data //= (10 ** exponent_diff)
+      
   while data >= DATA_LIMIT:
-    data //= 10
-    high += 1
-  if data <= 0:
-    return BigValue(0, 0)
-  return BigValue(data, high)
+      data //= 10
+      high += 1
+      
+  return BigValue(data * sign, high)
 
 
 def from_plain(amount: int) -> BigValue:
@@ -107,6 +132,16 @@ def set_user_energy_value(user, value: BigValue):
   user.energy_high = normalized.high
 
 
+def get_user_sold_energy_value(user) -> BigValue:
+  return normalize(BigValue(getattr(user, "sold_energy_data", 0) or 0, getattr(user, "sold_energy_high", 0) or 0))
+
+
+def set_user_sold_energy_value(user, value: BigValue):
+  normalized = normalize(value)
+  user.sold_energy_data = normalized.data
+  user.sold_energy_high = normalized.high
+
+
 def ensure_user_big_values(user, db=None):
   changed = False
   if getattr(user, "money_data", None) is None or getattr(user, "money_high", None) is None:
@@ -117,6 +152,11 @@ def ensure_user_big_values(user, db=None):
   if getattr(user, "energy_data", None) is None or getattr(user, "energy_high", None) is None:
     user.energy_data = 0
     user.energy_high = 0
+    changed = True
+    
+  if getattr(user, "sold_energy_data", None) is None or getattr(user, "sold_energy_high", None) is None:
+    user.sold_energy_data = 0
+    user.sold_energy_high = 0
     changed = True
     
   if changed and db is not None:

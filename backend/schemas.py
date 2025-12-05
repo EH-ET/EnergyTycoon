@@ -27,7 +27,8 @@ class UserOut(BaseModel):
     build_speed_reduction: int = 0
     energy_multiplier: int = 0
     exchange_rate_multiplier: int = 0
-    sold_energy: int = 0
+    sold_energy_data: int = 0
+    sold_energy_high: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -39,7 +40,8 @@ class LoginIn(BaseModel):
 
 class ExchangeIn(BaseModel):
     user_id: Optional[str] = None
-    amount: int
+    amount_data: int
+    amount_high: int
 
 
 class ProgressSaveIn(BaseModel):
