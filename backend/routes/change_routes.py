@@ -33,15 +33,14 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     _ensure_same_user(user, payload.user_id)
     
-    # Payload 처리: BigValue 우선, 없으면 int amount 사용
-    if payload.amount_data is not None and payload.amount_high is not None:
-        amount_bv = normalize(BigValue(payload.amount_data, payload.amount_high))
-    elif payload.amount is not None:
-        if payload.amount <= 0:
-             raise HTTPException(status_code=400, detail="Invalid amount")
-        amount_bv = from_plain(payload.amount)
-    else:
-        raise HTTPException(status_code=400, detail="Amount must be provided")
+    # Payload 처리: BigValue 필수
+    if payload.amount_data is None or payload.amount_high is None:
+        raise HTTPException(status_code=400, detail="Amount data and high must be provided")
+        
+    amount_bv = normalize(BigValue(payload.amount_data, payload.amount_high))
+    
+    if amount_bv.data <= 0 and amount_bv.high <= 0:
+         raise HTTPException(status_code=400, detail="Invalid amount")
 
     energy_value = get_user_energy_value(user)
     
@@ -81,17 +80,24 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     user, db, _ = auth
     _ensure_same_user(user, payload.user_id)
-    if payload.amount <= 0:
+    
+    if payload.amount_data is None or payload.amount_high is None:
+        raise HTTPException(status_code=400, detail="Amount data and high must be provided")
+        
+    amount_bv = normalize(BigValue(payload.amount_data, payload.amount_high))
+    
+    if amount_bv.data <= 0 and amount_bv.high <= 0:
         raise HTTPException(status_code=400, detail="Invalid amount")
+        
     money_value = get_user_money_value(user)
-    if compare_plain(money_value, payload.amount) < 0:
+    if compare(money_value, amount_bv) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
 
     # 점진적 환율 적용하여 실제 획득량 계산 (돈→에너지는 역방향)
-    gained, avg_rate = calculate_progressive_exchange(user, payload.amount)
+    gained, avg_rate = calculate_progressive_exchange(user, amount_bv)
 
-    money_value = subtract_plain(money_value, payload.amount)
-    energy_value = add_plain(get_user_energy_value(user), gained)
+    money_value = subtract_values(money_value, amount_bv)
+    energy_value = add_values(get_user_energy_value(user), gained)
     set_user_money_value(user, money_value)
     set_user_energy_value(user, energy_value)
     db.commit()
