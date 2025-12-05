@@ -66,10 +66,8 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     if compare_plain(money_value, payload.amount) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
 
-    # 돈→에너지: 현재 환율로 계산 (sold_energy는 변하지 않음)
-    rate = current_market_rate(user)
-    # 돈을 에너지로 바꾸므로 환율의 역수 적용
-    gained = int(payload.amount * rate)
+    # 점진적 환율 적용하여 실제 획득량 계산 (돈→에너지는 역방향)
+    gained, avg_rate = calculate_progressive_exchange(user, payload.amount)
 
     money_value = subtract_plain(money_value, payload.amount)
     energy_value = add_plain(get_user_energy_value(user), gained)
@@ -82,7 +80,7 @@ async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
         "energy_high": user.energy_high,
         "money_data": user.money_data,
         "money_high": user.money_high,
-        "rate": rate,
+        "rate": avg_rate,
         "gained": gained,
         "user": UserOut.model_validate(user),
     }
