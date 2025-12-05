@@ -33,7 +33,6 @@ MAX_GENERATOR_STEP = 1
 DEMOLISH_COST_RATE = 0.5
 MAX_ENERGY_VALUE = int(os.getenv("MAX_ENERGY_VALUE", 1_000_000_000_000))
 MAX_MONEY_VALUE = int(os.getenv("MAX_MONEY_VALUE", 1_000_000_000_000))
-MAX_ACCUMULATION_SECONDS = 2592000  # 30 days
 GENERATOR_UPGRADE_CONFIG = {
     "production": {"field": "production_upgrade", "base_cost_multiplier": 1, "price_growth": 1.25},
     "heat_reduction": {"field": "heat_reduction_upgrade", "base_cost_multiplier": 0.8, "price_growth": 1.2},
@@ -443,8 +442,8 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         current_energy = to_plain(get_user_energy_value(user))
         total_production_per_sec = _calculate_total_energy_production(user, db)
         
-        # Allow a maximum increase of production_rate * MAX_ACCUMULATION_SECONDS, or at least 1M
-        max_reasonable_increase = max(total_production_per_sec * MAX_ACCUMULATION_SECONDS, 1_000_000)
+        # Allow a maximum increase of production_rate * 100 seconds, or at least 1M
+        max_reasonable_increase = max(total_production_per_sec * 100, 1_000_000)
         if energy_plain > current_energy + max_reasonable_increase:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
         
@@ -458,19 +457,13 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         if money_plain > MAX_MONEY_VALUE:
             raise HTTPException(status_code=400, detail="Money value too large")
         
-        # Check for suspicious increases based on energy production or conversion
+        # Check for suspicious increases based on energy * exchange_rate * 100
         current_money = to_plain(get_user_money_value(user))
         current_energy = to_plain(get_user_energy_value(user))
         exchange_rate = current_market_rate(user)
-        total_production_per_sec = _calculate_total_energy_production(user, db)
         
-        # Maximum reasonable money increase: 
-        # 1. Converting existing energy (with generous buffer)
-        # 2. Producing energy for max accumulation time and converting it
-        max_from_conversion = int(current_energy * exchange_rate * 100)
-        max_from_production = int(total_production_per_sec * MAX_ACCUMULATION_SECONDS * exchange_rate)
-        
-        max_reasonable_increase = max(max_from_conversion, max_from_production, 1_000_000)
+        # Maximum reasonable money increase: current_energy * exchange_rate * 100
+        max_reasonable_increase = max(int(current_energy * exchange_rate * 100), 1_000_000)
         if money_plain > current_money + max_reasonable_increase:
             raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
         
