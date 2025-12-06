@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
-import { addPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
+import { valueFromServer, addValues, multiplyByFloat, normalizeValue } from '../utils/bigValue';
 import { loadProgress, updateGeneratorState, autosaveProgress } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
@@ -41,10 +41,11 @@ async function handleExplosion(entry, removePlacedGenerator, token, updatePlaced
 }
 
 function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
+  // Now works with BigValue - returns BigValue
   const level = upgrades[type] || 0;
   if (!level) return baseValue;
   const factor = 1 + 0.1 * level;
-  return baseValue * factor;
+  return multiplyByFloat(baseValue, factor);
 }
 
 function applyHeatReduction(heatRate, upgrades = {}) {
@@ -55,7 +56,8 @@ function applyHeatReduction(heatRate, upgrades = {}) {
 }
 
 export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSeconds = 1) {
-  let baseTotal = 0;
+  // Returns BigValue for energy per second
+  let baseTotalBV = normalizeValue({ data: 0, high: 0 });
   placedGenerators.forEach((pg) => {
     if (!pg || pg.isDeveloping || pg.running === false) return;
     if (pg.genIndex == null || pg.genIndex < 0) return;
@@ -67,27 +69,30 @@ export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSecon
       g["생산량(에너지높이)"],
       g["생산량(에너지)"]
     );
-    const base = Math.max(0, toPlainValue(productionValue));
-    const produced = applyUpgradeEffects(base, upgrades, { type: "production" });
-    baseTotal += produced * deltaSeconds;
+    // Apply upgrade effects (returns BigValue)
+    const producedBV = applyUpgradeEffects(productionValue, upgrades, { type: "production" });
+    // Multiply by deltaSeconds
+    const producedThisPeriod = multiplyByFloat(producedBV, deltaSeconds);
+    baseTotalBV = addValues(baseTotalBV, producedThisPeriod);
   });
   const bonus = currentUser ? Number(currentUser.production_bonus) || 0 : 0;
   const rebirthCount = currentUser ? Number(currentUser.rebirth_count) || 0 : 0;
   const energyMultiplier = currentUser ? Number(currentUser.energy_multiplier) || 0 : 0;
-  
+
   let multiplier = 1 + bonus * 0.1;
-  
+
   // Apply rebirth multiplier: 2^n
   if (rebirthCount > 0) {
     multiplier *= Math.pow(2, rebirthCount);
   }
-  
+
   // Apply energy multiplier from special upgrades: 2^n
   if (energyMultiplier > 0) {
     multiplier *= Math.pow(2, energyMultiplier);
   }
-  
-  return baseTotal * multiplier;
+
+  // Return BigValue with multiplier applied
+  return multiplyByFloat(baseTotalBV, multiplier);
 }
 
 export function useEnergyTimer() {
@@ -136,7 +141,7 @@ export function useEnergyTimer() {
         multiplier *= Math.pow(2, energyMultiplier);
       }
 
-      let energyGain = 0;
+      let energyGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total energy gain
       let buildCompleted = false;
       const updated = placedGenerators.map((pg) => {
         if (!pg) return pg;
@@ -175,12 +180,15 @@ export function useEnergyTimer() {
           meta["생산량(에너지높이)"],
           meta["생산량(에너지)"]
         );
-        const producedPerSec = applyUpgradeEffects(
-          Math.max(0, toPlainValue(productionValue)),
+        // Apply upgrade effects to production (returns BigValue)
+        const producedBV = applyUpgradeEffects(
+          productionValue,
           upgrades,
           { type: "production" }
         );
-        energyGain += producedPerSec * deltaSeconds;
+        // Multiply by deltaSeconds
+        const producedThisTick = multiplyByFloat(producedBV, deltaSeconds);
+        energyGainBV = addValues(energyGainBV, producedThisTick);
 
         let heatRate = typeof next.heatRate === "number" ? next.heatRate : (meta ? Number(meta["발열"]) || 0 : 0);
         heatRate = applyHeatReduction(heatRate, upgrades);
@@ -204,9 +212,11 @@ export function useEnergyTimer() {
 
       setPlacedGenerators(updated);
 
-      if (energyGain > 0) {
-        const totalGain = energyGain * multiplier;
-        const nextValue = addPlainValue(getEnergyValue(), totalGain);
+      // Check if there's any energy gain (compare with zero)
+      if (energyGainBV.data > 0 || energyGainBV.high > 0) {
+        // Apply multiplier to energy gain (BigValue operation)
+        const totalGainBV = multiplyByFloat(energyGainBV, multiplier);
+        const nextValue = addValues(getEnergyValue(), totalGainBV);
         setEnergyValue(nextValue);
 
         // 에너지 변경 시 5초 debounce로 백엔드 저장
@@ -214,7 +224,7 @@ export function useEnergyTimer() {
         if (energySaveTimerRef.current) {
           clearTimeout(energySaveTimerRef.current);
         }
-        
+
         energySaveTimerRef.current = setTimeout(async () => {
           const currentTime = Date.now();
           // Prevent saving if less than ENERGY_SAVE_DELAY has passed since the last save
@@ -227,20 +237,15 @@ export function useEnergyTimer() {
           try {
             const token = getAuthToken();
             const energyPayload = toEnergyServerPayload();
-            const currentEnergy = toPlainValue(getEnergyValue());
             const playTimeMs = readStoredPlayTime();
 
-            // 이미 저장된 값과 다를 때만 저장
-            if (lastSavedEnergyRef.current !== currentEnergy) {
-              await autosaveProgress(token, {
-                energy: currentEnergy,
-                energy_data: energyPayload.data,
-                energy_high: energyPayload.high,
-                play_time_ms: playTimeMs,
-              });
-              lastSavedEnergyRef.current = currentEnergy;
-              lastSaveTimeRef.current = Date.now(); // Update save time
-            }
+            // Save with BigValue format (data, high)
+            await autosaveProgress(token, {
+              energy_data: energyPayload.data,
+              energy_high: energyPayload.high,
+              play_time_ms: playTimeMs,
+            });
+            lastSaveTimeRef.current = Date.now(); // Update save time
           } catch (e) {
             // Silent fail
           }
