@@ -18,6 +18,7 @@ from ..bigvalue import (
     add_values,
     from_plain,
     normalize,
+    to_payload,
 )
 
 router = APIRouter()
@@ -55,60 +56,26 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
     # BigValue 연산으로 차감 및 지급
     energy_value = subtract_values(energy_value, amount_bv)
     money_value = add_values(get_user_money_value(user), gained_bv)
-    
+
     set_user_energy_value(user, energy_value)
     set_user_money_value(user, money_value)
-    
+
     # Update user's sold_energy (BigValue)
     sold_energy_value = get_user_sold_energy_value(user)
     new_sold_energy_value = add_values(sold_energy_value, amount_bv)
     set_user_sold_energy_value(user, new_sold_energy_value)
-    
+
     db.commit()
     db.refresh(user)
+    gained_payload = to_payload(gained_bv)
     return {
         "energy_data": user.energy_data,
         "energy_high": user.energy_high,
         "money_data": user.money_data,
         "money_high": user.money_high,
         "rate": avg_rate,
-        "user": UserOut.model_validate(user),
-    }
-
-
-@router.post("/change/money2energy")
-async def money2energy(payload: ExchangeIn, auth=Depends(get_user_and_db)):
-    user, db, _ = auth
-    _ensure_same_user(user, payload.user_id)
-    
-    if payload.amount_data is None or payload.amount_high is None:
-        raise HTTPException(status_code=400, detail="Amount data and high must be provided")
-        
-    amount_bv = normalize(BigValue(payload.amount_data, payload.amount_high))
-    
-    if amount_bv.data <= 0 and amount_bv.high <= 0:
-        raise HTTPException(status_code=400, detail="Invalid amount")
-        
-    money_value = get_user_money_value(user)
-    if compare(money_value, amount_bv) < 0:
-        raise HTTPException(status_code=400, detail="Not enough money")
-
-    # 점진적 환율 적용하여 실제 획득량 계산 (돈→에너지는 역방향)
-    gained, avg_rate = calculate_progressive_exchange(user, amount_bv)
-
-    money_value = subtract_values(money_value, amount_bv)
-    energy_value = add_values(get_user_energy_value(user), gained)
-    set_user_money_value(user, money_value)
-    set_user_energy_value(user, energy_value)
-    db.commit()
-    db.refresh(user)
-    return {
-        "energy_data": user.energy_data,
-        "energy_high": user.energy_high,
-        "money_data": user.money_data,
-        "money_high": user.money_high,
-        "rate": avg_rate,
-        "gained": gained,
+        "gained_data": gained_payload["data"],
+        "gained_high": gained_payload["high"],
         "user": UserOut.model_validate(user),
     }
 
