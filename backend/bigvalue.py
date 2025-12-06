@@ -121,6 +121,40 @@ def add_plain(value: BigValue, plain: int) -> BigValue:
   return add_values(value, plain_bv)
 
 
+def multiply_plain(value: BigValue, multiplier: int) -> BigValue:
+  """Multiply BigValue by a plain integer (O(1) complexity)"""
+  if multiplier <= 0:
+    return BigValue(0, 0)
+  if multiplier == 1:
+    return normalize(value)
+
+  nv = normalize(value)
+  # Simply multiply data by the multiplier
+  result_data = nv.data * multiplier
+  return normalize(BigValue(result_data, nv.high))
+
+
+def multiply_by_float(value: BigValue, multiplier: float) -> BigValue:
+  """Multiply BigValue by a float (O(1) complexity)"""
+  if multiplier <= 0:
+    return BigValue(0, 0)
+  if multiplier == 1.0:
+    return normalize(value)
+
+  nv = normalize(value)
+  # Multiply data by the float multiplier
+  result_data = int(nv.data * multiplier)
+  return normalize(BigValue(result_data, nv.high))
+
+
+def divide_by_2(value: BigValue) -> BigValue:
+  """Divide BigValue by 2 (O(1) complexity)"""
+  nv = normalize(value)
+  # Simply divide data by 2
+  result_data = nv.data // 2
+  return normalize(BigValue(max(1, result_data), nv.high))
+
+
 def subtract_values(left: BigValue, right: BigValue) -> BigValue:
   """Subtract two BigValues using only data and high (O(1) complexity)"""
   # If left < right, return 0

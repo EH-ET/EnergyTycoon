@@ -21,6 +21,10 @@ from ..bigvalue import (
     BigValue,
     compare,
     subtract_values,
+    divide_by_2,
+    multiply_plain,
+    multiply_by_float,
+    add_values,
 )
 from ..init_db import get_build_time_by_name
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
@@ -53,10 +57,8 @@ def _max_generators_allowed(user: User) -> int:
 def _demolish_cost(generator_type: GeneratorType) -> BigValue:
     """Calculate demolish cost as 50% of generator cost."""
     cost_val = BigValue(generator_type.cost_data, generator_type.cost_high)
-    # Calculate 50% by dividing by 2
-    plain = to_plain(cost_val)
-    half_plain = max(1, plain // 2)
-    return from_plain(half_plain)
+    # Calculate 50% by dividing by 2 (O(1) using BigValue)
+    return divide_by_2(cost_val)
 
 
 def _build_duration(generator_type: Optional[GeneratorType] = None, level: Optional[int] = None, user: Optional[User] = None) -> int:
@@ -314,17 +316,23 @@ def _gen_upgrade_meta(key: str):
     return meta
 
 
-def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> int:
+def _calc_generator_upgrade_cost(gt: GeneratorType, mp: MapProgress, key: str, amount: int) -> BigValue:
+    """Calculate upgrade cost using BigValue operations (O(1) per level, no 10^high computation)"""
     meta = _gen_upgrade_meta(key)
     # Use BigValue cost from cost_data and cost_high
     cost_val = BigValue(gt.cost_data, gt.cost_high)
-    base_cost = to_plain(cost_val)
     current_level = getattr(mp, meta["field"], 0) or 0
-    total = 0
+
+    # Calculate total cost by summing each level's cost using BigValue
+    total_cost = BigValue(0, 0)
     for i in range(amount):
         level = current_level + i + 1
-        total += int(base_cost * meta["base_cost_multiplier"] * (meta["price_growth"] ** level))
-    return max(1, total)
+        # Calculate: base_cost * base_cost_multiplier * (price_growth ^ level)
+        level_multiplier = meta["base_cost_multiplier"] * (meta["price_growth"] ** level)
+        level_cost = multiply_by_float(cost_val, level_multiplier)
+        total_cost = add_values(total_cost, level_cost)
+
+    return total_cost
 
 
 @router.post("/progress/{generator_id}/upgrade")
@@ -344,18 +352,19 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
     if not mp:
         raise HTTPException(status_code=404, detail="Progress not found")
     amount = max(1, payload.amount or 1)
-    cost = _calc_generator_upgrade_cost(gt, mp, payload.upgrade, amount)
+    cost_val = _calc_generator_upgrade_cost(gt, mp, payload.upgrade, amount)
     money_value = get_user_money_value(user)
-    if compare_plain(money_value, cost) < 0:
+    if compare(money_value, cost_val) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     meta = _gen_upgrade_meta(payload.upgrade)
     new_level = getattr(mp, meta["field"], 0) + amount
     setattr(mp, meta["field"], new_level)
-    set_user_money_value(user, subtract_plain(money_value, cost))
+    set_user_money_value(user, subtract_values(money_value, cost_val))
     db.commit()
     db.refresh(user)
     db.refresh(mp)
     db.refresh(gen)
+    cost_payload = to_payload(cost_val)
     return {
         "user": UserOut.model_validate(user),
         "generator": _serialize_generator(
@@ -365,8 +374,8 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
             getattr(gt, "cost_high", 0),
             mp,
         ),
-        "cost_data": to_payload(from_plain(cost))["data"],
-        "cost_high": to_payload(from_plain(cost))["high"],
+        "cost_data": cost_payload["data"],
+        "cost_high": cost_payload["high"],
     }
 
 
@@ -437,42 +446,51 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     
     updated = False
     
-    # Energy validation
+    # Energy validation (using BigValue, no to_plain())
     energy_value = from_payload(payload.energy_data, payload.energy_high)
     if energy_value is not None:
-        energy_plain = to_plain(energy_value)
-        if energy_plain > MAX_ENERGY_VALUE:
+        # Check max value using BigValue comparison
+        max_energy_bv = from_plain(MAX_ENERGY_VALUE)
+        if compare(energy_value, max_energy_bv) > 0:
             raise HTTPException(status_code=400, detail="Energy value too large")
-        
+
         # Check for suspicious increases based on production rate * 100
-        current_energy = to_plain(get_user_energy_value(user))
+        current_energy_bv = get_user_energy_value(user)
         total_production_per_sec = _calculate_total_energy_production(user, db)
-        
+
         # Allow a maximum increase of production_rate * 100 seconds, or at least 1M
         max_reasonable_increase = max(total_production_per_sec * 100, 1_000_000)
-        if energy_plain > current_energy + max_reasonable_increase:
+        max_allowed_energy = add_plain(current_energy_bv, max_reasonable_increase)
+        if compare(energy_value, max_allowed_energy) > 0:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
-        
+
         set_user_energy_value(user, energy_value)
         updated = True
     
-    # Money validation
+    # Money validation (using BigValue, no to_plain())
     money_value = from_payload(payload.money_data, payload.money_high)
     if money_value is not None:
-        money_plain = to_plain(money_value)
-        if money_plain > MAX_MONEY_VALUE:
+        # Check max value using BigValue comparison
+        max_money_bv = from_plain(MAX_MONEY_VALUE)
+        if compare(money_value, max_money_bv) > 0:
             raise HTTPException(status_code=400, detail="Money value too large")
-        
+
         # Check for suspicious increases based on energy * exchange_rate * 100
-        current_money = to_plain(get_user_money_value(user))
-        current_energy = to_plain(get_user_energy_value(user))
+        current_money_bv = get_user_money_value(user)
+        current_energy_bv = get_user_energy_value(user)
         exchange_rate = current_market_rate(user)
-        
+
         # Maximum reasonable money increase: current_energy * exchange_rate * 100
-        max_reasonable_increase = max(int(current_energy * exchange_rate * 100), 1_000_000)
-        if money_plain > current_money + max_reasonable_increase:
+        # Calculate using BigValue operations
+        energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 100)
+        # At least 1M
+        min_increase_bv = from_plain(1_000_000)
+        # Take the larger of the two
+        max_reasonable_increase_bv = energy_times_rate if compare(energy_times_rate, min_increase_bv) > 0 else min_increase_bv
+        max_allowed_money = add_values(current_money_bv, max_reasonable_increase_bv)
+        if compare(money_value, max_allowed_money) > 0:
             raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
-        
+
         set_user_money_value(user, money_value)
         updated = True
     
@@ -553,17 +571,16 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
     if not gt:
         raise HTTPException(status_code=404, detail="Generator type not found")
     
-    # Calculate proportional cost using BigValue
+    # Calculate proportional cost using BigValue (no to_plain())
     try:
         total_duration = max(1, _build_duration(gt, gen.level, user))
         full_cost_val = BigValue(gt.cost_data, gt.cost_high)
-        full_cost_plain = to_plain(full_cost_val)
-        # Proportional cost based on remaining time
-        proportional_plain = max(1, math.ceil((remaining / total_duration) * full_cost_plain))
-        # Validate proportional_plain to prevent overflow
-        if proportional_plain > 10**15:  # Reasonable limit
-            raise HTTPException(status_code=400, detail="Skip cost too high")
-        cost_val = from_plain(proportional_plain)
+        # Proportional cost based on remaining time: (remaining / total_duration) * full_cost
+        proportion = remaining / total_duration
+        cost_val = multiply_by_float(full_cost_val, proportion)
+        # Ensure at least cost of 1
+        if cost_val.data == 0:
+            cost_val = from_plain(1)
     except Exception as e:
         import logging
         logging.error(f"Skip build cost calculation error: {e}", exc_info=True)

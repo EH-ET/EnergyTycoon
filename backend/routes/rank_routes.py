@@ -3,15 +3,25 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import User
-from ..bigvalue import get_user_money_value, get_user_energy_value, to_plain
+from ..bigvalue import get_user_money_value, get_user_energy_value, normalize
 
 router = APIRouter()
 
 
-def _user_score(u: User, criteria: str = "money") -> int:
-    """Calculate user score based on criteria."""
+def _user_score(u: User, criteria: str = "money"):
+    """Calculate user score based on criteria.
+
+    For BigValue types (money, energy), returns dict with {data, high, displayValue}.
+    For other types, returns int.
+    """
     if criteria == "energy":
-        return to_plain(get_user_energy_value(u))
+        bv = normalize(get_user_energy_value(u))
+        # Return BigValue components for safe display
+        return {
+            "data": bv.data,
+            "high": bv.high,
+            "displayValue": f"{bv.data}e{bv.high}" if bv.high > 0 else str(bv.data)
+        }
     elif criteria == "playtime":
         return getattr(u, 'play_time_ms', 0) or 0
     elif criteria == "rebirth":
@@ -19,7 +29,13 @@ def _user_score(u: User, criteria: str = "money") -> int:
     elif criteria == "supercoin":
         return getattr(u, 'supercoin', 0) or 0
     else:  # money (default)
-        return to_plain(get_user_money_value(u))
+        bv = normalize(get_user_money_value(u))
+        # Return BigValue components for safe display
+        return {
+            "data": bv.data,
+            "high": bv.high,
+            "displayValue": f"{bv.data}e{bv.high}" if bv.high > 0 else str(bv.data)
+        }
 
 
 def _get_order_by(criteria: str):
