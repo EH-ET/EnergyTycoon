@@ -197,6 +197,13 @@ async def login(
     }
 
 
+@router.get("/csrf")
+async def get_csrf_token(response: Response):
+    """Get a fresh CSRF token - useful when CSRF token expires"""
+    csrf_token = set_csrf_cookie(response) if response else None
+    return {"csrf_token": csrf_token, "detail": "CSRF token issued"}
+
+
 @router.post("/logout")
 async def logout(response: Response, auth=Depends(get_refresh_user_and_db)):
     user, _, _ = auth

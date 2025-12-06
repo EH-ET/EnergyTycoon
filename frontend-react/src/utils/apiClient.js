@@ -20,6 +20,33 @@ export function setGlobalLoadingCallback(callback) {
 }
 
 /**
+ * Handle logout - clear all tokens and reload page
+ */
+function handleLogout() {
+  console.log('Logging out user due to session expiry...');
+
+  // Clear all storage
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (e) {
+    console.error('Error clearing storage:', e);
+  }
+
+  // Clear cookies
+  document.cookie.split(";").forEach((c) => {
+    document.cookie = c
+      .replace(/^ +/, "")
+      .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+  });
+
+  // Reload page to go back to login
+  setTimeout(() => {
+    window.location.href = '/';
+  }, 1000);
+}
+
+/**
  * Wrapper for fetch that handles token refresh and server wake-up
  * @param {string} url - The URL to fetch
  * @param {object} options - Fetch options
@@ -63,6 +90,8 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
           // Retry original request
           return fetchWithTokenRefresh(url, options, true);
         } else {
+          // Refresh failed - logout user
+          handleLogout();
           throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
         }
       }
@@ -83,6 +112,9 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
           // Retry original request with skipRetry=true to prevent infinite loop
           return fetchWithTokenRefresh(url, options, true);
         } else {
+          // Refresh failed - logout user
+          console.error('Token refresh failed, logging out...');
+          handleLogout();
           throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
         }
       } finally {
@@ -510,9 +542,18 @@ export async function refreshAccessToken() {
         credentials: "include"
       });
       if (csrfRes.ok) {
-        const csrfData = await csrfRes.json();
-        if (csrfData.csrf_token) {
-          localStorage.setItem(CSRF_STORAGE_KEY, csrfData.csrf_token);
+        // Try to get CSRF from response header first (set by set_csrf_cookie)
+        const csrfFromHeader = csrfRes.headers.get('x-csrf-token');
+        if (csrfFromHeader) {
+          localStorage.setItem(CSRF_STORAGE_KEY, csrfFromHeader);
+          console.log('CSRF token refreshed from header');
+        } else {
+          // Fallback to response body
+          const csrfData = await csrfRes.json();
+          if (csrfData.csrf_token) {
+            localStorage.setItem(CSRF_STORAGE_KEY, csrfData.csrf_token);
+            console.log('CSRF token refreshed from body');
+          }
         }
       }
     } catch (csrfError) {
