@@ -32,7 +32,7 @@ export default function Main() {
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const addPlacedGenerator = useStore(state => state.addPlacedGenerator);
-  const compareMoneyWith = useStore(state => state.compareMoneyWith);
+  const compareMoneyWithBigValue = useStore(state => state.compareMoneyWithBigValue);
   const generatorTypeInfoMap = useStore(state => state.generatorTypeInfoMap);
   const generatorTypeMap = useStore(state => state.generatorTypeMap);
   const generatorTypesById = useStore(state => state.generatorTypesById);
@@ -96,14 +96,19 @@ export default function Main() {
 
     const genInfo = generatorTypeInfoMap[gen.이름];
     const genTypeId = genInfo ? genInfo.id : generatorTypeMap[gen.이름];
-    const cost = genInfo && typeof genInfo.cost === 'number' ? genInfo.cost : gen.설치비용;
+    let costBV;
+    if (genInfo && typeof genInfo.cost === 'number') {
+      costBV = fromPlainValue(genInfo.cost);
+    } else {
+      costBV = valueFromServer(gen["설치비용(수)"], gen["설치비용(높이)"]);
+    }
 
     if (!genTypeId) {
       setAlertMessage('서버에서 발전기 정보를 불러오지 못했습니다.');
       return;
     }
 
-    if (compareMoneyWith(cost) < 0) {
+    if (compareMoneyWithBigValue(costBV) < 0) {
       setAlertMessage('돈이 부족합니다.');
       return;
     }
@@ -156,7 +161,7 @@ export default function Main() {
         generator_id: res.generator.generator_id,
         generator_type_id: res.generator.generator_type_id,
         level: res.generator.level || 1,
-        baseCost: cost,
+        baseCost: toPlainValue(costBV),
         cost_data: res.generator.cost_data,
         cost_high: res.generator.cost_high,
         isDeveloping: Boolean(res.generator.isdeveloping),

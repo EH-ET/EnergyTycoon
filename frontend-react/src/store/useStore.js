@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, valueToServer } from '../utils/bigValue.js';
+import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, valueToServer, compareValues } from '../utils/bigValue.js';
 
 const STORAGE_KEYS = {
   user: "et_u",
@@ -125,6 +125,11 @@ export const useStore = create((set, get) => ({
 
   compareMoneyWith: (amount) => {
     return comparePlainValue(get().getMoneyValue(), amount);
+  },
+
+  compareMoneyWithBigValue: (bigValueToCompare) => {
+    const moneyBV = get().getMoneyValue();
+    return compareValues(moneyBV, bigValueToCompare);
   },
 
   compareEnergyWith: (amount) => {
