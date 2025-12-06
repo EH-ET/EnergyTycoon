@@ -34,10 +34,13 @@ export const useStore = create((set, get) => ({
   userOffsetX: 0,
   exchangeRate: loadExchangeRate(),
   saveStatus: null, // { status: 'success' | 'error', timestamp: number }
+  isGlobalLoading: false, // Global loading state for token refresh / server wake-up
+  globalLoadingMessage: '', // Message to show during loading
 
   // Actions
   setSaveStatus: (status) => set({ saveStatus: { status, timestamp: Date.now() } }),
   setContentMode: (mode) => set({ contentMode: mode }),
+  setGlobalLoading: (isLoading, message = '') => set({ isGlobalLoading: isLoading, globalLoadingMessage: message }),
 
   setCurrentUser: (user) => set({ currentUser: user }),
 
