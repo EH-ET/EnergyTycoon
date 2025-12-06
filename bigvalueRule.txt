@@ -16,8 +16,8 @@ const HUGE_UNITS = ["", "C", "Mi", "Mc", "Na", "Pi", "Fe", "At", "Ze", "Yo", "Xo
 0 <= high <= 30: BASE_UNITS 사용
 31 <= high <= 300: COMMON_UNITS + BIG_UNITS 조합으로 사용
 301 <= high <= 3000: HIGH_COMMON_UNITS와 HUGE_UNITS[1]="C" + COMMON_UNITS + BIG_UNITS 조합으로 사용
-3001 <= high <= 300000000000000: 단위 그룹이 순환적으로 반복되며 HIGH_COMMON_UNITS + HUGE_UNITS or COMMON_UNITS + BIG_UNITS + HUGE_UNITS 패턴을 재귀적으로 유지하며 확장됨. HUGE_UNITS 인덱스가 1증가한게 앞에 재귀로 더 붙으려면 high가 1000배씩 증가해야함.
-high > 300000000000000: 그냥 [숫자]e[10의 거듭제곱]으로 표현함.
+3001 <= high <= 300_000_000_000_000_000_000_000_000_000: 단위 그룹이 순환적으로 반복되며 HIGH_COMMON_UNITS + HUGE_UNITS or COMMON_UNITS + BIG_UNITS + HUGE_UNITS 패턴을 재귀적으로 유지하며 확장됨. HUGE_UNITS 인덱스가 1증가한게 앞에 재귀로 더 붙으려면 high가 1000배씩 증가해야함.
+high > 300_000_000_000_000_000_000_000_000_000: 그냥 [숫자]e[10의 거듭제곱]으로 표현함.
 
 구현 팁: HUGE_UNITS를 RECURSIVE할때는 1000으로 나누면서 그 구간씩 단위를 조합하면 됨.
 
