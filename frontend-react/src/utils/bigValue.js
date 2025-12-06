@@ -160,16 +160,41 @@ export function cloneValue(value) {
 }
 
 /**
+ * Get common+big unit combination for index 0-99
+ */
+function getCommonBigUnit(index) {
+  if (index <= 0) return "";
+  if (index <= 9) return COMMON_UNITS[index] || "";
+
+  const adjusted = index - 10;
+  const bigIndex = Math.floor(adjusted / 10) + 1;
+  const commonIndex = adjusted % 10;
+  return (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
+}
+
+/**
  * Get sub-pattern for offset 0-2999 (used in recursive HUGE units)
  */
 function getPrefix(index) {
   if (index < 0) return "";
   if (index <= 8) return HIGH_COMMON_UNITS[index] || "";
-  
-  const adjusted = index - 9;
-  const bigIndex = Math.floor(adjusted / 10) + 1;
-  const commonIndex = adjusted % 10;
-  return (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
+
+  if (index <= 98) {
+    const adjusted = index - 9;
+    const bigIndex = Math.floor(adjusted / 10) + 1;
+    const commonIndex = adjusted % 10;
+    return (COMMON_UNITS[commonIndex] || "") + (BIG_UNITS[bigIndex] || "");
+  }
+
+  // index >= 99: C range (recursive)
+  const cOffset = index - 99;
+  const cQuotient = Math.floor(cOffset / 100);
+  const cRemainder = cOffset % 100;
+
+  const prefix = getPrefix(cQuotient);
+  const modifier = getCommonBigUnit(cRemainder);
+
+  return prefix + modifier + "C";
 }
 
 function getSuffixUnit(high) {
@@ -187,24 +212,32 @@ function getSuffixUnit(high) {
  * Input offset is (high - 3001)
  */
 function getHugeUnitRecursive(offset) {
-  let hugeIndex = 2; // Mi
-  let rangeSize = 3000;
-  
+  let hugeIndex = 2; // Mi (HUGE_UNITS[2])
+  let totalRangeSize = 0; // Cumulative size of previous ranges
+  let currentRangeSize = 3000 * 999; // Mi range size: 2,997,000
+
   // Find correct HUGE unit range
-  while (offset >= rangeSize * 1000) {
-    rangeSize *= 1000;
+  while (offset >= totalRangeSize + currentRangeSize) {
+    totalRangeSize += currentRangeSize;
+    currentRangeSize *= 1000;
     hugeIndex++;
   }
-  
+
   const hugeUnit = HUGE_UNITS[hugeIndex] || "";
-  
-  const quotient = Math.floor(offset / rangeSize);
-  const remainder = offset % rangeSize;
-  
+
+  // Adjust offset to be relative to current range
+  const relativeOffset = offset - totalRangeSize;
+
+  // quotient block size is currentRangeSize / 1000
+  const quotientBlockSize = currentRangeSize / 1000;
+
+  const quotient = Math.floor(relativeOffset / quotientBlockSize);
+  const remainder = relativeOffset % quotientBlockSize;
+
   const prefix = getPrefix(quotient);
   // Remainder is 0-based offset, convert to 1-based high for suffix
   const suffix = getSuffixUnit(remainder + 1);
-  
+
   return prefix + hugeUnit + suffix;
 }
 
