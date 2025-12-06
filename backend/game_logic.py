@@ -68,11 +68,11 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
     
     growth = 1.0 + (int(log_val) * 0.05)
     
-    # 수요(시장) 보너스가 있을수록 필요한 에너지 감소
+    # 수요(시장) 보너스가 있을수록 필요한 에너지 감소 (나눗셈으로 변경하여 점진적 적용)
     bonus = 1.0
     if user:
-        bonus -= (getattr(user, "demand_bonus", 0) or 0) * 0.05
-    bonus = max(0.5, bonus)  # 보너스로 최소 절반까지 감소
+        demand_val = getattr(user, "demand_bonus", 0) or 0
+        bonus = 1.0 / (1.0 + demand_val * 0.05)
 
     energy_per_money = base_cost * growth * bonus
     # 환율은 1 에너지당 돈이므로 역수
@@ -130,8 +130,8 @@ def calculate_progressive_exchange(user: Optional[User], amount: int | BigValue)
     # Market Bonus (Denominator term)
     market_bonus_factor = 1.0
     if user:
-        market_bonus_factor -= (getattr(user, "demand_bonus", 0) or 0) * 0.05
-    market_bonus_factor = max(0.5, market_bonus_factor)
+        demand_val = getattr(user, "demand_bonus", 0) or 0
+        market_bonus_factor = 1.0 / (1.0 + demand_val * 0.05)
     
     # 2. 현재 상태 확인 (BigValue)
     from .bigvalue import get_user_sold_energy_value, add_values

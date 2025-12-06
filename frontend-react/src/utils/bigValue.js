@@ -59,6 +59,88 @@ export function subtractPlainValue(value, plain) {
   return fromPlainValue(Math.max(0, toPlainValue(value) - Math.max(0, Number(plain) || 0)));
 }
 
+export function addValues(a, b) {
+  const na = normalizeValue(a);
+  const nb = normalizeValue(b);
+  
+  if (na.high === nb.high) {
+    return normalizeValue({ data: na.data + nb.data, high: na.high });
+  }
+  
+  // Make sure a is the larger one (higher high)
+  let large = na, small = nb;
+  if (na.high < nb.high) {
+    large = nb;
+    small = na;
+  }
+  
+  const diff = large.high - small.high;
+  // If difference is too big, small is negligible
+  if (diff > 2) {
+    return cloneValue(large);
+  }
+  
+  // diff is 1 or 2. 
+  // e.g. large.high = 5, small.high = 4. diff=1.
+  // small.data needs to be divided by 10^diff? No.
+  // Value = data * 10^high.
+  // large = L * 10^H
+  // small = S * 10^(H-d) = (S / 10^d) * 10^H
+  // Result = (L + S/10^d) * 10^H
+  // But we work with integers.
+  // Better: Convert large to lower high? No, data limit.
+  // Convert small to match large high? S * 10^(H-d) -> S / 10^d. 
+  // This loses precision.
+  // Convert large to match small high? L * 10^H = (L * 10^d) * 10^(H-d).
+  // Then add S. Then normalize.
+  
+  const scaledLargeData = large.data * (10 ** diff);
+  return normalizeValue({ data: scaledLargeData + small.data, high: small.high });
+}
+
+export function subtractValues(a, b) {
+  // Assumes a >= b. If a < b returns 0.
+  if (compareValues(a, b) < 0) return normalizeValue({ data: 0, high: 0 });
+  
+  const na = normalizeValue(a);
+  const nb = normalizeValue(b);
+  
+  if (na.high === nb.high) {
+    return normalizeValue({ data: na.data - nb.data, high: na.high });
+  }
+  
+  const diff = na.high - nb.high;
+  if (diff > 2) {
+    // b is negligible
+    return cloneValue(na);
+  }
+  
+  // na.high > nb.high.
+  // Convert na to nb's level
+  const scaledA = na.data * (10 ** diff);
+  return normalizeValue({ data: scaledA - nb.data, high: nb.high });
+}
+
+export function compareValues(a, b) {
+  const na = normalizeValue(a);
+  const nb = normalizeValue(b);
+  if (na.high !== nb.high) return na.high > nb.high ? 1 : -1;
+  if (na.data !== nb.data) return na.data > nb.data ? 1 : -1;
+  return 0;
+}
+
+export function getLog3Value(value) {
+  const n = normalizeValue(value);
+  if (n.data <= 0 && n.high <= 0) return 0;
+  
+  // Real value = data / 1000 * 10^high
+  // log3(Real) = log3(data/1000) + high * log3(10)
+  const realData = Math.max(1, n.data) / 1000.0;
+  const LOG3_10 = 2.09590327429;
+  const logVal = (Math.log(realData) / Math.log(3)) + (n.high * LOG3_10);
+  return Math.max(0, logVal);
+}
+
 export function valueToServer(value) {
   const normalized = normalizeValue(value);
   return { data: normalized.data, high: normalized.high };

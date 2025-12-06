@@ -116,15 +116,58 @@ export default function TradeTab() {
 
   const formatPlain = (plain) => formatResourceValue(fromPlainValue(Math.max(0, Number(plain) || 0)));
 
+  // Calculate progressive exchange rate (matches backend logic)
+  const calculateProgressiveExchange = (amount) => {
+    if (amount <= 0 || !currentUser) return 0;
+
+    // 1. Calculate base numerator (rebirth + exchange_rate_multiplier)
+    let baseNumerator = 1.0;
+    const rebirthCount = currentUser.rebirth_count || 0;
+    const exchangeMultLevel = currentUser.exchange_rate_multiplier || 0;
+
+    if (rebirthCount > 0) {
+      baseNumerator *= Math.pow(2, rebirthCount);
+    }
+    if (exchangeMultLevel > 0) {
+      baseNumerator *= Math.pow(2, exchangeMultLevel);
+    }
+
+    // 2. Market bonus factor (demand_bonus)
+    const demandVal = currentUser.demand_bonus || 0;
+    const marketBonusFactor = 1.0 / (1.0 + demandVal * 0.05);
+
+    // 3. Calculate midpoint for progressive rate
+    // Midpoint = CurrentSold + Amount / 2
+    const soldEnergyBV = fromPlainValue(0);
+    soldEnergyBV.data = currentUser.sold_energy_data || 0;
+    soldEnergyBV.high = currentUser.sold_energy_high || 0;
+    const soldEnergyPlain = toPlainValue(soldEnergyBV);
+    const midpoint = soldEnergyPlain + amount / 2;
+
+    // 4. Calculate log3(midpoint)
+    const LOG3_10 = 2.09590327429;
+    let logMid = 0;
+    if (midpoint > 0) {
+      logMid = Math.log(midpoint) / Math.log(3);
+    }
+    if (logMid < 0) logMid = 0;
+
+    // 5. Growth = 1 + 0.05 * floor(log3(midpoint))
+    const growth = 1.0 + Math.floor(logMid) * 0.05;
+
+    // 6. Average rate
+    const avgRate = Math.max(0.0000001, baseNumerator / (growth * marketBonusFactor));
+
+    // 7. Total money = amount * avgRate
+    return Math.floor(amount * avgRate);
+  };
+
   // Calculate amount from percentage
   const currentEnergyValue = getEnergyValue();
   const currentEnergyPlain = toPlainValue(currentEnergyValue);
   const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
-  
-  const rateValue = typeof exchangeRate === 'number' ? exchangeRate : null;
-  const expectedGain = rateValue != null && rateValue > 0
-    ? Math.max(1, Math.floor(exchangeAmountPlain * rateValue))
-    : 0;
+
+  const expectedGain = calculateProgressiveExchange(exchangeAmountPlain);
   
   const canTrade = Boolean(currentUser) && exchangeAmountPlain > 0 && expectedGain >= 1;
 
