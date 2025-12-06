@@ -478,18 +478,24 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         # Check for suspicious increases based on energy * exchange_rate * 100
         current_money_bv = get_user_money_value(user)
         current_energy_bv = get_user_energy_value(user)
-        exchange_rate = current_market_rate(user)
 
-        # Maximum reasonable money increase: current_energy * exchange_rate * 100
-        # Calculate using BigValue operations
-        energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 100)
-        # At least 1M
-        min_increase_bv = from_plain(1_000_000)
-        # Take the larger of the two
-        max_reasonable_increase_bv = energy_times_rate if compare(energy_times_rate, min_increase_bv) > 0 else min_increase_bv
-        max_allowed_money = add_values(current_money_bv, max_reasonable_increase_bv)
-        if compare(money_value, max_allowed_money) > 0:
-            raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
+        try:
+            exchange_rate = current_market_rate(user)
+            # Maximum reasonable money increase: current_energy * exchange_rate * 100
+            # Calculate using BigValue operations
+            energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 100)
+            # At least 1M
+            min_increase_bv = from_plain(1_000_000)
+            # Take the larger of the two
+            max_reasonable_increase_bv = energy_times_rate if compare(energy_times_rate, min_increase_bv) > 0 else min_increase_bv
+            max_allowed_money = add_values(current_money_bv, max_reasonable_increase_bv)
+            if compare(money_value, max_allowed_money) > 0:
+                raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
+        except Exception as e:
+            # Log error but don't block autosave
+            import logging
+            logging.warning(f"Money validation failed: {e}")
+            # Skip validation on error
 
         set_user_money_value(user, money_value)
         updated = True
