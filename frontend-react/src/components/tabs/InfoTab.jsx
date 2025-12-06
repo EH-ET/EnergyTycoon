@@ -52,8 +52,8 @@ export default function InfoTab() {
 
         if (rankCriteria === 'money' || rankCriteria === 'energy') {
           ranks.sort((a, b) => {
-            const valA = valueFromServer(a[`${rankCriteria}_data`], a[`${rankCriteria}_high`]);
-            const valB = valueFromServer(b[`${rankCriteria}_data`], b[`${rankCriteria}_high`]);
+            const valA = fromPlainValue(a.score || 0);
+            const valB = fromPlainValue(b.score || 0);
             return compareValues(valB, valA); // Descending sort
           });
         }
@@ -211,8 +211,9 @@ export default function InfoTab() {
                   score = `${entry.score || 0}개`;
                 } else {
                   // Money or Energy - use BigValue formatting
-                  const bv = valueFromServer(entry[`${rankCriteria}_data`], entry[`${rankCriteria}_high`]);
-                  score = formatResourceValue(bv);
+                  score = typeof entry.score === 'number'
+                    ? formatResourceValue(fromPlainValue(entry.score))
+                    : '-';
                 }
                 return (
                   <li
