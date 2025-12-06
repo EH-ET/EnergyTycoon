@@ -5,6 +5,99 @@ import { valueFromServer, toPlainValue, fromPlainValue } from "./bigValue.js";
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_STORAGE_KEY = "et_csrf";
 
+// Track if we're currently refreshing to prevent multiple refresh attempts
+let isRefreshing = false;
+let refreshPromise = null;
+
+// Global loading callback (set by App.jsx)
+let globalLoadingCallback = null;
+
+export function setGlobalLoadingCallback(callback) {
+  globalLoadingCallback = callback;
+}
+
+/**
+ * Wrapper for fetch that handles token refresh and server wake-up
+ * @param {string} url - The URL to fetch
+ * @param {object} options - Fetch options
+ * @param {boolean} skipRetry - Internal flag to prevent infinite retry
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
+  // Start a timer to show loading if request takes too long (server wake-up)
+  const loadingTimer = setTimeout(() => {
+    if (globalLoadingCallback) {
+      globalLoadingCallback(true, '서버 준비 중...');
+    }
+  }, 2000); // Show loading after 2 seconds
+
+  try {
+    const response = await fetch(url, options);
+
+    // Clear loading timer
+    clearTimeout(loadingTimer);
+    if (globalLoadingCallback) {
+      globalLoadingCallback(false, '');
+    }
+
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401 && !skipRetry) {
+      console.log('Token expired, attempting refresh...');
+
+      // Show loading during token refresh
+      if (globalLoadingCallback) {
+        globalLoadingCallback(true, '토큰 갱신 중...');
+      }
+
+      // If already refreshing, wait for that to complete
+      if (isRefreshing && refreshPromise) {
+        const success = await refreshPromise;
+        if (globalLoadingCallback) {
+          globalLoadingCallback(false, '');
+        }
+        if (success) {
+          // Retry original request
+          return fetchWithTokenRefresh(url, options, true);
+        } else {
+          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        }
+      }
+
+      // Start refresh
+      isRefreshing = true;
+      refreshPromise = refreshAccessToken();
+
+      try {
+        const success = await refreshPromise;
+
+        if (globalLoadingCallback) {
+          globalLoadingCallback(false, '');
+        }
+
+        if (success) {
+          console.log('Token refreshed successfully, retrying request...');
+          // Retry original request with skipRetry=true to prevent infinite loop
+          return fetchWithTokenRefresh(url, options, true);
+        } else {
+          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        }
+      } finally {
+        isRefreshing = false;
+        refreshPromise = null;
+      }
+    }
+
+    return response;
+  } catch (error) {
+    // Clear loading on error
+    clearTimeout(loadingTimer);
+    if (globalLoadingCallback) {
+      globalLoadingCallback(false, '');
+    }
+    throw error;
+  }
+}
+
 function readCookie(name) {
   const cookie = document.cookie || "";
   const entries = cookie.split(";").map((c) => c.trim());
@@ -407,19 +500,22 @@ export async function getTutorialStatus(token) {
 export async function refreshAccessToken() {
   try {
     const headers = attachCsrf();
-    const res = await fetch(`${API_BASE}/refresh/access`, {
+    // Use originalFetch to avoid infinite loop (defined at bottom of file)
+    const originalFetchFn = window.fetch.originalFetch || window.fetch;
+    const res = await originalFetchFn(`${API_BASE}/refresh/access`, {
       method: "POST",
       headers,
       credentials: "include" // Send refresh token cookie
     });
-    
+
     if (!res.ok) {
       return false; // Refresh token expired or invalid
     }
-    
+
     return true; // Successfully refreshed
   } catch (e) {
     console.error("Token refresh failed:", e);
+    return false;
   }
 }
 
@@ -476,3 +572,27 @@ export async function rejectInquiry(inquiryId, token) {
   if (!res.ok) throw new Error(data.detail || "문의 거절 실패");
   return data;
 }
+
+// ============= Global Fetch Override =============
+
+// Store original fetch for refreshAccessToken to use
+const originalFetch = window.fetch;
+
+// Override global fetch to use fetchWithTokenRefresh for API calls
+window.fetch = function(url, options) {
+  // Only intercept API calls to our backend
+  const urlStr = typeof url === 'string' ? url : url.toString();
+
+  if (urlStr.includes(API_BASE)) {
+    return fetchWithTokenRefresh(urlStr, options);
+  }
+
+  // For non-API calls, use original fetch
+  return originalFetch(url, options);
+};
+
+// Store originalFetch on window.fetch for refreshAccessToken to use
+window.fetch.originalFetch = originalFetch;
+
+// Export original fetch for internal use (e.g., refreshAccessToken)
+export { originalFetch };

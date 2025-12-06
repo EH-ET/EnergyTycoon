@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore, loadUserData, getAuthToken, ensureSessionStart, initTrapGuard, installTrapFetchGuard } from './store/useStore';
-import { loadGeneratorTypes, loadProgress } from './utils/apiClient';
+import { loadGeneratorTypes, loadProgress, setGlobalLoadingCallback } from './utils/apiClient';
 import { useEnergyTimer } from './hooks/useEnergyTimer';
 import { useAutosave } from './hooks/useAutosave';
 import { useViewport } from './hooks/useViewport';
@@ -17,6 +17,7 @@ import SpecialTab from './components/tabs/SpecialTab';
 import InfoTab from './components/tabs/InfoTab';
 import InquiryTab from './components/tabs/InquiryTab';
 import TutorialOverlay from './components/TutorialOverlay';
+import GlobalLoadingModal from './components/GlobalLoadingModal';
 import Login from './pages/Login';
 import AdminPage from './pages/AdminPage';
 import './App.css';
@@ -29,6 +30,14 @@ function App() {
   const syncUserState = useStore(state => state.syncUserState);
   const setGeneratorTypes = useStore(state => state.setGeneratorTypes);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
+  const setGlobalLoading = useStore(state => state.setGlobalLoading);
+
+  // Set up global loading callback for API client
+  useEffect(() => {
+    setGlobalLoadingCallback((isLoading, message) => {
+      setGlobalLoading(isLoading, message);
+    });
+  }, [setGlobalLoading]);
 
   // Simple routing - check if URL hash is #admin
   useEffect(() => {
@@ -213,6 +222,7 @@ function App() {
         {renderTab()}
       </Footer>
       <TutorialOverlay />
+      <GlobalLoadingModal />
     </>
   );
 }
