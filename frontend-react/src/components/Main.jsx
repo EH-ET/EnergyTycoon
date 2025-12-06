@@ -355,6 +355,8 @@ export default function Main() {
               };
 
               const prodPerSec = computeProduction();
+              const heatRate = computeHeatRate();
+              const tolerance = computeTolerance();
 
               return (
                 <div
