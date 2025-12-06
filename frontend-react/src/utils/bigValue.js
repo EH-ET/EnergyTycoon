@@ -52,11 +52,42 @@ export function comparePlainValue(value, plain) {
 }
 
 export function addPlainValue(value, plain) {
-  return fromPlainValue(toPlainValue(value) + Math.max(0, Number(plain) || 0));
+  // O(1) implementation using addValues
+  const plainBV = fromPlainValue(Math.max(0, Number(plain) || 0));
+  return addValues(value, plainBV);
 }
 
 export function subtractPlainValue(value, plain) {
-  return fromPlainValue(Math.max(0, toPlainValue(value) - Math.max(0, Number(plain) || 0)));
+  // O(1) implementation using subtractValues
+  const plainBV = fromPlainValue(Math.max(0, Number(plain) || 0));
+  return subtractValues(value, plainBV);
+}
+
+export function multiplyByFloat(value, multiplier) {
+  // O(1) multiplication by float
+  if (multiplier <= 0) return normalizeValue({ data: 0, high: 0 });
+  if (multiplier === 1.0) return normalizeValue(value);
+
+  const nv = normalizeValue(value);
+  const resultData = Math.floor(nv.data * multiplier);
+  return normalizeValue({ data: resultData, high: nv.high });
+}
+
+export function multiplyByPlain(value, multiplier) {
+  // O(1) multiplication by integer
+  if (multiplier <= 0) return normalizeValue({ data: 0, high: 0 });
+  if (multiplier === 1) return normalizeValue(value);
+
+  const nv = normalizeValue(value);
+  const resultData = nv.data * multiplier;
+  return normalizeValue({ data: resultData, high: nv.high });
+}
+
+export function divideBy2(value) {
+  // O(1) division by 2
+  const nv = normalizeValue(value);
+  const resultData = Math.floor(nv.data / 2);
+  return normalizeValue({ data: Math.max(1, resultData), high: nv.high });
 }
 
 export function addValues(a, b) {
