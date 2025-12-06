@@ -106,8 +106,7 @@ export function addValues(a, b) {
   }
   
   const diff = large.high - small.high;
-  // If difference is too big, small is negligible
-  if (diff > 2) {
+  if (diff > 6) {
     return cloneValue(large);
   }
   
