@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
-import { formatResourceValue, fromPlainValue } from '../../utils/bigValue';
+import { formatResourceValue, fromPlainValue, compareValues, valueFromServer } from '../../utils/bigValue';
 import { fetchRanks } from '../../utils/apiClient';
 import { fetchMyRank } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
@@ -48,7 +48,16 @@ export default function InfoTab() {
     const loadLeaderboard = async () => {
       try {
         const data = await fetchRanks(getAuthToken(), { limit: 100, offset: 0, criteria: rankCriteria });
-        const ranks = data.ranks || [];
+        let ranks = data.ranks || [];
+
+        if (rankCriteria === 'money' || rankCriteria === 'energy') {
+          ranks.sort((a, b) => {
+            const valA = valueFromServer(a[`${rankCriteria}_data`], a[`${rankCriteria}_high`]);
+            const valB = valueFromServer(b[`${rankCriteria}_data`], b[`${rankCriteria}_high`]);
+            return compareValues(valB, valA); // Descending sort
+          });
+        }
+
         setLeaderboard(ranks);
         if (ranks.length) {
           setLeaderboardStatus(`총 ${data.total}명 중 상위 ${ranks.length}명`);
@@ -202,9 +211,8 @@ export default function InfoTab() {
                   score = `${entry.score || 0}개`;
                 } else {
                   // Money or Energy - use BigValue formatting
-                  score = typeof entry.score === 'number'
-                    ? formatResourceValue(fromPlainValue(entry.score))
-                    : '-';
+                  const bv = valueFromServer(entry[`${rankCriteria}_data`], entry[`${rankCriteria}_high`]);
+                  score = formatResourceValue(bv);
                 }
                 return (
                   <li
