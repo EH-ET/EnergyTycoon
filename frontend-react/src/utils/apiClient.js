@@ -503,6 +503,23 @@ export async function getTutorialStatus(token) {
  */
 export async function refreshAccessToken() {
   try {
+    // First try to get a fresh CSRF token from server
+    try {
+      const csrfRes = await originalFetch(`${API_BASE}/csrf`, {
+        method: "GET",
+        credentials: "include"
+      });
+      if (csrfRes.ok) {
+        const csrfData = await csrfRes.json();
+        if (csrfData.csrf_token) {
+          localStorage.setItem(CSRF_STORAGE_KEY, csrfData.csrf_token);
+        }
+      }
+    } catch (csrfError) {
+      console.warn("Failed to refresh CSRF token:", csrfError);
+      // Continue anyway, use existing CSRF token
+    }
+
     const headers = attachCsrf();
     // Use originalFetch to avoid infinite loop
     const res = await originalFetch(`${API_BASE}/refresh/access`, {
@@ -512,6 +529,8 @@ export async function refreshAccessToken() {
     });
 
     if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.error("Token refresh failed:", res.status, errorData);
       return false; // Refresh token expired or invalid
     }
 
