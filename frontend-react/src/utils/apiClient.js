@@ -12,6 +12,9 @@ let refreshPromise = null;
 // Global loading callback (set by App.jsx)
 let globalLoadingCallback = null;
 
+// Store original fetch before we override it
+const originalFetch = window.fetch;
+
 export function setGlobalLoadingCallback(callback) {
   globalLoadingCallback = callback;
 }
@@ -32,7 +35,8 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
   }, 2000); // Show loading after 2 seconds
 
   try {
-    const response = await fetch(url, options);
+    // Use originalFetch to avoid infinite recursion
+    const response = await originalFetch(url, options);
 
     // Clear loading timer
     clearTimeout(loadingTimer);
@@ -500,9 +504,8 @@ export async function getTutorialStatus(token) {
 export async function refreshAccessToken() {
   try {
     const headers = attachCsrf();
-    // Use originalFetch to avoid infinite loop (defined at bottom of file)
-    const originalFetchFn = window.fetch.originalFetch || window.fetch;
-    const res = await originalFetchFn(`${API_BASE}/refresh/access`, {
+    // Use originalFetch to avoid infinite loop
+    const res = await originalFetch(`${API_BASE}/refresh/access`, {
       method: "POST",
       headers,
       credentials: "include" // Send refresh token cookie
@@ -575,9 +578,6 @@ export async function rejectInquiry(inquiryId, token) {
 
 // ============= Global Fetch Override =============
 
-// Store original fetch for refreshAccessToken to use
-const originalFetch = window.fetch;
-
 // Override global fetch to use fetchWithTokenRefresh for API calls
 window.fetch = function(url, options) {
   // Only intercept API calls to our backend
@@ -590,9 +590,6 @@ window.fetch = function(url, options) {
   // For non-API calls, use original fetch
   return originalFetch(url, options);
 };
-
-// Store originalFetch on window.fetch for refreshAccessToken to use
-window.fetch.originalFetch = originalFetch;
 
 // Export original fetch for internal use (e.g., refreshAccessToken)
 export { originalFetch };
