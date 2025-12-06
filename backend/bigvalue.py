@@ -57,6 +57,11 @@ def from_plain(amount: int) -> BigValue:
 
 
 def to_plain(value: Optional[BigValue]) -> int:
+  """
+  Convert BigValue to plain integer.
+  WARNING: Only use for display or small values (high < 10).
+  For large high values, this will be extremely slow or overflow.
+  """
   if not value:
     return 0
   value = normalize(value)
@@ -65,24 +70,97 @@ def to_plain(value: Optional[BigValue]) -> int:
     return 0
   if value.high <= 0:
     return data // DATA_SCALE
+
+  # Safety check: prevent computing huge exponents
+  if value.high > 100:
+    # For very large numbers, return a capped value
+    # This is only for display purposes
+    return 999_999_999_999_999  # Return max int for display
+
   return (data * (10 ** value.high)) // DATA_SCALE
 
 
 def add_values(left: BigValue, right: BigValue) -> BigValue:
-  return from_plain(to_plain(left) + to_plain(right))
+  """Add two BigValues using only data and high (O(1) complexity)"""
+  nl = normalize(left)
+  nr = normalize(right)
+
+  # Same high - O(1) direct addition
+  if nl.high == nr.high:
+    return normalize(BigValue(nl.data + nr.data, nl.high))
+
+  # Different high - determine which is larger
+  large = nl if nl.high > nr.high else nr
+  small = nr if nl.high > nr.high else nl
+
+  diff = large.high - small.high
+
+  # If difference > 2, smaller value is negligible - O(1)
+  if diff > 2:
+    return BigValue(large.data, large.high)
+
+  # For small differences (1 or 2), shift without exponentiation - O(1)
+  # Convert large to small's high level
+  if diff == 1:
+    # large.data * 10^1 = large.data * 10
+    scaled_large_data = large.data * 10
+  else:  # diff == 2
+    # large.data * 10^2 = large.data * 100
+    scaled_large_data = large.data * 100
+
+  return normalize(BigValue(scaled_large_data + small.data, small.high))
 
 
 def add_plain(value: BigValue, plain: int) -> BigValue:
-  return from_plain(to_plain(value) + max(0, plain))
+  """Add a plain integer to BigValue"""
+  plain = max(0, int(plain))
+  if plain == 0:
+    return normalize(value)
+
+  plain_bv = from_plain(plain)
+  return add_values(value, plain_bv)
 
 
 def subtract_values(left: BigValue, right: BigValue) -> BigValue:
-  result = to_plain(left) - to_plain(right)
-  return from_plain(max(0, result))
+  """Subtract two BigValues using only data and high (O(1) complexity)"""
+  # If left < right, return 0
+  if compare(left, right) < 0:
+    return BigValue(0, 0)
+
+  nl = normalize(left)
+  nr = normalize(right)
+
+  # Same high - O(1) direct subtraction
+  if nl.high == nr.high:
+    return normalize(BigValue(nl.data - nr.data, nl.high))
+
+  # nl.high > nr.high (we know left >= right from compare above)
+  diff = nl.high - nr.high
+
+  # If difference > 2, right is negligible - O(1)
+  if diff > 2:
+    return BigValue(nl.data, nl.high)
+
+  # For small differences (1 or 2), shift without exponentiation - O(1)
+  # Convert nl to nr's high level
+  if diff == 1:
+    # nl.data * 10^1 = nl.data * 10
+    scaled_left_data = nl.data * 10
+  else:  # diff == 2
+    # nl.data * 10^2 = nl.data * 100
+    scaled_left_data = nl.data * 100
+
+  return normalize(BigValue(scaled_left_data - nr.data, nr.high))
 
 
 def subtract_plain(value: BigValue, plain: int) -> BigValue:
-  return from_plain(max(0, to_plain(value) - max(0, plain)))
+  """Subtract a plain integer from BigValue"""
+  plain = max(0, int(plain))
+  if plain == 0:
+    return normalize(value)
+
+  plain_bv = from_plain(plain)
+  return subtract_values(value, plain_bv)
 
 
 def compare(left: BigValue, right: BigValue) -> int:
