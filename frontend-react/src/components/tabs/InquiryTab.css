@@ -2,6 +2,8 @@
   padding: 20px;
   max-width: 800px;
   margin: 0 auto;
+  margin-bottom: 1vh;
+  padding-bottom: 1vh;
 }
 
 .inquiry-title {

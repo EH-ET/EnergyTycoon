@@ -168,10 +168,12 @@ export default function TradeTab() {
   const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
 
   const expectedGain = calculateProgressiveExchange(exchangeAmountPlain);
-  
+
   const canTrade = Boolean(currentUser) && exchangeAmountPlain > 0 && expectedGain >= 1;
 
-  const rateText = typeof exchangeRate === 'number' ? exchangeRate.toFixed(2) : '-';
+  const rateText = typeof exchangeRate === 'number'
+    ? formatResourceValue(fromPlainValue(exchangeRate))
+    : '-';
 
   const meterFill = useMemo(() => {
     const normalized = Math.max(0, Math.min(1, (exchangeRate || 0) / 100));
