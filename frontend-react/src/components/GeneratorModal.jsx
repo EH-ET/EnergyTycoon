@@ -17,11 +17,24 @@ const PRODUCTION_UPGRADE_FACTOR = 0.1;
 
 function computeUpgradeCost(entry, key) {
   const cfg = UPGRADE_CONFIG[key];
-  if (!cfg) return 0;
-  const baseCost = entry.baseCost || 10;
+  if (!cfg) return fromPlainValue(0); // Return bigValue zero
+
+  // Start with the generator's actual cost as a bigValue
+  const baseCostBV = valueFromServer(entry.cost_data, entry.cost_high, entry.baseCost);
+  
   const current = entry.upgrades?.[key] || 0;
   const level = current + 1;
-  return Math.max(1, Math.floor(baseCost * cfg.baseMultiplier * cfg.growth ** level));
+
+  // Apply the base multiplier for the upgrade type
+  let resultBV = multiplyByFloat(baseCostBV, cfg.baseMultiplier);
+
+  // Apply the growth factor for each level
+  // This replaces `growth ** level`
+  for (let i = 0; i < level; i++) {
+    resultBV = multiplyByFloat(resultBV, cfg.growth);
+  }
+
+  return resultBV;
 }
 
 export default function GeneratorModal({ generator, onClose }) {
@@ -458,7 +471,7 @@ export default function GeneratorModal({ generator, onClose }) {
                   <div style={{ fontWeight: '600', marginBottom: '4px' }}>{cfg.label}</div>
                   {renderUpgradeDesc(key, level)}
                   <div style={{ marginTop: '4px', fontSize: '13px' }}>레벨: {level}</div>
-                  <div style={{ color: '#f1c40f', fontSize: '13px' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
+                  <div style={{ color: '#f1c40f', fontSize: '13px' }}>비용: {formatResourceValue(cost)}</div>
                   <button
                     onClick={() => handleUpgrade(key)}
                     style={{
