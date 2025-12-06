@@ -95,13 +95,24 @@ high = 30001 -> 1.23dMi
 .
 high = 63001 -> 1.23UvMi
 .
-high = 3000001 -> 1.23Mc
-high = 3003001 -> 1.23McMi
+high = 300_001 -> 1.23CMi
 .
-high = 3006001 -> 1.23McDMi
+high = 600_001 -> 1.23DCMi
 .
-high = 3000000001 -> 1.23Na
+high = 630_001 -> 1.23DCdMi
 .
-high = 9009010000 > 1.23TNaTMcTMiTCTTr
+high = 633_001 -> 1.23DCUdMi
 .
-high = 3000000000001 -> 1.23Pi
+high = 633_934 -> 1.23DCUdMiTCUd
+.
+high = 3_000_001 -> 1.23Mc
+.
+high = 3_003_001 -> 1.23McMi
+.
+high = 3_006_001 -> 1.23McDMi
+.
+high = 3_000_000_001 -> 1.23Na
+.
+high = 9_009_010_000 > 1.23TNaTMcTMiTCTTr
+.
+high = 3_000_000_000_001 -> 1.23Pi
