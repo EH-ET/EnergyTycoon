@@ -187,6 +187,7 @@ function getPrefix(index) {
   }
 
   // index >= 99: C range (recursive)
+  // Structure matches 301-3000 pattern: prefix + "C" + modifier
   const cOffset = index - 99;
   const cQuotient = Math.floor(cOffset / 100);
   const cRemainder = cOffset % 100;
@@ -194,7 +195,7 @@ function getPrefix(index) {
   const prefix = getPrefix(cQuotient);
   const modifier = getCommonBigUnit(cRemainder);
 
-  return prefix + modifier + "C";
+  return prefix + "C" + modifier;
 }
 
 function getSuffixUnit(high) {
@@ -228,8 +229,11 @@ function getHugeUnitRecursive(offset) {
   // Adjust offset to be relative to current range
   const relativeOffset = offset - totalRangeSize;
 
-  // quotient block size is currentRangeSize / 1000
-  const quotientBlockSize = currentRangeSize / 1000;
+  // Each HUGE range has 999 blocks of fixed size 3000 * 1000^(hugeIndex-2)
+  // Mi (hugeIndex=2): blocks of 3000
+  // Mc (hugeIndex=3): blocks of 3,000,000
+  // Na (hugeIndex=4): blocks of 3,000,000,000
+  const quotientBlockSize = 3000 * Math.pow(1000, hugeIndex - 2);
 
   const quotient = Math.floor(relativeOffset / quotientBlockSize);
   const remainder = relativeOffset % quotientBlockSize;

@@ -16,7 +16,7 @@ const testCases = [
   { high: 58, data: 123000, expected: "1.23Nd" },
   { high: 61, data: 123000, expected: "1.23V" },
   { high: 62, data: 123000, expected: "12.3V" },
-  { high: 88, data: 123000, expected: "1.23Nv" },
+  { high: 88, data: 123000, expected: "1.23NV" }, // N + V, not Nv (which appears at high=271)
   { high: 91, data: 123000, expected: "1.23Tr" },
   { high: 94, data: 123000, expected: "1.23UTr" },
   { high: 271, data: 123000, expected: "1.23Nv" },
