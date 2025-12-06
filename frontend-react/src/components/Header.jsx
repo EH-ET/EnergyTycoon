@@ -245,7 +245,7 @@ export default function Header() {
               <p><strong>교환 비율</strong></p>
               <p>에너지 1 → 돈 <span className="money-rate">
                 {typeof exchangeRate === 'number' && Number.isFinite(exchangeRate)
-                  ? exchangeRate.toFixed(2)
+                  ? formatResourceValue({ data: (exchangeRate || 0) * 1000, high: 0 })
                   : '0'}
               </span></p>
             </div>
@@ -272,9 +272,7 @@ export default function Header() {
             <div className={`energy-modal modal ${showEnergyModal ? 'is-visible' : ''}`}>
               <p><strong>초당 에너지 생산량</strong></p>
               <p><span className="energy-rate">
-                {typeof energyRate === 'number' 
-                  ? formatResourceValue({ data: energyRate * 1000, high: 0 })
-                  : '0'}
+                {energyRate ? formatResourceValue(energyRate) : '0'}
               </span>/초</p>
             </div>
           </div>
