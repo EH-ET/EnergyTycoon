@@ -211,8 +211,9 @@ export default function InfoTab() {
                   score = `${entry.score || 0}개`;
                 } else {
                   // Money or Energy - use BigValue formatting
-                  score = typeof entry.score === 'number'
-                    ? formatResourceValue(fromPlainValue(entry.score))
+                  const scoreNum = Number(entry.score);
+                  score = !isNaN(scoreNum)
+                    ? formatResourceValue(fromPlainValue(scoreNum))
                     : '-';
                 }
                 return (
