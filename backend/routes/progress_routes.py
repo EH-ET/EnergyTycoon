@@ -374,7 +374,7 @@ def _calculate_total_energy_production(user: User, db: Session) -> int:
     """Calculate total energy production per second from all user's generators."""
     try:
         from ..init_db import DEFAULT_GENERATOR_TYPES, DEFAULT_GENERATOR_NAME_TO_INDEX
-        
+
         # Get all running generators for this user
         generators = (
             db.query(Generator, MapProgress)
@@ -382,36 +382,42 @@ def _calculate_total_energy_production(user: User, db: Session) -> int:
             .filter(MapProgress.user_id == user.user_id, Generator.running == True, Generator.isdeveloping == False)
             .all()
         )
-        
+
         total_production = 0
         production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1  # Match frontend: bonus * 0.1
-        
+
         for gen, mp in generators:
             gt = gen.generator_type
             if not gt or not gt.name:
                 continue
-            
+
             # Find generator type info from defaults
             gen_index = DEFAULT_GENERATOR_NAME_TO_INDEX.get(gt.name)
             if gen_index is None:
                 continue
-            
+
             gen_data = DEFAULT_GENERATOR_TYPES[gen_index]
             base_production = gen_data.get("생산량(에너지수)", 0)
-            
+
             # Apply production upgrades
             production_upgrade_level = getattr(mp, "production_upgrade", 0) or 0
             upgrade_multiplier = 1.0 + production_upgrade_level * 0.1
-            
+
             gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
             total_production += int(gen_production)
-        
+
+        # Apply rebirth multiplier: 2^n (MUST match frontend logic)
+        rebirth_count = getattr(user, "rebirth_count", 0) or 0
+        if rebirth_count > 0:
+            rebirth_multiplier = 2 ** rebirth_count
+            total_production = int(total_production * rebirth_multiplier)
+
         # Apply energy multiplier from special upgrades (2^level)
         energy_multiplier_level = getattr(user, "energy_multiplier", 0) or 0
         if energy_multiplier_level > 0:
             energy_multiplier = 2 ** energy_multiplier_level
             total_production = int(total_production * energy_multiplier)
-        
+
         return total_production
     except Exception as e:
         # If calculation fails, return 0 to avoid blocking autosave
