@@ -423,11 +423,20 @@ main {
 }
 
 .info-btn:hover {
-  color:#ffc800;
+  color:#aeaba0;
 }
 
 .info-btn.active {
-  color: #ffc800;
+  color: #aeaba0;
+  font-weight: 900;
+}
+
+.inquiry-btn:hover {
+  color:#00fbff;
+}
+
+.inquiry-btn.active {
+  color: #00fbff;
   font-weight: 900;
 }
 
