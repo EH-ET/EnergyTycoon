@@ -7,7 +7,7 @@ import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents'
 import GeneratorModal from './GeneratorModal';
 import AlertModal from './AlertModal';
 import { clampOffset, SCROLL_RANGE, BG_FALLBACK_WIDTH } from '../hooks/useViewport';
-import { valueFromServer, toPlainValue, formatResourceValue, fromPlainValue } from '../utils/bigValue';
+import { valueFromServer, toPlainValue, formatResourceValue, fromPlainValue, multiplyByFloat } from '../utils/bigValue';
 
 const DEFAULT_TOLERANCE = 100;
 
@@ -302,25 +302,29 @@ export default function Main() {
               const getBaseProduction = () => {
                 const idx = Number(generator.genIndex);
                 const meta = Number.isInteger(idx) && idx >= 0 ? generators[idx] : null;
-                if (!meta) return 0;
+                if (!meta) return valueFromServer(); // Return a zero bigValue
                 const productionValue = valueFromServer(
                   meta["생산량(에너지수)"],
                   meta["생산량(에너지높이)"],
                   meta["생산량(에너지)"]
                 );
-                return Math.max(0, toPlainValue(productionValue));
+                return productionValue; // Return the bigValue object
               };
 
               const computeProduction = () => {
-                const base = getBaseProduction();
+                const baseBV = getBaseProduction(); // Gets a bigValue object
                 const bonus = Number(currentUser?.production_bonus) || 0;
                 const rebirthCount = Number(currentUser?.rebirth_count) || 0;
                 const energyMultiplier = Number(currentUser?.energy_multiplier) || 0;
                 const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
                 const energyMult = energyMultiplier > 0 ? Math.pow(2, energyMultiplier) : 1;
                 const level = generator.upgrades?.production || 0;
-                const upgraded = base * (1 + 0.1 * level); // PRODUCTION_UPGRADE_FACTOR = 0.1
-                return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier * energyMult;
+
+                const upgradedBV = multiplyByFloat(baseBV, (1 + 0.1 * level)); // PRODUCTION_UPGRADE_FACTOR = 0.1
+                const bonusBV = multiplyByFloat(upgradedBV, (1 + 0.1 * bonus));
+                const rebirthBV = multiplyByFloat(bonusBV, rebirthMultiplier);
+                
+                return multiplyByFloat(rebirthBV, energyMult);
               };
 
               const computeHeatRate = () => {
@@ -351,8 +355,6 @@ export default function Main() {
               };
 
               const prodPerSec = computeProduction();
-              const heatRate = computeHeatRate();
-              const tolerance = computeTolerance();
 
               return (
                 <div
@@ -383,7 +385,7 @@ export default function Main() {
                     {/* Tooltip */}
                     <div className="generator-tooltip">
                       <div style={{ color: '#f1c40f', fontWeight: 'bold' }}>
-                        ⚡ {formatResourceValue(fromPlainValue(prodPerSec))}/s
+                        ⚡ {formatResourceValue(prodPerSec)}/s
                       </div>
                       <div style={{ color: '#e74c3c', fontSize: '11px', marginTop: '2px' }}>
                         🔥 {Math.round(generator.heat || 0)} / {Math.round(tolerance)} (+{heatRate.toFixed(1)}/s)
