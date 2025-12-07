@@ -8,47 +8,6 @@ const useAudioPlayer = (playlist) => {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const currentTrack = playlist[currentTrackIndex];
-
-  useEffect(() => {
-    const audio = audioRef.current;
-
-    const setAudioSource = () => {
-      if (currentTrack) {
-        audio.src = currentTrack.src;
-        audio.load();
-        if (isPlaying) {
-          audio.play().catch(e => console.error("Error playing audio:", e));
-        }
-      }
-    };
-
-    setAudioSource();
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      setProgress(audio.currentTime / audio.duration);
-    };
-
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
-    };
-
-    const handleEnded = () => {
-      playRandomTrack(); // Use playRandomTrack here
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [currentTrackIndex, playlist, isPlaying, currentTrack, playRandomTrack]); // Added playRandomTrack to dependencies
-
   const play = useCallback(() => {
     audioRef.current.play().catch(e => console.error("Error playing audio:", e));
     setIsPlaying(true);
@@ -98,6 +57,47 @@ const useAudioPlayer = (playlist) => {
     setCurrentTrackIndex(randomIndex);
     setIsPlaying(true); // Keep playing
   }, [currentTrackIndex, playlist.length]);
+
+  const currentTrack = playlist[currentTrackIndex];
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const setAudioSource = () => {
+      if (currentTrack) {
+        audio.src = currentTrack.src;
+        audio.load();
+        if (isPlaying) {
+          audio.play().catch(e => console.error("Error playing audio:", e));
+        }
+      }
+    };
+
+    setAudioSource();
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      setProgress(audio.currentTime / audio.duration);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      playRandomTrack(); // Use playRandomTrack here
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [currentTrackIndex, playlist, isPlaying, currentTrack, playRandomTrack]); // Added playRandomTrack to dependencies
 
   // Removed the duplicate useEffect for handleEnded to play random track
   // The logic is now directly in the first useEffect's handleEnded
