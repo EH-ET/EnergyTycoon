@@ -76,8 +76,8 @@ export default function Main() {
   };
 
   const handleDrop = async (e) => {
-    console.log("--- 최신 코드 실행됨 ---");
     e.preventDefault();
+    console.log("--- handleDrop 시작 ---");
     e.stopPropagation();
     setDragOver(false);
 
@@ -89,6 +89,8 @@ export default function Main() {
     const worldX = Math.max(0, Math.min(worldWidth, Math.round(screenX - (Number(userOffsetX) || 0))));
     const gen = generators[Number(idx)];
     if (!gen) return;
+    console.log("드롭된 발전기 인덱스:", idx);
+    console.log("발전기 정보:", gen);
 
     if (!currentUser) {
       setAlertMessage('설치하려면 로그인 필요합니다.');
@@ -97,22 +99,27 @@ export default function Main() {
 
     const genInfo = generatorTypeInfoMap[gen.이름];
     const genTypeId = genInfo ? genInfo.id : generatorTypeMap[gen.이름];
+    console.log("비용 계산 시작...");
     let costBV;
     if (genInfo && typeof genInfo.cost === 'number') {
       costBV = fromPlainValue(genInfo.cost);
     } else {
       costBV = valueFromServer(gen["설치비용(수)"], gen["설치비용(높이)"]);
     }
+    console.log("계산된 비용 (bigValue):", JSON.parse(JSON.stringify(costBV)));
 
     if (!genTypeId) {
       setAlertMessage('서버에서 발전기 정보를 불러오지 못했습니다.');
       return;
     }
 
+    console.log("비용 비교 시작...");
     if (compareMoneyWithBigValue(costBV) < 0) {
+      console.log("비교 결과: 돈 부족");
       setAlertMessage('돈이 부족합니다.');
       return;
     }
+    console.log("비교 결과: 돈 충분함");
 
     const maxAllowed = computeMaxGenerators(currentUser);
     if (placedGenerators.length >= maxAllowed) {
