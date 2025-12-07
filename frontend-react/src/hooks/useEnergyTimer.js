@@ -219,6 +219,23 @@ export function useEnergyTimer() {
         const nextValue = addValues(getEnergyValue(), totalGainBV);
         setEnergyValue(nextValue);
 
+        // Supercoin chance: (running generators / 1,000,000) per second
+        const runningCount = placedGenerators.filter(pg => pg && !pg.isDeveloping && pg.running !== false).length;
+        if (runningCount > 0) {
+          const chance = runningCount / 1_000_000;
+          if (Math.random() < chance) {
+            // Award 1 supercoin
+            const { currentUser: user, syncUserState } = useStore.getState();
+            if (user) {
+              const newSupercoin = (user.supercoin || 0) + 1;
+              syncUserState({ ...user, supercoin: newSupercoin });
+
+              // Show notification
+              console.log(`🪙 Supercoin acquired! Total: ${newSupercoin}`);
+            }
+          }
+        }
+
         // 에너지 변경 시 5초 debounce로 백엔드 저장
         // 너무 잦은 저장을 방지하기 위해 이전 저장 시간 체크 필요
         if (energySaveTimerRef.current) {
@@ -238,12 +255,14 @@ export function useEnergyTimer() {
             const token = getAuthToken();
             const energyPayload = toEnergyServerPayload();
             const playTimeMs = readStoredPlayTime();
+            const { currentUser } = useStore.getState();
 
-            // Save with BigValue format (data, high)
+            // Save with BigValue format (data, high) and supercoin
             await autosaveProgress(token, {
               energy_data: energyPayload.data,
               energy_high: energyPayload.high,
               play_time_ms: playTimeMs,
+              supercoin: currentUser?.supercoin || 0,
             });
             lastSaveTimeRef.current = Date.now(); // Update save time
           } catch (e) {

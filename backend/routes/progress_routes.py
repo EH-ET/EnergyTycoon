@@ -505,7 +505,11 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     if payload.play_time_ms is not None:
         user.play_time_ms = max(0, int(payload.play_time_ms))
         updated = True
-    
+
+    if payload.supercoin is not None:
+        user.supercoin = max(0, int(payload.supercoin))
+        updated = True
+
     # Update generators (heat, running)
     if payload.generators:
         gen_updates = {g.generator_id: g for g in payload.generators if g.generator_id}
