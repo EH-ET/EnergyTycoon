@@ -8,6 +8,8 @@ const useAudioPlayer = (playlist) => {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
+  const currentTrack = playlist[currentTrackIndex];
+
   const play = useCallback(() => {
     audioRef.current.play().catch(e => console.error("Error playing audio:", e));
     setIsPlaying(true);
