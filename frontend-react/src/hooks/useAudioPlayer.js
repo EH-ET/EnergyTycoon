@@ -69,6 +69,45 @@ const useAudioPlayer = (playlist) => {
 
   const currentTrack = playlist[currentTrackIndex];
 
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    const setAudioSource = () => {
+      if (currentTrack) {
+        audio.src = currentTrack.src;
+        audio.load();
+        if (isPlaying) {
+          audio.play().catch(e => console.error("Error playing audio:", e));
+        }
+      }
+    };
+
+    setAudioSource();
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      setProgress(audio.currentTime / audio.duration);
+    };
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration);
+    };
+
+    const handleEnded = () => {
+      playRandomTrack();
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, [currentTrackIndex, playlist, currentTrack, playRandomTrack]); // Removed isPlaying from dependencies
+
   // Effect to trigger initial play when isStart becomes true
   useEffect(() => {
     if (isStart && !isPlaying && currentTrack) {
