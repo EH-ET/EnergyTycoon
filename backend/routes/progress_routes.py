@@ -380,8 +380,8 @@ async def upgrade_generator(generator_id: str, payload: GeneratorUpgradeRequest,
     }
 
 
-def _calculate_total_energy_production(user: User, db: Session) -> int:
-    """Calculate total energy production per second from all user's generators."""
+def _calculate_total_energy_production(user: User, db: Session) -> BigValue:
+    """Calculate total energy production per second from all user's generators using BigValue."""
     try:
         from ..init_db import DEFAULT_GENERATOR_TYPES, DEFAULT_GENERATOR_NAME_TO_INDEX
 
@@ -393,8 +393,8 @@ def _calculate_total_energy_production(user: User, db: Session) -> int:
             .all()
         )
 
-        total_production = 0
-        production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1  # Match frontend: bonus * 0.1
+        total_production = BigValue(0, 0)
+        production_bonus_multiplier = 1.0 + (getattr(user, "production_bonus", 0) or 0) * 0.1
 
         for gen, mp in generators:
             gt = gen.generator_type
@@ -407,33 +407,37 @@ def _calculate_total_energy_production(user: User, db: Session) -> int:
                 continue
 
             gen_data = DEFAULT_GENERATOR_TYPES[gen_index]
-            base_production = gen_data.get("생산량(에너지수)", 0)
+            # Use BigValue for base production (includes both data and high)
+            base_production_data = gen_data.get("생산량(에너지수)", 0)
+            base_production_high = gen_data.get("생산량(에너지높이)", 0)
+            base_production = BigValue(base_production_data, base_production_high)
 
             # Apply production upgrades
             production_upgrade_level = getattr(mp, "production_upgrade", 0) or 0
             upgrade_multiplier = 1.0 + production_upgrade_level * 0.1
 
-            gen_production = base_production * production_bonus_multiplier * upgrade_multiplier
-            total_production += int(gen_production)
+            # Calculate generator production using BigValue
+            gen_production = multiply_by_float(base_production, production_bonus_multiplier * upgrade_multiplier)
+            total_production = add_values(total_production, gen_production)
 
         # Apply rebirth multiplier: 2^n (MUST match frontend logic)
         rebirth_count = getattr(user, "rebirth_count", 0) or 0
         if rebirth_count > 0:
             rebirth_multiplier = 2 ** rebirth_count
-            total_production = int(total_production * rebirth_multiplier)
+            total_production = multiply_by_float(total_production, rebirth_multiplier)
 
         # Apply energy multiplier from special upgrades (2^level)
         energy_multiplier_level = getattr(user, "energy_multiplier", 0) or 0
         if energy_multiplier_level > 0:
             energy_multiplier = 2 ** energy_multiplier_level
-            total_production = int(total_production * energy_multiplier)
+            total_production = multiply_by_float(total_production, energy_multiplier)
 
         return total_production
     except Exception as e:
-        # If calculation fails, return 0 to avoid blocking autosave
+        # If calculation fails, return zero BigValue to avoid blocking autosave
         import logging
         logging.warning(f"Failed to calculate energy production: {e}")
-        return 0
+        return BigValue(0, 0)
 
 
 @router.post("/progress/autosave")
@@ -455,13 +459,20 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         if compare(energy_value, max_energy_bv) > 0:
             raise HTTPException(status_code=400, detail="Energy value too large")
 
-        # Check for suspicious increases based on production rate * 100
+        # Check for suspicious increases based on production rate * 1,000,000 seconds (allow idle play)
         current_energy_bv = get_user_energy_value(user)
-        total_production_per_sec = _calculate_total_energy_production(user, db)
+        total_production_per_sec_bv = _calculate_total_energy_production(user, db)
 
-        # Allow a maximum increase of production_rate * 100 seconds, or at least 1M
-        max_reasonable_increase = max(total_production_per_sec * 100, 1_000_000)
-        max_allowed_energy = add_plain(current_energy_bv, max_reasonable_increase)
+        # Allow a maximum increase of production_rate * 1,000,000 seconds, or at least 1M
+        # Use BigValue operations for accurate calculation
+        max_reasonable_increase_bv = multiply_by_float(total_production_per_sec_bv, 1_000_000)
+        min_increase_bv = from_plain(1_000_000)
+
+        # Take the larger of the two
+        if compare(max_reasonable_increase_bv, min_increase_bv) < 0:
+            max_reasonable_increase_bv = min_increase_bv
+
+        max_allowed_energy = add_values(current_energy_bv, max_reasonable_increase_bv)
         if compare(energy_value, max_allowed_energy) > 0:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
 
@@ -476,15 +487,15 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         if compare(money_value, max_money_bv) > 0:
             raise HTTPException(status_code=400, detail="Money value too large")
 
-        # Check for suspicious increases based on energy * exchange_rate * 100
+        # Check for suspicious increases based on energy * exchange_rate * 1,000,000 (allow idle play)
         current_money_bv = get_user_money_value(user)
         current_energy_bv = get_user_energy_value(user)
 
         try:
             exchange_rate = current_market_rate(user)
-            # Maximum reasonable money increase: current_energy * exchange_rate * 100
+            # Maximum reasonable money increase: current_energy * exchange_rate * 1,000,000
             # Calculate using BigValue operations
-            energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 100)
+            energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 1_000_000)
             # At least 1M
             min_increase_bv = from_plain(1_000_000)
             # Take the larger of the two
