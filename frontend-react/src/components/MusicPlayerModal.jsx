@@ -12,6 +12,8 @@ const MusicPlayerModal = ({ playlist }) => {
     seekByProgress,
     playNextTrack,
     playPreviousTrack,
+    isMuted, // Get mute state
+    toggleMute, // Get mute toggle function
   } = useAudioPlayer(playlist);
 
   const progressBarRef = useRef(null);
@@ -154,6 +156,9 @@ const MusicPlayerModal = ({ playlist }) => {
         </button>
         <button onClick={playNextTrack} style={buttonStyle}>
           {'>>'}
+        </button>
+        <button onClick={toggleMute} style={buttonStyle}>
+          {isMuted ? '🔇' : '🔊'}
         </button>
       </div>
     </div>
