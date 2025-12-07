@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGenerator } from '../utils/apiClient';
 import { computeSkipCost } from '../utils/generatorHelpers';
-import { formatResourceValue, fromPlainValue, valueFromServer, toPlainValue } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue, valueFromServer, toPlainValue, multiplyByFloat } from '../utils/bigValue';
 import { generators } from '../utils/data';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import AlertModal from './AlertModal';
@@ -187,15 +187,23 @@ export default function GeneratorModal({ generator, onClose }) {
   const userToleranceBonus = Number(currentUser?.tolerance_bonus) || 0;
   const buffedTolerance = baseTolerance + (generator.upgrades?.tolerance || 0) * 10 + userToleranceBonus * 10;
   
-  // Skip cost calculation using cost_data and cost_high directly
+  // Skip cost calculation using BigValue directly (matches backend logic)
   const skipCostValue = (() => {
     if (!generator.isDeveloping || !generator.buildCompleteTs) return fromPlainValue(0);
     const remainingSeconds = Math.max(0, Math.ceil((generator.buildCompleteTs - Date.now()) / 1000));
     const totalDurationSeconds = Math.max(1, typeInfo.install_seconds || Math.ceil((generator.buildDurationMs || generator.baseBuildDurationMs || 2000) / 1000));
     const costValue = valueFromServer(generator.cost_data || typeInfo.cost_data, generator.cost_high || typeInfo.cost_high, baseCost);
-    const costPlain = toPlainValue(costValue);
-    const skipCostPlain = Math.max(1, Math.ceil((remainingSeconds / totalDurationSeconds) * costPlain));
-    return fromPlainValue(skipCostPlain);
+
+    // Calculate proportion and multiply BigValue using multiplyByFloat (same as backend)
+    const proportion = remainingSeconds / totalDurationSeconds;
+    const skipCost = multiplyByFloat(costValue, proportion);
+
+    // Ensure at least cost of 1
+    if (skipCost.data === 0 && skipCost.high === 0) {
+      return fromPlainValue(1);
+    }
+
+    return skipCost;
   })();
   const isRunning = generator.running !== false && !generator.isDeveloping;
   const statusColor = generator.isDeveloping ? '#4fa3ff' : isRunning ? '#f1c40f' : '#e74c3c';
