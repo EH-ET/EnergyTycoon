@@ -76,6 +76,7 @@ export default function Main() {
   };
 
   const handleDrop = async (e) => {
+    console.log("--- 최신 코드 실행됨 ---");
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
