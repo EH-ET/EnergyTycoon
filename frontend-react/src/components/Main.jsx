@@ -15,6 +15,7 @@ const DEFAULT_TOLERANCE = 100;
 const playlist = [
   { src: '/music/MP_뜻대로_되지_않는_하루.mp3', title: '뜻대로 되지 않는 하루' },
   { src: '/music/MP_달콤한_휴식_시간.mp3', title: '달콤한 휴식 시간' },
+  { src: '/music/MP_나는야_개구쟁이.mp3', title: '나는야 개구쟁이' },
 ];
 
 export default function Main() {
