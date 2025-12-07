@@ -453,7 +453,6 @@ export default function Main() {
         message={alertMessage}
         onClose={() => setAlertMessage('')}
       />
-      console.log("Main.jsx: About to render MusicPlayerModal.");
       <MusicPlayerModal playlist={playlist} />
     </>
   );
