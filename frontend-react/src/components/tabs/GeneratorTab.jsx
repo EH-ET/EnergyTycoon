@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { generators } from '../../utils/data';
-import { valueFromServer, formatResourceValue, toPlainValue, multiplyByFloat } from '../../utils/bigValue';
+import { valueFromServer, formatResourceValue, toPlainValue, multiplyByFloat, multiplyByPlain } from '../../utils/bigValue';
 
 export default function GeneratorTab() {
   const makeImageSrc = (index) => `/generator/${index + 1}.png`;
@@ -21,12 +21,20 @@ export default function GeneratorTab() {
     const toleranceBonus = currentUser?.tolerance_bonus || 0;
     
     // Production
-    const baseProductionBV = valueFromServer(gen["생산량(에너지수)"], gen["생산량(에너지높이)"], gen["생산량(에너지)"]);
-    let productionMultiplier = (1 + productionBonus * 0.1) * Math.pow(2, rebirthCount);
-    if (energyMultiplier > 0) {
-      productionMultiplier *= Math.pow(2, energyMultiplier);
+    let finalProductionBV = valueFromServer(gen["생산량(에너지수)"], gen["생산량(에너지높이)"], gen["생산량(에너지)"]);
+    
+    // Apply production bonus
+    finalProductionBV = multiplyByFloat(finalProductionBV, 1 + productionBonus * 0.1);
+
+    // Apply rebirth bonus
+    for (let i = 0; i < rebirthCount; i++) {
+      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
     }
-    const finalProductionBV = multiplyByFloat(baseProductionBV, productionMultiplier);
+
+    // Apply energy multiplier
+    for (let i = 0; i < energyMultiplier; i++) {
+      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
+    }
     
     // Heat: base * (1 - heat_reduction * 0.1)
     const baseHeat = gen.발열 || 0;
