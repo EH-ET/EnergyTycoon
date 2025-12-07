@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useAudioPlayer = (playlist) => {
+  console.log("useAudioPlayer: Hook called.");
   const audioRef = useRef(new Audio());
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
