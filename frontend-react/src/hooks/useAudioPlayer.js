@@ -2,13 +2,20 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const useAudioPlayer = (playlist) => {
   const audioRef = useRef(new Audio());
-  audioRef.current.muted = true; // Start muted
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0 to 1
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isMuted, setIsMuted] = useState(true); // New state for mute status
+  const [isMuted, setIsMuted] = useState(false); // Start unmuted
+  const [isStart, setIsStart] = useState(false); // New state for first interaction
+
+  // Effect to trigger initial play when isStart becomes true
+  useEffect(() => {
+    if (isStart && !isPlaying && currentTrack) {
+      play();
+    }
+  }, [isStart, isPlaying, currentTrack, play]);
 
   const currentTrack = playlist[currentTrackIndex];
 
@@ -67,39 +74,41 @@ const useAudioPlayer = (playlist) => {
     }
     setCurrentTrackIndex(randomIndex);
     setIsPlaying(true); // Keep playing
-  }, [currentTrackIndex, playlist.length]);
+  const currentTrack = playlist[currentTrackIndex];
 
-  // Effect to trigger initial autoplay for the first track
+  // Effect to trigger initial play when isStart becomes true
   useEffect(() => {
-    if (!isPlaying && currentTrack) {
+    if (isStart && !isPlaying && currentTrack) {
       play();
     }
-  }, [currentTrack, isPlaying, play]);
+  }, [isStart, isPlaying, currentTrack, play]);
 
-  // Effect to unmute on first user interaction
+  // Effect to set isStart to true on first user interaction
   useEffect(() => {
     const handleUserInteraction = () => {
-      if (isMuted) {
-        toggleMute();
-      }
+      setIsStart(true);
       // Remove listener after first interaction
       window.removeEventListener('mousedown', handleUserInteraction);
       window.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('mousemove', handleUserInteraction); // Add mousemove
     };
 
-    // Add listeners
-    window.addEventListener('mousedown', handleUserInteraction);
-    window.addEventListener('keydown', handleUserInteraction);
-    window.addEventListener('touchstart', handleUserInteraction);
+    if (!isStart) { // Only add listeners if not started yet
+      window.addEventListener('mousedown', handleUserInteraction);
+      window.addEventListener('keydown', handleUserInteraction);
+      window.addEventListener('touchstart', handleUserInteraction);
+      window.addEventListener('mousemove', handleUserInteraction); // Add mousemove
+    }
 
     return () => {
-      // Clean up listeners if component unmounts before interaction
+      // Clean up listeners if component unmounts or isStart becomes true
       window.removeEventListener('mousedown', handleUserInteraction);
       window.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('touchstart', handleUserInteraction);
+      window.removeEventListener('mousemove', handleUserInteraction);
     };
-  }, [isMuted, toggleMute]);
+  }, [isStart, setIsStart]); // Dependencies for this effect
 
   return {
     currentTrack: currentTrack ? { ...currentTrack, title: currentTrack.title || currentTrack.src.split('/').pop().replace('.mp3', '') } : null,
