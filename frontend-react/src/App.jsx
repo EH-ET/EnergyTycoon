@@ -43,7 +43,6 @@ function App() {
   useEffect(() => {
     const checkAdminRoute = () => {
       const isAdmin = window.location.hash === '#admin';
-      console.log('Checking admin route:', window.location.hash, isAdmin);
       setIsAdminPage(isAdmin);
     };
     
