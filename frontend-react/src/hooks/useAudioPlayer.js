@@ -60,13 +60,6 @@ const useAudioPlayer = (playlist) => {
     setIsPlaying(true); // Keep playing
   }, [currentTrackIndex, playlist.length]);
 
-  // Effect to trigger initial autoplay for the first track
-  useEffect(() => {
-    if (!isPlaying && currentTrack) {
-      play();
-    }
-  }, [currentTrack, isPlaying, play]);
-
   return {
     currentTrack: currentTrack ? { ...currentTrack, title: currentTrack.title || currentTrack.src.split('/').pop().replace('.mp3', '') } : null,
     isPlaying,
