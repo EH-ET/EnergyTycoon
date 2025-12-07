@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import useAudioPlayer from '../hooks/useAudioPlayer';
 
 const MusicPlayerModal = ({ playlist }) => {
@@ -15,6 +15,56 @@ const MusicPlayerModal = ({ playlist }) => {
   } = useAudioPlayer(playlist);
 
   const progressBarRef = useRef(null);
+  const modalRef = useRef(null);
+
+  // State for dragging
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 }); // Relative to initial fixed position
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 }); // Mouse start position
+
+  // Initialize position based on fixed CSS
+  useEffect(() => {
+    if (modalRef.current) {
+      const rect = modalRef.current.getBoundingClientRect();
+      // Calculate initial position relative to viewport bottom-right
+      // This is a bit tricky with fixed positioning and transform.
+      // Let's just set initial transform to 0,0 and let CSS handle fixed.
+      // Dragging will then apply transform.
+      setPosition({ x: 0, y: 0 });
+    }
+  }, []);
+
+  const handleMouseDown = useCallback((e) => {
+    setIsDragging(true);
+    setStartPos({ x: e.clientX - position.x, y: e.clientY - position.y });
+  }, [position]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging) return;
+    const newX = e.clientX - startPos.x;
+    const newY = e.clientY - startPos.y;
+    setPosition({ x: newX, y: newY });
+  }, [isDragging, startPos]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Add global mouseup listener to stop dragging even if mouse leaves modal
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
 
   const formatTime = (seconds) => {
     if (isNaN(seconds)) return "0:00";
@@ -36,21 +86,27 @@ const MusicPlayerModal = ({ playlist }) => {
   if (!currentTrack) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '100px', // Adjusted position
-      right: '20px',
-      width: '280px',
-      background: 'rgba(0, 0, 0, 0.7)',
-      borderRadius: '10px',
-      padding: '15px',
-      color: '#fff',
-      fontFamily: 'Arial, sans-serif',
-      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
-      zIndex: 1000,
-      backdropFilter: 'blur(5px)',
-      border: '1px solid rgba(255, 255, 255, 0.1)'
-    }}>
+    <div
+      ref={modalRef}
+      style={{
+        position: 'fixed',
+        bottom: '100px',
+        right: '20px',
+        width: '280px',
+        background: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: '10px',
+        padding: '15px',
+        color: '#fff',
+        fontFamily: 'Arial, sans-serif',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+        zIndex: 1000,
+        backdropFilter: 'blur(5px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        transform: `translate(${position.x}px, ${position.y}px)`,
+      }}
+      onMouseDown={handleMouseDown}
+    >
       <h4 style={{ margin: '0 0 10px', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {currentTrack.title}
       </h4>

@@ -58,49 +58,12 @@ const useAudioPlayer = (playlist) => {
     setIsPlaying(true); // Keep playing
   }, [currentTrackIndex, playlist.length]);
 
-  const currentTrack = playlist[currentTrackIndex];
-
+  // Effect to trigger initial autoplay for the first track
   useEffect(() => {
-    const audio = audioRef.current;
-
-    const setAudioSource = () => {
-      if (currentTrack) {
-        audio.src = currentTrack.src;
-        audio.load();
-        if (isPlaying) {
-          audio.play().catch(e => console.error("Error playing audio:", e));
-        }
-      }
-    };
-
-    setAudioSource();
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      setProgress(audio.currentTime / audio.duration);
-    };
-
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration);
-    };
-
-    const handleEnded = () => {
-      playRandomTrack(); // Use playRandomTrack here
-    };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, [currentTrackIndex, playlist, isPlaying, currentTrack, playRandomTrack]); // Added playRandomTrack to dependencies
-
-  // Removed the duplicate useEffect for handleEnded to play random track
-  // The logic is now directly in the first useEffect's handleEnded
+    if (!isPlaying && currentTrack) {
+      play();
+    }
+  }, [currentTrack, isPlaying, play]);
 
   return {
     currentTrack: currentTrack ? { ...currentTrack, title: currentTrack.title || currentTrack.src.split('/').pop().replace('.mp3', '') } : null,
