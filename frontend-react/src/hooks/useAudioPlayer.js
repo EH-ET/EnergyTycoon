@@ -10,15 +10,6 @@ const useAudioPlayer = (playlist) => {
   const [isMuted, setIsMuted] = useState(false); // Start unmuted
   const [isStart, setIsStart] = useState(false); // New state for first interaction
 
-  // Effect to trigger initial play when isStart becomes true
-  useEffect(() => {
-    if (isStart && !isPlaying && currentTrack) {
-      play();
-    }
-  }, [isStart, isPlaying, currentTrack, play]);
-
-  const currentTrack = playlist[currentTrackIndex];
-
   const play = useCallback(() => {
     audioRef.current.play().catch(e => console.error("Error playing audio:", e));
     setIsPlaying(true);
@@ -48,7 +39,7 @@ const useAudioPlayer = (playlist) => {
     audioRef.current.currentTime = time;
     setCurrentTime(time);
     setProgress(time / audioRef.current.duration);
-  }, []);
+  }, [seek]);
 
   const seekByProgress = useCallback((newProgress) => {
     const newTime = newProgress * audioRef.current.duration;
@@ -74,6 +65,8 @@ const useAudioPlayer = (playlist) => {
     }
     setCurrentTrackIndex(randomIndex);
     setIsPlaying(true); // Keep playing
+  }, [currentTrackIndex, playlist.length]);
+
   const currentTrack = playlist[currentTrackIndex];
 
   // Effect to trigger initial play when isStart becomes true
@@ -126,6 +119,7 @@ const useAudioPlayer = (playlist) => {
     playRandomTrack,
     isMuted, // Expose mute state
     toggleMute, // Expose mute toggle function
+    isStart, // Expose isStart state
   };
 };
 
