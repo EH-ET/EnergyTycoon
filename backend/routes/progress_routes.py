@@ -36,9 +36,7 @@ router = APIRouter()
 MAX_GENERATOR_BASE = 10
 MAX_GENERATOR_STEP = 1
 DEMOLISH_COST_RATE = 0.5
-# Increased limits for idle game with multipliers (10^15 = 1 quadrillion = 1000T)
-MAX_ENERGY_VALUE = int(os.getenv("MAX_ENERGY_VALUE", 1_000_000_000_000_000))
-MAX_MONEY_VALUE = int(os.getenv("MAX_MONEY_VALUE", 1_000_000_000_000_000))
+
 GENERATOR_UPGRADE_CONFIG = {
     "production": {"field": "production_upgrade", "base_cost_multiplier": 1, "price_growth": 1.25},
     "heat_reduction": {"field": "heat_reduction_upgrade", "base_cost_multiplier": 0.8, "price_growth": 1.2},
@@ -455,13 +453,6 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     # Energy validation (using BigValue, no to_plain())
     energy_value = from_payload(payload.energy_data, payload.energy_high)
     if energy_value is not None:
-        # Check max value using BigValue comparison
-        max_energy_bv = from_plain(MAX_ENERGY_VALUE)
-        import logging
-        logging.warning(f"MAX_ENERGY_VALUE check - New energy: {to_plain(energy_value)}, MAX: {MAX_ENERGY_VALUE}")
-        if compare(energy_value, max_energy_bv) > 0:
-            raise HTTPException(status_code=400, detail="Energy value too large")
-
         # Check for suspicious increases based on production rate * 1,000,000 seconds (allow idle play)
         current_energy_bv = get_user_energy_value(user)
         total_production_per_sec_bv = _calculate_total_energy_production(user, db)
@@ -477,13 +468,6 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
 
         max_allowed_energy = add_values(current_energy_bv, max_reasonable_increase_bv)
 
-        # Debug logging
-        import logging
-        logging.warning(f"Energy validation - Current: {to_plain(current_energy_bv)}, New: {to_plain(energy_value)}, "
-                       f"Production/sec: {to_plain(total_production_per_sec_bv)}, "
-                       f"Max allowed: {to_plain(max_allowed_energy)}, "
-                       f"MAX_ENERGY_VALUE: {MAX_ENERGY_VALUE}")
-
         if compare(energy_value, max_allowed_energy) > 0:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
 
@@ -493,11 +477,6 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     # Money validation (using BigValue, no to_plain())
     money_value = from_payload(payload.money_data, payload.money_high)
     if money_value is not None:
-        # Check max value using BigValue comparison
-        max_money_bv = from_plain(MAX_MONEY_VALUE)
-        if compare(money_value, max_money_bv) > 0:
-            raise HTTPException(status_code=400, detail="Money value too large")
-
         # Check for suspicious increases based on energy * exchange_rate * 1,000,000 (allow idle play)
         current_money_bv = get_user_money_value(user)
         current_energy_bv = get_user_energy_value(user)
