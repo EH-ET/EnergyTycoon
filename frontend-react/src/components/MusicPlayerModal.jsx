@@ -33,7 +33,10 @@ const MusicPlayerModal = ({ playlist }) => {
     }
   };
 
-  if (!currentTrack) return null;
+  if (!currentTrack) {
+    console.log("MusicPlayerModal: currentTrack is null, not rendering.");
+    return null;
+  }
 
   return (
     <div style={{
