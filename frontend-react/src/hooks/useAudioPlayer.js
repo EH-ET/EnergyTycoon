@@ -74,7 +74,7 @@ const useAudioPlayer = (playlist) => {
     if (isStart && !isPlaying && currentTrack) {
       play();
     }
-  }, [isStart, isPlaying, currentTrack, play]);
+  }, [isStart, currentTrack, play]); // Removed isPlaying from dependencies
 
   // Effect to set isStart to true on first user interaction
   useEffect(() => {
