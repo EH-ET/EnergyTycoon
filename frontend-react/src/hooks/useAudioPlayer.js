@@ -39,7 +39,7 @@ const useAudioPlayer = (playlist) => {
     audioRef.current.currentTime = time;
     setCurrentTime(time);
     setProgress(time / audioRef.current.duration);
-  }, [seek]);
+  }, []);
 
   const seekByProgress = useCallback((newProgress) => {
     const newTime = newProgress * audioRef.current.duration;
