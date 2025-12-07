@@ -101,9 +101,16 @@ export default function Main() {
     const genTypeId = genInfo ? genInfo.id : generatorTypeMap[gen.이름];
     console.log("비용 계산 시작...");
     let costBV;
+    console.log("genInfo:", JSON.parse(JSON.stringify(genInfo)));
+    console.log("genInfo.cost:", JSON.parse(JSON.stringify(genInfo.cost)));
+    console.log("gen['설치비용(수)']:", gen["설치비용(수)"]);
+    console.log("gen['설치비용(높이)']:", gen["설치비용(높이)"]);
+
     if (genInfo && typeof genInfo.cost === 'number') {
+      console.log("비용: genInfo.cost (숫자) 사용");
       costBV = fromPlainValue(genInfo.cost);
     } else {
+      console.log("비용: static gen data 사용");
       costBV = valueFromServer(gen["설치비용(수)"], gen["설치비용(높이)"]);
     }
     console.log("계산된 비용 (bigValue):", JSON.parse(JSON.stringify(costBV)));
