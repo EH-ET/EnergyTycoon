@@ -6,10 +6,16 @@ import { makeImageSrcByIndex, computeMaxGenerators } from '../utils/generatorHel
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import GeneratorModal from './GeneratorModal';
 import AlertModal from './AlertModal';
+import MusicPlayerModal from './MusicPlayerModal'; // Import MusicPlayerModal
 import { clampOffset, SCROLL_RANGE, BG_FALLBACK_WIDTH } from '../hooks/useViewport';
 import { valueFromServer, toPlainValue, formatResourceValue, fromPlainValue, multiplyByFloat } from '../utils/bigValue';
 
 const DEFAULT_TOLERANCE = 100;
+
+const playlist = [
+  { src: '/music/MP_뜻대로 되지 않는 하루.mp3', title: '뜻대로 되지 않는 하루' },
+  { src: '/music/MP_달콤한 휴식 시간.mp3', title: '달콤한 휴식 시간' },
+];
 
 export default function Main() {
   const [dragOver, setDragOver] = useState(false);
@@ -77,7 +83,6 @@ export default function Main() {
 
   const handleDrop = async (e) => {
     e.preventDefault();
-    console.log("--- handleDrop 시작 ---");
     e.stopPropagation();
     setDragOver(false);
 
@@ -89,8 +94,6 @@ export default function Main() {
     const worldX = Math.max(0, Math.min(worldWidth, Math.round(screenX - (Number(userOffsetX) || 0))));
     const gen = generators[Number(idx)];
     if (!gen) return;
-    console.log("드롭된 발전기 인덱스:", idx);
-    console.log("발전기 정보:", gen);
 
     if (!currentUser) {
       setAlertMessage('설치하려면 로그인 필요합니다.');
@@ -99,7 +102,6 @@ export default function Main() {
 
     const genInfo = generatorTypeInfoMap[gen.이름];
     const genTypeId = genInfo ? genInfo.id : generatorTypeMap[gen.이름];
-    console.log("비용 계산 시작...");
     let costBV;
     if (genInfo && typeof genInfo.cost_data === 'number' && typeof genInfo.cost_high === 'number') {
       costBV = valueFromServer(genInfo.cost_data, genInfo.cost_high);
@@ -112,13 +114,10 @@ export default function Main() {
       return;
     }
 
-    console.log("비용 비교 시작...");
     if (compareMoneyWithBigValue(costBV) < 0) {
-      console.log("비교 결과: 돈 부족");
       setAlertMessage('돈이 부족합니다.');
       return;
     }
-    console.log("비교 결과: 돈 충분함");
 
     const maxAllowed = computeMaxGenerators(currentUser);
     if (placedGenerators.length >= maxAllowed) {
