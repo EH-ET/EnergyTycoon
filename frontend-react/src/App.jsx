@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore, loadUserData, getAuthToken, ensureSessionStart, initTrapGuard, installTrapFetchGuard } from './store/useStore';
-import { loadProgress, setGlobalLoadingCallback, loadGeneratorTypes } from './utils/apiClient';
+import { loadProgress, loadGeneratorTypes } from './utils/apiClient';
 import { useEnergyTimer } from './hooks/useEnergyTimer';
 import { useAutosave } from './hooks/useAutosave';
 import { useViewport } from './hooks/useViewport';
@@ -32,12 +32,7 @@ function App() {
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const setGlobalLoading = useStore(state => state.setGlobalLoading);
 
-  // Set up global loading callback for API client
-  useEffect(() => {
-    setGlobalLoadingCallback((isLoading, message) => {
-      setGlobalLoading(isLoading, message);
-    });
-  }, [setGlobalLoading]);
+
 
   // Simple routing - check if URL hash is #admin
   useEffect(() => {

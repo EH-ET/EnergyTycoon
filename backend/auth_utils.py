@@ -49,8 +49,8 @@ else:
     COOKIE_SECURE = (_cookie_secure_env or "false").lower() == "true"
 
 if _cookie_samesite_env is None and _is_cross_site_default(_frontend_origins_env):
-    # With Netlify proxy, requests are same-origin, so 'lax' is safer
-    COOKIE_SAMESITE = "lax"
+    # For cross-site requests (e.g., Netlify -> Render), SameSite must be 'None' to send cookies.
+    COOKIE_SAMESITE = "none"
 else:
     COOKIE_SAMESITE = (_cookie_samesite_env or "lax").lower()
 # Default JWT secret (override with JWT_SECRET/SECRET_KEY env vars in production)
