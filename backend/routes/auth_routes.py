@@ -156,7 +156,7 @@ async def signup(
     db.commit()
     db.refresh(u)
     # ensure_user_big_values(u, db)  # Redundant as we initialize them above
-    access_token, refresh_token = issue_token_pair(u.user_id)
+    access_token, refresh_token = issue_token_pair(u, db)
     if response:
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
@@ -185,8 +185,8 @@ async def login(
         user.password = hash_pw(payload.password)
         db.commit()
         db.refresh(user)
-    ensure_user_big_values(user, db)
-    access_token, refresh_token = issue_token_pair(user.user_id)
+    ensure_user_big_values(.user, db)
+    access_token, refresh_token = issue_token_pair(user, db)
     if response:
         clear_auth_cookies(response)
         set_auth_cookies(response, access_token, refresh_token)
@@ -213,8 +213,8 @@ async def get_csrf_token_alias(response: Response):
 
 @router.post("/logout")
 async def logout(response: Response, auth=Depends(get_refresh_user_and_db)):
-    user, _, _ = auth
-    revoke_user_tokens(user.user_id)
+    user, db, _ = auth
+    revoke_user_tokens(user.user_id, db)
     if response:
         clear_auth_cookies(response)
     return {"detail": "Logout successful"}
@@ -222,11 +222,11 @@ async def logout(response: Response, auth=Depends(get_refresh_user_and_db)):
 
 @router.post("/refresh/access")
 async def refresh_access(response: Response, auth=Depends(get_refresh_user_and_db)):
-    user, _, refresh_token_used = auth
+    user, db, refresh_token_used = auth
     access_token = issue_access_token(user.user_id)
-    new_refresh = issue_refresh_token(user.user_id)
+    new_refresh = issue_refresh_token(user, db)
     if response:
-        revoke_token(refresh_token_used)
+        revoke_token(refresh_token_used, db)
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, new_refresh)
         set_csrf_cookie(response)
@@ -235,10 +235,10 @@ async def refresh_access(response: Response, auth=Depends(get_refresh_user_and_d
 
 @router.post("/refresh/refresh")
 async def refresh_refresh(response: Response, auth=Depends(get_refresh_user_and_db)):
-    user, _, token = auth
-    revoke_token(token)
+    user, db, token = auth
+    revoke_token(token, db)
     access_token = issue_access_token(user.user_id)
-    refresh_token = issue_refresh_token(user.user_id)
+    refresh_token = issue_refresh_token(user, db)
     if response:
         clear_auth_cookies(response, keep_trap=True)
         set_auth_cookies(response, access_token, refresh_token)
@@ -251,7 +251,7 @@ async def delete_account(payload: schemas.DeleteAccountIn, response: Response, a
     user, db, _ = auth
     if not verify_password(payload.password, user.password):
         raise HTTPException(status_code=400, detail="Invalid password")
-    revoke_user_tokens(user.user_id)
+    revoke_user_tokens(user.user_id, db)
     db.delete(user)
     db.commit()
     clear_auth_cookies(response)

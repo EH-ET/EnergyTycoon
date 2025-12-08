@@ -365,3 +365,28 @@ def get_build_time_by_name(name: str | None) -> int:
     if not name:
         return 0
     return DEFAULT_GENERATOR_TIME_BY_NAME.get(name, 0)
+
+
+def ensure_refresh_jti_column():
+    """Ensure users table has refresh_jti column for refresh token rotation."""
+    dialect = engine.dialect.name
+    column_name = "refresh_jti"
+    
+    if dialect == "sqlite":
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql(f"PRAGMA table_info('users')").fetchall()
+            cols = {r[1] for r in rows}
+            if column_name not in cols:
+                conn.exec_driver_sql(f"ALTER TABLE users ADD COLUMN {column_name} VARCHAR")
+        return
+
+    if "postgres" in dialect:
+        with engine.begin() as conn:
+            rows = conn.exec_driver_sql(
+                f"SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+            ).fetchall()
+            existing = {row[0] for row in rows}
+            if column_name not in existing:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column_name} VARCHAR"
+                )

@@ -460,7 +460,7 @@ export async function exchangeEnergy(userId, amount) {
 }
 
 export async function fetchExchangeRate() {
-  const response = await fetch(`${API_BASE}/exchange_rate`, {
+  const response = await fetch(`${API_BASE}/change/rate`, {
     credentials: "include"
   });
   if (!response.ok) {
