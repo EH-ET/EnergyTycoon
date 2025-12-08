@@ -1,147 +1,15 @@
-// 서버와 통신하는 함수 모음
-import { API_BASE, generators } from "./data.js";
-import { valueFromServer, toPlainValue, fromPlainValue } from "./bigValue.js";
+import { useStore } from '../store/useStore';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const CSRF_COOKIE_NAME = "csrf_token";
-const CSRF_STORAGE_KEY = "et_csrf";
 const CSRF_HEADER_NAME = "x-csrf-token";
 
 // Track if we're currently refreshing to prevent multiple refresh attempts
 let isRefreshing = false;
 let refreshPromise = null;
 
-// Global loading callback (set by App.jsx)
-let globalLoadingCallback = null;
-
-// Store original fetch before we override it
-const originalFetch = window.fetch;
-
-export function setGlobalLoadingCallback(callback) {
-  globalLoadingCallback = callback;
-}
-
-/**
- * Handle logout - clear all tokens and reload page
- */
-function handleLogout() {
-  console.log('Logging out user due to session expiry...');
-
-  // Clear all storage
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-  } catch (e) {
-    console.error('Error clearing storage:', e);
-  }
-
-  // Clear cookies
-  document.cookie.split(";").forEach((c) => {
-    document.cookie = c
-      .replace(/^ +/, "")
-      .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
-  });
-
-  // Reload page to go back to login
-  setTimeout(() => {
-    window.location.href = '/';
-  }, 1000);
-}
-
-/**
- * Wrapper for fetch that handles token refresh and server wake-up
- * @param {string} url - The URL to fetch
- * @param {object} options - Fetch options
- * @param {boolean} skipRetry - Internal flag to prevent infinite retry
- * @returns {Promise<Response>}
- */
-async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
-  // Start a timer to show loading if request takes too long (server wake-up)
-  const loadingTimer = setTimeout(() => {
-    if (globalLoadingCallback) {
-      globalLoadingCallback(true, '서버 준비 중...');
-    }
-  }, 2000); // Show loading after 2 seconds
-
-  try {
-    // Use originalFetch to avoid infinite recursion
-    const response = await originalFetch(url, options);
-
-    // Clear loading timer
-    clearTimeout(loadingTimer);
-    if (globalLoadingCallback) {
-      globalLoadingCallback(false, '');
-    }
-
-    // Handle 401 Unauthorized - token expired
-    if (response.status === 401 && !skipRetry) {
-      console.log('Token expired, attempting refresh...');
-
-      // Show loading during token refresh
-      if (globalLoadingCallback) {
-        globalLoadingCallback(true, '토큰 갱신 중...');
-      }
-
-      // If already refreshing, wait for that to complete
-      if (isRefreshing && refreshPromise) {
-        const success = await refreshPromise;
-        if (globalLoadingCallback) {
-          globalLoadingCallback(false, '');
-        }
-        if (success) {
-          // Retry original request
-          return fetchWithTokenRefresh(url, options, true);
-        } else {
-          // Refresh failed - logout user
-          handleLogout();
-          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
-        }
-      }
-
-      // Start refresh
-      isRefreshing = true;
-      refreshPromise = refreshAccessToken();
-
-      try {
-        const success = await refreshPromise;
-
-        if (globalLoadingCallback) {
-          globalLoadingCallback(false, '');
-        }
-
-        if (success) {
-          console.log('Token refreshed successfully, retrying request...');
-          // Retry original request with skipRetry=true to prevent infinite loop
-          return fetchWithTokenRefresh(url, options, true);
-        } else {
-          // Refresh failed - logout user
-          console.error('Token refresh failed, logging out...');
-          handleLogout();
-          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
-        }
-      } finally {
-        isRefreshing = false;
-        refreshPromise = null;
-      }
-    }
-
-            // Check for and update CSRF token from response headers
-            const newCsrfToken = response.headers.get(CSRF_HEADER_NAME);
-            if (newCsrfToken) {
-                const d = new Date();
-                d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-                document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-            }
-    
-            return response;  } catch (error) {
-    // Clear loading on error
-    clearTimeout(loadingTimer);
-    if (globalLoadingCallback) {
-      globalLoadingCallback(false, '');
-    }
-    throw error;
-  }
-}
-
+// Helper to read cookie
 function readCookie(name) {
   const cookie = document.cookie || "";
   const entries = cookie.split(";").map((c) => c.trim());
@@ -170,362 +38,107 @@ function ensureCsrfToken() {
   return token;
 }
 
-function attachCsrf(headers = {}) {
+function addCsrfHeader(headers = {}) {
   const token = ensureCsrfToken();
-  return { ...headers, "x-csrf-token": token };
+  return { ...headers, [CSRF_HEADER_NAME]: token };
 }
 
-export async function loadGeneratorTypes(state) {
+/**
+ * Handle logout - clear all tokens and reload page
+ */
+function handleLogout() {
+  // Clear any client-side stored tokens (though they should be HttpOnly)
+  // and reload to ensure a clean state.
+  // The backend will clear HttpOnly cookies on logout.
+  window.location.href = "/";
+}
+
+/**
+ * Wrapper for fetch that handles token refresh and server wake-up
+ * @param {string} url - The URL to fetch
+ * @param {RequestInit} options - Fetch options
+ * @param {boolean} skipRetry - Internal flag to prevent infinite retry
+ * @returns {Promise<Response>}
+ */
+async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
+  const { setGlobalLoading } = useStore.getState(); // Get setGlobalLoading from store
+
+  let loadingTimer = null;
+  const showLoadingAfterDelay = () => {
+    loadingTimer = setTimeout(() => {
+      setGlobalLoading(true, '서버 응답 대기 중...');
+    }, 1000); // Show loading after 1 second
+  };
+
+  showLoadingAfterDelay(); // Start the timer
+
   try {
-    const res = await fetch(`${API_BASE}/generator_types`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const list = data.generator_types || data.types;
-    if (!list) return;
-    list.forEach((t, idxFromServer) => {
-      const typeId = t.id || t.generator_type_id;
-      if (!typeId) return;
-      const nameFromServer = t.name;
-      const indexFromServer = Number.isInteger(t.index) ? t.index : (Number.isInteger(t.order) ? t.order : null);
-      const matchedIndex = generators.findIndex((g) => g?.이름 === nameFromServer);
-      const fallbackName = indexFromServer != null && indexFromServer >= 0 ? generators[indexFromServer]?.이름 : generators[idxFromServer]?.이름;
-      const typeName = nameFromServer || fallbackName || String(idxFromServer);
-      const resolvedIndex = (indexFromServer != null && indexFromServer >= 0 && indexFromServer < generators.length)
-        ? indexFromServer
-        : (matchedIndex >= 0 ? matchedIndex : idxFromServer);
-      const costValue = valueFromServer(t.cost_data, t.cost_high, t.cost ?? generators[resolvedIndex]?.설치비용);
-      const cost = toPlainValue(costValue);
-      // 기본 이름 매핑
-      state.generatorTypeMap[typeName] = typeId;
-      state.generatorTypeInfoMap[typeName] = { id: typeId, cost };
-      // 프론트엔드 정의 이름과 서버 이름이 달라도 인덱스/이름을 기준으로 매핑
-      if (fallbackName && fallbackName !== typeName) {
-        state.generatorTypeMap[fallbackName] = typeId;
-        state.generatorTypeInfoMap[fallbackName] = { id: typeId, cost };
-      }
-      state.generatorTypeIdToName[typeId] = fallbackName || typeName;
-      state.generatorTypesById[typeId] = { 
-        name: fallbackName || typeName, 
-        cost, 
-        index: resolvedIndex,
-        install_seconds: t.install_seconds || 0
-      };
-    });
-  } catch (e) {
-    // Silent fail
-  }
-}
+    const originalFetch = window.fetch.bind(window);
+    let response = await originalFetch(url, options);
 
-export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
-  const payload = { user_id: userId, generator_type_id: generatorTypeId, x_position, world_position };
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`서버응답오류 ${res.status} ${txt}`);
-  }
-  return res.json();
-}
-
-export async function loadProgress(userId, token) {
-  const headers = { authorization: token ? `Bearer ${token}` : undefined };
-  if (!headers.authorization) delete headers.authorization;
-  const res = await fetch(`${API_BASE}/progress?user_id=${encodeURIComponent(userId)}`, {
-    headers,
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`진행도 불러오기 실패 ${res.status} ${txt}`);
-  }
-  return res.json();
-}
-
-export async function exchangeEnergy(token, userId, amount, energy) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  
-  // Convert plain amount to BigValue for backend
-  const amountBV = fromPlainValue(amount);
-  
-  const res = await fetch(`${API_BASE}/change/energy2money`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ 
-      user_id: userId, 
-      amount_data: amountBV.data,
-      amount_high: amountBV.high
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const errorMsg = typeof data.detail === 'string' ? data.detail : '교환 실패';
-    throw new Error(errorMsg);
-  }
-  return data;
-}
-
-export async function fetchExchangeRate(token) {
-  const headers = {};
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/change/rate`, { headers, credentials: "include" });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "환율 조회 실패");
-  return data;
-}
-
-export async function upgradeDemand(token) {
-  const headers = attachCsrf({});
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/upgrade/demand`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "업그레이드 실패");
-  return data;
-}
-
-export const upgradeSupply = upgradeDemand;
-
-export async function postUpgrade(endpoint, token, amount = 1) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ amount: Math.max(1, Number(amount) || 1) }),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`업그레이드 실패: ${txt}`);
-  }
-  return res.json();
-}
-
-export async function moneyToEnergy() {
-  throw new Error("moneyToEnergy is deprecated");
-}
-
-export async function demolishGenerator(generatorId, token) {
-  const headers = attachCsrf({});
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}`, {
-    method: "DELETE",
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "철거 실패");
-  return data;
-}
-
-export async function fetchMyRank(token, criteria = 'money') {
-  const headers = {};
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/rank?criteria=${criteria}`, {
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "랭크 조회 실패");
-  return data;
-}
-
-export async function skipGeneratorBuild(generatorId, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/build/skip`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "건설 스킵 실패");
-  return data;
-}
-
-export async function fetchRanks(token, { limit = 10, offset = 0, criteria = 'money' } = {}) {
-  const params = new URLSearchParams();
-  params.set("limit", String(limit));
-  params.set("offset", String(offset));
-  params.set("criteria", criteria);
-  const headers = {};
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/ranks?${params.toString()}`, {
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "랭킹 목록 조회 실패");
-  return data;
-}
-
-export async function deleteAccount(password, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/delete_account`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "계정 삭제 실패");
-  return data;
-}
-
-export async function autosaveProgress(token, payload = {}) {
-  const body = {};
-  if (payload.energy_data != null) body.energy_data = payload.energy_data;
-  if (payload.energy_high != null) body.energy_high = payload.energy_high;
-  if (payload.money_data != null) body.money_data = payload.money_data;
-  if (payload.money_high != null) body.money_high = payload.money_high;
-  if (payload.play_time_ms != null) body.play_time_ms = payload.play_time_ms;
-  if (payload.generators && Array.isArray(payload.generators)) {
-    const filtered = payload.generators
-      .filter(g => g && (g.generator_id || g.id))
-      .map(g => ({
-        generator_id: g.generator_id || g.id,
-        heat: typeof g.heat === 'number' ? Math.max(0, Math.floor(g.heat)) : 0,
-        running: g.running !== false, // true unless explicitly false
-      }));
-    
-    if (filtered.length > 0) {
-      body.generators = filtered;
+    // Check for and update CSRF token from response headers
+    const newCsrfToken = response.headers.get(CSRF_HEADER_NAME);
+    if (newCsrfToken) {
+        const d = new Date();
+        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
     }
+
+    // Handle 401 Unauthorized - token expired
+    if (response.status === 401 && !skipRetry) {
+      console.log('Token expired, attempting refresh...');
+      // Show loading during token refresh
+      setGlobalLoading(true, '인증 갱신 중...');
+
+      // If already refreshing, wait for that to complete
+      if (isRefreshing && refreshPromise) {
+        const success = await refreshPromise;
+        if (success) {
+          console.log('Token refreshed successfully, retrying original request...');
+          // Retry original request
+          return fetchWithTokenRefresh(url, options, true);
+        } else {
+          // Refresh failed - logout user
+          console.error('Token refresh failed, logging out...');
+          handleLogout();
+          throw new Error('Token refresh failed');
+        }
+      }
+
+      // Start refresh
+      isRefreshing = true;
+      refreshPromise = refreshAccessToken();
+
+      try {
+        const success = await refreshPromise;
+        if (success) {
+          console.log('Token refreshed successfully, retrying request...');
+          // Retry original request with skipRetry=true to prevent infinite loop
+          return fetchWithTokenRefresh(url, options, true);
+        } else {
+          // Refresh failed - logout user
+          console.error('Token refresh failed, logging out...');
+          handleLogout();
+          throw new Error('Token refresh failed');
+        }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        handleLogout();
+        throw refreshError;
+      } finally {
+        isRefreshing = false;
+        refreshPromise = null;
+      }
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Fetch error:', error);
+    throw error;
+  } finally {
+    clearTimeout(loadingTimer);
+    setGlobalLoading(false);
   }
-  if (!Object.keys(body).length) throw new Error("저장할 데이터가 없습니다.");
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress/autosave`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "자동 저장 실패");
-  return data;
-}
-
-export async function updateGeneratorState(generatorId, payload = {}, token) {
-  const body = {};
-  if (payload.running != null) body.running = Boolean(payload.running);
-  if (typeof payload.heat === "number") body.heat = Math.max(0, Math.floor(payload.heat));
-  if (payload.explode) body.explode = true;
-  if (!Object.keys(body).length) throw new Error("변경할 내용이 없습니다.");
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/state`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  
-  // Handle 404 gracefully - generator may have been deleted (e.g., during rebirth)
-  if (res.status === 404) {
-    return null;
-  }
-  
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "발전기 상태 업데이트 실패");
-  return data;
-}
-
-export async function upgradeGenerator(generatorId, upgrade, amount = 1, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/progress/${encodeURIComponent(generatorId)}/upgrade`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ upgrade, amount }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "발전기 업그레이드 실패");
-  return data;
-}
-
-export async function fetchRebirthInfo(token) {
-  const headers = {};
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/rebirth/info`, {
-    headers,
-    credentials: "include",
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`환생 정보 불러오기 실패 ${res.status} ${txt}`);
-  }
-  return res.json();
-}
-
-export async function performRebirth(token, count = 1) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/rebirth`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ count: Math.max(1, Number(count) || 1) }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "환생 실패");
-  return data;
-}
-
-
-// ============= Tutorial API =============
-
-export async function updateTutorialProgress(step, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/tutorial/progress`, {
-    method: "PUT",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ step })
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "튜토리얼 업데이트 실패");
-  return data;
-}
-
-export async function skipTutorial(token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/tutorial/skip`, {
-    method: "POST",
-    headers,
-    credentials: "include"
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "튜토리얼 건너뛰기 실패");
-  return data;
-}
-
-export async function getTutorialStatus(token) {
-  const headers = attachCsrf();
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/tutorial/status`, {
-    method: "GET",
-    headers,
-    credentials: "include"
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "튜토리얼 상태 불러오기 실패");
-  return data;
 }
 
 /**
@@ -535,40 +148,37 @@ export async function getTutorialStatus(token) {
 export async function refreshAccessToken() {
   try {
     // First try to get a fresh CSRF token from server
-    try {
-      const csrfRes = await originalFetch(`${API_BASE}/csrf`, {
-        method: "GET",
-        credentials: "include"
-      });
-      if (csrfRes.ok) {
-        // Try to get CSRF from response header first (set by set_csrf_cookie)
-        const csrfFromHeader = csrfRes.headers.get('x-csrf-token');
-        if (csrfFromHeader) {
-          localStorage.setItem(CSRF_STORAGE_KEY, csrfFromHeader);
-          console.log('CSRF token refreshed from header');
-        } else {
-          // Fallback to response body
-          const csrfData = await csrfRes.json();
-          if (csrfData.csrf_token) {
-            console.log('CSRF token refreshed from body');
-          }
-        }
-      }
-    } catch (csrfError) {
-      console.warn("Failed to refresh CSRF token:", csrfError);
-      // Continue anyway, use existing CSRF token
+    const csrfRes = await originalFetch(`${API_BASE}/csrf-token`, { credentials: "include" });
+    const csrfData = await csrfRes.json();
+    const csrfFromHeader = csrfRes.headers.get(CSRF_HEADER_NAME);
+
+    if (csrfFromHeader) {
+        // Update CSRF cookie from header
+        const d = new Date();
+        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        document.cookie = `${CSRF_COOKIE_NAME}=${csrfFromHeader}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+        console.log('CSRF token refreshed from header');
+    } else if (csrfData.csrf_token) {
+        // Fallback: Update CSRF cookie from body if header not present
+        const d = new Date();
+        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        document.cookie = `${CSRF_COOKIE_NAME}=${csrfData.csrf_token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+        console.log('CSRF token refreshed from body');
+    } else {
+        console.warn("No CSRF token found in refresh response.");
     }
 
-    const headers = attachCsrf();
-    // Use originalFetch to avoid infinite loop
+    // Now attempt to refresh access token
     const res = await originalFetch(`${API_BASE}/refresh/access`, {
       method: "POST",
-      headers,
+      headers: addCsrfHeader({
+        "Content-Type": "application/json",
+      }),
       credentials: "include" // Send refresh token cookie
     });
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
+      const errorData = await res.json();
       console.error("Token refresh failed:", res.status, errorData);
       return false; // Refresh token expired or invalid
     }
@@ -580,74 +190,440 @@ export async function refreshAccessToken() {
   }
 }
 
-// ============= Inquiry API =============
-
-export async function createInquiry(type, content, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/inquiries`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-    body: JSON.stringify({ type, content }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "문의 제출 실패");
-  return data;
-}
-
-export async function fetchInquiries(token) {
-  const headers = {};
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/inquiries`, {
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "문의 목록 조회 실패");
-  return data;
-}
-
-export async function acceptInquiry(inquiryId, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/inquiries/${encodeURIComponent(inquiryId)}/accept`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "문의 수락 실패");
-  return data;
-}
-
-export async function rejectInquiry(inquiryId, token) {
-  const headers = attachCsrf({ "Content-Type": "application/json" });
-  if (token) headers.authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/inquiries/${encodeURIComponent(inquiryId)}/reject`, {
-    method: "POST",
-    headers,
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || "문의 거절 실패");
-  return data;
-}
-
-// ============= Global Fetch Override =============
-
 // Override global fetch to use fetchWithTokenRefresh for API calls
-window.fetch = function(url, options) {
-  // Only intercept API calls to our backend
-  const urlStr = typeof url === 'string' ? url : url.toString();
+const originalFetch = window.fetch.bind(window);
+window.fetch = (...args) => {
+  const [url, options] = args;
+  const urlStr = typeof url === 'string' ? url : url.url;
 
-  if (urlStr.includes(API_BASE)) {
-    return fetchWithTokenRefresh(urlStr, options);
+  // Skip fetchWithTokenRefresh for CSRF token endpoint itself to avoid infinite loop
+  if (urlStr.includes(`${API_BASE}/csrf-token`)) {
+    return originalFetch(url, options);
   }
 
-  // For non-API calls, use original fetch
-  return originalFetch(url, options);
+  // Add CSRF header to all outgoing requests
+  const newOptions = {
+    ...options,
+    headers: addCsrfHeader(options.headers),
+    credentials: "include" // Ensure cookies are sent
+  };
+
+  return fetchWithTokenRefresh(urlStr, newOptions);
 };
 
 // Export original fetch for internal use (e.g., refreshAccessToken)
 export { originalFetch };
+
+// API functions
+export async function login(username, password) {
+  const response = await fetch(`${API_BASE}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username, password }),
+    credentials: "include" // Send cookies
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Login failed");
+  }
+  return response.json();
+}
+
+export async function register(username, password) {
+  const response = await fetch(`${API_BASE}/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username, password }),
+    credentials: "include" // Send cookies
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Registration failed");
+  }
+  return response.json();
+}
+
+export async function logout() {
+  const response = await fetch(`${API_BASE}/logout`, {
+    method: "POST",
+    credentials: "include" // Send cookies
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Logout failed");
+  }
+  return response.json();
+}
+
+export async function fetchGeneratorTypes() {
+  const response = await fetch(`${API_BASE}/generator_types`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch generator types");
+  }
+  return response.json();
+}
+
+export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
+  const headers = { "Content-Type": "application/json" };
+  // if (token) headers.authorization = `Bearer ${token}`; // Token is now in HttpOnly cookie
+  const response = await fetch(`${API_BASE}/progress`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ user_id: userId, generator_type_id: generatorTypeId, x_position, world_position }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to save progress");
+  }
+  return response.json();
+}
+
+export async function loadProgress(userId) {
+  const response = await fetch(`${API_BASE}/progress?user_id=${userId}`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to load progress");
+  }
+  return response.json();
+}
+
+export async function exchangeEnergy(userId, amount) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/exchange`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ user_id: userId, amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to exchange energy");
+  }
+  return response.json();
+}
+
+export async function fetchExchangeRate() {
+  const response = await fetch(`${API_BASE}/exchange_rate`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch exchange rate");
+  }
+  return response.json();
+}
+
+export async function upgradeProduction(amount = 1) {
+  const response = await fetch(`${API_BASE}/upgrade/production`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade production");
+  }
+  return response.json();
+}
+
+export async function upgradeHeatReduction(amount = 1) {
+  const response = await fetch(`${API_BASE}/upgrade/heat_reduction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade heat reduction");
+  }
+  return response.json();
+}
+
+export async function upgradeTolerance(amount = 1) {
+  const response = await fetch(`${API_BASE}/upgrade/tolerance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade tolerance");
+  }
+  return response.json();
+}
+
+export async function upgradeMaxGenerators(amount = 1) {
+  const response = await fetch(`${API_BASE}/upgrade/max_generators`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade max generators");
+  }
+  return response.json();
+}
+
+export async function upgradeDemand(amount = 1) {
+  const response = await fetch(`${API_BASE}/upgrade/demand`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade demand");
+  }
+  return response.json();
+}
+
+export async function postUpgrade(endpoint, token, amount = 1) {
+  const headers = { "Content-Type": "application/json" };
+  // if (token) headers.authorization = `Bearer ${token}`; // Token is now in HttpOnly cookie
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || `Failed to post upgrade to ${endpoint}`);
+  }
+  return response.json();
+}
+
+export async function demolishGenerator(generatorId) {
+  const response = await fetch(`${API_BASE}/progress/${generatorId}`, {
+    method: "DELETE",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to demolish generator");
+  }
+  return response.json();
+}
+
+export async function fetchMyRank(criteria = 'money') {
+  const response = await fetch(`${API_BASE}/rank/my?criteria=${criteria}`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch my rank");
+  }
+  return response.json();
+}
+
+export async function skipGeneratorBuild(generatorId) {
+  const response = await fetch(`${API_BASE}/progress/${generatorId}/build/skip`, {
+    method: "POST",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to skip build");
+  }
+  return response.json();
+}
+
+export async function fetchRanks({ limit = 10, offset = 0, criteria = 'money' } = {}) {
+  const response = await fetch(`${API_BASE}/rank?limit=${limit}&offset=${offset}&criteria=${criteria}`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch ranks");
+  }
+  return response.json();
+}
+
+export async function deleteAccount(password) {
+  const response = await fetch(`${API_BASE}/delete_account`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to delete account");
+  }
+  return response.json();
+}
+
+export async function autosaveProgress(payload = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/progress/autosave`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to autosave progress");
+  }
+  return response.json();
+}
+
+export async function updateGeneratorState(generatorId, payload = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/progress/${generatorId}/state`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to update generator state");
+  }
+  return response.json();
+}
+
+export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/progress/${generatorId}/upgrade`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ upgrade, amount }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to upgrade generator");
+  }
+  return response.json();
+}
+
+export async function fetchRebirthInfo() {
+  const response = await fetch(`${API_BASE}/rebirth/info`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch rebirth info");
+  }
+  return response.json();
+}
+
+export async function performRebirth(count = 1) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/rebirth`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ count }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to perform rebirth");
+  }
+  return response.json();
+}
+
+export async function updateTutorialProgress(step) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/tutorial/progress`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ step }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to update tutorial progress");
+  }
+  return response.json();
+}
+
+export async function skipTutorial() {
+  const response = await fetch(`${API_BASE}/tutorial/skip`, {
+    method: "POST",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to skip tutorial");
+  }
+  return response.json();
+}
+
+export async function getTutorialStatus() {
+  const response = await fetch(`${API_BASE}/tutorial/status`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to get tutorial status");
+  }
+  return response.json();
+}
+
+export async function createInquiry(type, content) {
+  const headers = { "Content-Type": "application/json" };
+  const response = await fetch(`${API_BASE}/inquiry`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ type, content }),
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to create inquiry");
+  }
+  return response.json();
+}
+
+export async function fetchInquiries() {
+  const response = await fetch(`${API_BASE}/inquiry`, {
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch inquiries");
+  }
+  return response.json();
+}
+
+export async function acceptInquiry(inquiryId) {
+  const response = await fetch(`${API_BASE}/inquiry/${inquiryId}/accept`, {
+    method: "POST",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to accept inquiry");
+  }
+  return response.json();
+}
+
+export async function rejectInquiry(inquiryId) {
+  const response = await fetch(`${API_BASE}/inquiry/${inquiryId}/reject`, {
+    method: "POST",
+    credentials: "include"
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to reject inquiry");
+  }
+  return response.json();
+}

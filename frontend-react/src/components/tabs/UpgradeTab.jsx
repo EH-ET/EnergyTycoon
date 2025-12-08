@@ -14,6 +14,11 @@ export default function UpgradeTab() {
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
 
+  const getUpgradeBatchLimit = (user) => {
+    const level = Number(user?.upgrade_batch_upgrade) || 0;
+    return Math.max(1, 1 + level);
+  };
+
   const getUpgradeLevel = (user, upgrade) => {
     const offset = upgrade.levelDisplayOffset ?? 1;
     const base = user ? Number(user[upgrade.field]) || 0 : 0;
@@ -42,34 +47,40 @@ export default function UpgradeTab() {
     return `${formatResourceValue(fromPlainValue(cost))} 💰`;
   };
 
-  const handleUpgrade = async (upgrade) => {
-    let actualAmount = 1; // Default to 1 for rebirth or if money calculation fails
+  const getMaxAffordableAmount = (upgrade) => {
+    if ((upgrade.currency || 'money') !== 'money') return 1;
+    const batchLimit = getUpgradeBatchLimit(currentUser);
+    let low = 1;
+    let high = batchLimit;
+    let maxAffordable = 0;
 
-    if ((upgrade.currency || 'money') === 'money') {
-      let low = 1;
-      let high = Number.MAX_SAFE_INTEGER; // Use a very large number as upper bound
-      let maxAffordable = 0;
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const costValue = getUpgradeCostForAmount(currentUser, upgrade, mid);
-        
-        // Check if costValue is a valid BigValue representation
-        // compareMoneyWith expects a plain number for cost, so we need to convert BigValue cost to plain
-        // However, getUpgradeCostForAmount already returns a plain number.
-        // So, we can directly compare the plain cost with user's money.
-        if (compareMoneyWith(costValue) >= 0) { // If affordable
-          maxAffordable = mid;
-          low = mid + 1;
-        } else { // Not affordable
-          high = mid - 1;
-        }
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (mid === 0) {
+        break;
       }
-      actualAmount = Math.max(1, maxAffordable); // Ensure at least 1
-    } else {
-      // For rebirth upgrades, it's always 1
-      actualAmount = 1;
+      const costValue = getUpgradeCostForAmount(currentUser, upgrade, mid);
+      if (compareMoneyWith(costValue) >= 0) {
+        maxAffordable = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
     }
+
+    return Math.max(1, maxAffordable);
+  };
+
+  const handleUpgrade = async (upgrade, mode = 'max') => {
+    const isMoneyUpgrade = (upgrade.currency || 'money') === 'money';
+    const batchLimit = isMoneyUpgrade ? getUpgradeBatchLimit(currentUser) : 1;
+    const targetAmount = (() => {
+      if (!isMoneyUpgrade) return 1;
+      if (mode === 'single') return 1;
+      return getMaxAffordableAmount(upgrade);
+    })();
+
+    const actualAmount = Math.min(Math.max(1, targetAmount), batchLimit);
 
     const costValue = getUpgradeCostForAmount(currentUser, upgrade, actualAmount);
 
@@ -105,8 +116,17 @@ export default function UpgradeTab() {
 
   const renderCard = (upgrade, index, pillLabel = 'Upgrade') => {
     const levelValue = getUpgradeLevel(currentUser, upgrade);
-    const costValue = getUpgradeCostForAmount(currentUser, upgrade, 1); // Display cost for 1 level
-    const costValueDisplay = formatCost(costValue, upgrade.currency);
+    const singleCost = getUpgradeCostForAmount(currentUser, upgrade, 1);
+    const singleCostDisplay = formatCost(singleCost, upgrade.currency);
+
+    const isMoneyUpgrade = (upgrade.currency || 'money') === 'money';
+    const batchLimit = isMoneyUpgrade ? getUpgradeBatchLimit(currentUser) : 1;
+
+    // Calculate max affordable amount for display purposes (similar to handleUpgrade)
+    const maxAffordableAmountDisplay = isMoneyUpgrade ? getMaxAffordableAmount(upgrade) : 1;
+    const maxCostForDisplay = getUpgradeCostForAmount(currentUser, upgrade, maxAffordableAmountDisplay);
+    const maxCostDisplay = formatCost(maxCostForDisplay, upgrade.currency);
+
 
     return (
       <div key={`${pillLabel}-${index}`} className="upgrade-card">
@@ -118,21 +138,46 @@ export default function UpgradeTab() {
         <div className="upgrade-bottom">
           <div className="upgrade-stats">
             <div className="upgrade-info">
-              <span className="label">비용</span>
-              <span className="value">{costValueDisplay}</span>
+              <span className="label">다음 비용</span>
+              <span className="value">{singleCostDisplay}</span>
             </div>
+            {maxAffordableAmountDisplay > 1 && (
+              <div className="upgrade-info">
+                <span className="label">최대 구매 비용</span>
+                <span className="value">{maxCostDisplay}</span>
+              </div>
+            )}
+            {isMoneyUpgrade && (
+              <div className="upgrade-info">
+                <span className="label">일괄 구매 한도</span>
+                <span className="value">{batchLimit}회</span>
+              </div>
+            )}
             <div className="upgrade-info">
               <span className="label">현재 레벨</span>
               <span className="value">Lv. {levelValue}</span>
             </div>
           </div>
-          <button
-            type="button"
-            className="upgrade-card-btn"
-            onClick={() => handleUpgrade(upgrade)}
-          >
-            최대 업그레이드
-          </button>
+          <div className="upgrade-actions">
+            <button
+              type="button"
+              className="upgrade-card-btn secondary"
+              onClick={() => handleUpgrade(upgrade, 'single')}
+            >
+              1회 업그레이드
+            </button>
+            {isMoneyUpgrade && (
+              <button
+                type="button"
+                className="upgrade-card-btn"
+                onClick={() => handleUpgrade(upgrade, 'max')}
+              >
+                {maxAffordableAmountDisplay > 1
+                  ? `가능한 최대 (${maxAffordableAmountDisplay}회)`
+                  : '가능한 최대'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

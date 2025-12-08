@@ -148,6 +148,18 @@
   gap: 4px;
 }
 
+.upgrade-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.upgrade-actions .upgrade-card-btn {
+  width: 100%;
+  min-width: 160px;
+}
+
 .upgrade-info .label {
   font-size: 11px;
   font-weight: 700;
@@ -174,6 +186,11 @@
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.upgrade-card-btn.secondary {
+  background: linear-gradient(120deg, #0ea5e9, #2563eb);
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.25);
 }
 
 .upgrade-card-btn:hover {
@@ -217,6 +234,11 @@
   .upgrade-stats {
     width: 100%;
     justify-content: space-around;
+  }
+
+  .upgrade-actions {
+    width: 100%;
+    align-items: stretch;
   }
 
   .upgrade-card-btn {
