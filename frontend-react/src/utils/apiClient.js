@@ -6,6 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
+const originalFetch = window.fetch.bind(window);
 
 // Track if we're currently refreshing to prevent multiple refresh attempts
 let isRefreshing = false;
@@ -87,7 +88,6 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
   showLoadingAfterDelay(); // Start the timer
 
   try {
-    const originalFetch = window.fetch.bind(window);
     let response = await originalFetch(url, options);
 
     // Check for and update CSRF token from response headers
@@ -205,7 +205,6 @@ export async function refreshAccessToken() {
 }
 
 // Override global fetch to use fetchWithTokenRefresh for API calls
-const originalFetch = window.fetch.bind(window);
 window.fetch = (...args) => {
   const [url, options] = args;
   const urlStr = typeof url === 'string' ? url : url.url;
