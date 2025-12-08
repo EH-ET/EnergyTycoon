@@ -299,13 +299,14 @@ export async function upgradeDemand(token) {
 
 export const upgradeSupply = upgradeDemand;
 
-export async function postUpgrade(endpoint, token) {
+export async function postUpgrade(endpoint, token, amount = 1) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
   if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
     headers,
     credentials: "include",
+    body: JSON.stringify({ amount: Math.max(1, Number(amount) || 1) }),
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -473,13 +474,14 @@ export async function fetchRebirthInfo(token) {
   return res.json();
 }
 
-export async function performRebirth(token) {
+export async function performRebirth(token, count = 1) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
   if (token) headers.authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/rebirth`, {
     method: "POST",
     headers,
     credentials: "include",
+    body: JSON.stringify({ count: Math.max(1, Number(count) || 1) }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "환생 실패");
