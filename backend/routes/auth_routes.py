@@ -185,7 +185,7 @@ async def login(
         user.password = hash_pw(payload.password)
         db.commit()
         db.refresh(user)
-    ensure_user_big_values(.user, db)
+    ensure_user_big_values(user, db)
     access_token, refresh_token = issue_token_pair(user, db)
     if response:
         clear_auth_cookies(response)
