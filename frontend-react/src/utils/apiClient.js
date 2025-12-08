@@ -171,20 +171,29 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
         return response;
       }
 
-      // Show loading during token refresh
       notifyLoading(true, '인증 갱신 중...');
 
-      // If already refreshing, wait for that to complete
+      // Centralized retry logic
+      const retryRequest = async () => {
+        console.log('Token refreshed, retrying original request...');
+        // Rebuild headers to get the latest CSRF token from the cookie
+        const newHeaders = await addCsrfHeader(options.headers);
+        const retryOptions = {
+          ...options,
+          headers: newHeaders,
+        };
+        // Retry request with new headers and skipRetry flag
+        return fetchWithTokenRefresh(url, retryOptions, true);
+      };
+
+      // If another request is already refreshing the token, wait for it to complete
       if (isRefreshing && refreshPromise) {
         try {
           const success = await refreshPromise;
           if (success) {
-            console.log('Token refreshed successfully, retrying original request...');
-            // Retry original request
-            return fetchWithTokenRefresh(url, options, true);
+            return await retryRequest();
           } else {
-            // Refresh failed - logout user
-            console.error('Token refresh failed, logging out...');
+            console.error('Token refresh failed during wait, logging out...');
             handleLogout();
             throw new Error('Token refresh failed');
           }
@@ -195,18 +204,15 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
         }
       }
 
-      // Start refresh
+      // This is the first request to fail, so we initiate the refresh
       isRefreshing = true;
       refreshPromise = refreshAccessToken();
 
       try {
         const success = await refreshPromise;
         if (success) {
-          console.log('Token refreshed successfully, retrying request...');
-          // Retry original request with skipRetry=true to prevent infinite loop
-          return fetchWithTokenRefresh(url, options, true);
+          return await retryRequest();
         } else {
-          // Refresh failed - logout user
           console.error('Token refresh failed, logging out...');
           handleLogout();
           throw new Error('Token refresh failed');

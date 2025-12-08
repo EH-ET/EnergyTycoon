@@ -3,6 +3,8 @@ import './SpecialTab.css';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { API_BASE } from '../../utils/data';
+import { autosaveProgress } from '../../utils/apiClient';
+import { readStoredPlayTime } from '../../utils/playTime';
 import AlertModal from '../AlertModal';
 
 // Special upgrade configurations
@@ -62,7 +64,7 @@ export default function SpecialTab() {
 
   const handleUpgrade = async (upgrade) => {
     const currentLevel = getUpgradeLevel(currentUser, upgrade);
-    
+
     // Check max level
     if (upgrade.maxLevel !== null && currentLevel >= upgrade.maxLevel) {
       setAlertMessage('최대 레벨에 도달했습니다.');
@@ -76,6 +78,21 @@ export default function SpecialTab() {
     }
 
     try {
+      // Save latest values before special upgrade (especially supercoin)
+      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
+      const energyPayload = toEnergyServerPayload();
+      const moneyPayload = toMoneyServerPayload();
+      const playTimeMs = readStoredPlayTime();
+
+      await autosaveProgress(getAuthToken(), {
+        energy_data: energyPayload.data,
+        energy_high: energyPayload.high,
+        money_data: moneyPayload.data,
+        money_high: moneyPayload.high,
+        play_time_ms: playTimeMs,
+        supercoin: currentUser?.supercoin || 0,
+      });
+
       const newUser = await postSpecialUpgrade(upgrade.endpoint, getAuthToken());
       syncUserState(newUser);
     } catch (e) {
