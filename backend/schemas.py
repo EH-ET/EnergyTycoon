@@ -22,6 +22,9 @@ class UserOut(BaseModel):
     demand_bonus: int
     play_time_ms: int
     rebirth_count: int
+    rebirth_chain_upgrade: int = 0
+    upgrade_batch_upgrade: int = 0
+    rebirth_start_money_upgrade: int = 0
     tutorial: int
     supercoin: int = 0
     build_speed_reduction: int = 0
@@ -56,6 +59,10 @@ class ProgressSaveIn(BaseModel):
 class UpgradeRequest(BaseModel):
     amount: int = Field(1, ge=1)
     energy: Optional[int] = Field(default=None, ge=0)
+
+
+class RebirthRequest(BaseModel):
+    count: int = Field(1, ge=1)
 
 
 class GeneratorStateUpdate(BaseModel):

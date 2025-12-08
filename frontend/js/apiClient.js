@@ -133,18 +133,49 @@ export async function upgradeDemand(token) {
 
 export const upgradeSupply = upgradeDemand;
 
-export async function postUpgrade(endpoint, token) {
+export async function postUpgrade(endpoint, amount = 1) {
   const headers = attachCsrf({ "Content-Type": "application/json" });
+  const body = JSON.stringify({ amount: Math.max(1, Number(amount) || 1) });
   const res = await fetch(`${API_BASE}/upgrade/${endpoint}`, {
     method: "POST",
     headers,
     credentials: "include",
+    body,
   });
   if (!res.ok) {
     const txt = await res.text();
     throw new Error(`업그레이드 실패: ${txt}`);
   }
   return res.json();
+}
+
+export async function fetchRebirthInfo() {
+  const res = await fetch(`${API_BASE}/rebirth/info`, {
+    method: "GET",
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const txt = data?.detail || (await res.text());
+    throw new Error(txt || "환생 정보 조회 실패");
+  }
+  return data;
+}
+
+export async function performRebirth(count = 1) {
+  const payload = { count: Math.max(1, Number(count) || 1) };
+  const res = await fetch(`${API_BASE}/rebirth`, {
+    method: "POST",
+    headers: attachCsrf({ "Content-Type": "application/json" }),
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const txt = data?.detail || (await res.text());
+    throw new Error(txt || "환생 실패");
+  }
+  return data;
 }
 
 export async function moneyToEnergy() {

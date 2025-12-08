@@ -27,6 +27,13 @@ UPGRADE_CONFIG = {
     "demand": {"field": "demand_bonus", "base_cost": 15, "price_growth": 2.0},
 }
 
+REBIRTH_UPGRADE_CONFIG = {
+    # cost = base_cost * price_growth^(current_level + i), paid with rebirth count
+    "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0},
+    "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0},
+    "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0},
+}
+
 # 누적 교환량 E에 따라 증가 단계 k = floor(log_3(E)), 증가율은 2k%
 # BigValue 지원을 위해 로그 계산 로직 내부로 통합
 
@@ -178,6 +185,18 @@ def get_upgrade_meta(key: str):
     return meta
 
 
+def get_rebirth_upgrade_meta(key: str):
+    meta = REBIRTH_UPGRADE_CONFIG.get(key)
+    if not meta:
+        raise HTTPException(status_code=404, detail="환생 업그레이드 구성이 없습니다.")
+    return meta
+
+
+def get_upgrade_batch_limit(user: User) -> int:
+    """Return maximum amount allowed in a single upgrade purchase."""
+    return 1 + (getattr(user, "upgrade_batch_upgrade", 0) or 0)
+
+
 def calculate_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
     meta = get_upgrade_meta(key)
     current_level = getattr(user, meta["field"], 0)
@@ -188,15 +207,43 @@ def calculate_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
     return total_cost
 
 
+def calculate_rebirth_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
+    meta = get_rebirth_upgrade_meta(key)
+    current_level = getattr(user, meta["field"], 0)
+    total_cost = 0
+    for i in range(amount):
+        level = current_level + i  # first level uses exponent 0 (cost = base_cost)
+        total_cost += int(meta["base_cost"] * (meta["price_growth"] ** level))
+    return total_cost
+
+
 def apply_upgrade(user: User, db: Session, key: str, amount: int) -> User:
     meta = get_upgrade_meta(key)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Increase amount must be at least 1")
+    max_amount = get_upgrade_batch_limit(user)
+    if amount > max_amount:
+        raise HTTPException(status_code=400, detail=f"한 번에 {max_amount}회까지만 업그레이드할 수 있습니다.")
     cost = calculate_upgrade_cost(user, key, amount)
     money_value = get_user_money_value(user)
     if compare_plain(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
     set_user_money_value(user, subtract_plain(money_value, cost))
+    setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def apply_rebirth_upgrade(user: User, db: Session, key: str, amount: int) -> User:
+    meta = get_rebirth_upgrade_meta(key)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Increase amount must be at least 1")
+    cost = calculate_rebirth_upgrade_cost(user, key, amount)
+    rebirths = getattr(user, "rebirth_count", 0) or 0
+    if rebirths < cost:
+        raise HTTPException(status_code=400, detail="환생이 부족합니다.")
+    setattr(user, "rebirth_count", rebirths - cost)
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
     db.commit()
     db.refresh(user)

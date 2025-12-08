@@ -110,10 +110,16 @@ const useAudioPlayer = (playlist) => {
 
   // Effect to trigger initial play when isStart becomes true
   useEffect(() => {
-    if (isStart && !isPlaying && currentTrack) {
-      play();
+    // Only play if user has interacted (isStart), there's a track,
+    // AND the user explicitly wants it to be playing (isPlaying is true).
+    // This prevents overriding a user's explicit pause.
+    if (isStart && isPlaying && currentTrack) {
+      audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+    } else if (isStart && !isPlaying && currentTrack && !audioRef.current.paused) {
+      // If isStart is true, but isPlaying is false (user paused), ensure audio is paused
+      audioRef.current.pause();
     }
-  }, [isStart, currentTrack, play]); // Removed isPlaying from dependencies
+  }, [isStart, isPlaying, currentTrack, play]);
 
   // Effect to set isStart to true on first user interaction
   useEffect(() => {
