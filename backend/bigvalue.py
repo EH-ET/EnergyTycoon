@@ -261,3 +261,10 @@ def ensure_user_big_values(user, db=None):
   if changed and db is not None:
     db.add(user)
     db.commit()
+
+
+def _max_bv(left: BigValue, right: BigValue) -> BigValue:
+    """Returns the larger of two BigValue objects."""
+    if compare(left, right) >= 0: # if left >= right
+        return left
+    return right
