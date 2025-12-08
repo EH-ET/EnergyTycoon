@@ -123,8 +123,15 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
       }
     }
 
-    return response;
-  } catch (error) {
+            // Check for and update CSRF token from response headers
+            const newCsrfToken = response.headers.get(CSRF_HEADER_NAME);
+            if (newCsrfToken) {
+                const d = new Date();
+                d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+                document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+            }
+    
+            return response;  } catch (error) {
     // Clear loading on error
     clearTimeout(loadingTimer);
     if (globalLoadingCallback) {
@@ -146,30 +153,19 @@ function readCookie(name) {
 }
 
 function ensureCsrfToken() {
-  // 우선 서버에서 내려준 토큰을 로컬 스토리지에서 찾음
   let token = null;
-  try {
-    token = localStorage.getItem(CSRF_STORAGE_KEY);
-  } catch (e) {
-    token = null;
-  }
-  // 없으면 현재 도메인 쿠키에서 조회
+
+  // Try to read from cookie
+  token = readCookie(CSRF_COOKIE_NAME);
+
   if (!token) {
-    token = readCookie(CSRF_COOKIE_NAME);
-  }
-  // 그래도 없으면 임시 생성 (백엔드 쿠키와 맞지 않으면 이후 요청에서 실패)
-  if (!token) {
-    token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
+    // If no token in cookie, generate a new one
     const d = new Date();
-    d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
+    d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+    token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
     document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
   }
-  // 캐시
-  try {
-    localStorage.setItem(CSRF_STORAGE_KEY, token);
-  } catch (e) {
-    // ignore
-  }
+
   return token;
 }
 
@@ -553,7 +549,6 @@ export async function refreshAccessToken() {
           // Fallback to response body
           const csrfData = await csrfRes.json();
           if (csrfData.csrf_token) {
-            localStorage.setItem(CSRF_STORAGE_KEY, csrfData.csrf_token);
             console.log('CSRF token refreshed from body');
           }
         }

@@ -137,6 +137,8 @@ async def load_progress(user_id: Optional[str] = None, auth=Depends(get_user_and
     )
     now = int(time.time())
     updated = False
+    def _max_bv(a: BigValue, b: BigValue) -> BigValue:
+        return a if compare(a, b) >= 0 else b
     for g, mp in gens:
         if _maybe_complete_build(g, now):
             updated = True
@@ -457,16 +459,16 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         current_energy_bv = get_user_energy_value(user)
         total_production_per_sec_bv = _calculate_total_energy_production(user, db)
 
-        # Allow a maximum increase of production_rate * 1,000,000 seconds, or at least 1M
-        # Use BigValue operations for accurate calculation
-        max_reasonable_increase_bv = multiply_by_float(total_production_per_sec_bv, 1_000_000)
-        min_increase_bv = from_plain(1_000_000)
+        # Allow a generous increase to avoid false positives after large rebirths/builds:
+        # - production_rate * 10,000,000 seconds
+        # - current_energy * 100
+        # - minimum 1B
+        max_by_rate = multiply_plain(total_production_per_sec_bv, 10_000_000)
+        headroom_current = multiply_plain(current_energy_bv, 100)
+        min_increase_bv = from_plain(1_000_000_000)
 
-        # Take the larger of the two
-        if compare(max_reasonable_increase_bv, min_increase_bv) < 0:
-            max_reasonable_increase_bv = min_increase_bv
-
-        max_allowed_energy = add_values(current_energy_bv, max_reasonable_increase_bv)
+        max_increase_bv = _max_bv(_max_bv(max_by_rate, headroom_current), min_increase_bv)
+        max_allowed_energy = add_values(current_energy_bv, max_increase_bv)
 
         if compare(energy_value, max_allowed_energy) > 0:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
@@ -483,13 +485,14 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
 
         try:
             exchange_rate = current_market_rate(user)
-            # Maximum reasonable money increase: current_energy * exchange_rate * 1,000,000
-            # Calculate using BigValue operations
-            energy_times_rate = multiply_by_float(current_energy_bv, exchange_rate * 1_000_000)
-            # At least 1M
-            min_increase_bv = from_plain(1_000_000)
-            # Take the larger of the two
-            max_reasonable_increase_bv = energy_times_rate if compare(energy_times_rate, min_increase_bv) > 0 else min_increase_bv
+            # Maximum reasonable money increase:
+            # - current_energy * exchange_rate * 10,000,000
+            # - current_money * 100
+            # - minimum 1B
+            energy_times_rate = multiply_by_float(multiply_plain(current_energy_bv, 10_000_000), exchange_rate)
+            headroom_money = multiply_plain(current_money_bv, 100)
+            min_increase_bv = from_plain(1_000_000_000)
+            max_reasonable_increase_bv = _max_bv(_max_bv(energy_times_rate, headroom_money), min_increase_bv)
             max_allowed_money = add_values(current_money_bv, max_reasonable_increase_bv)
             if compare(money_value, max_allowed_money) > 0:
                 raise HTTPException(status_code=400, detail="Money increase is suspiciously large")
@@ -617,4 +620,3 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         "skip_cost_high": cost_payload["high"],
         "remaining_seconds": remaining,
     }
-
