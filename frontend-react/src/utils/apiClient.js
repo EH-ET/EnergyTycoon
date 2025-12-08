@@ -29,25 +29,56 @@ function readCookie(name) {
   return null;
 }
 
-function ensureCsrfToken() {
+async function fetchFreshCsrfToken() {
+  // Always fetch fresh CSRF token from server
+  try {
+    const res = await originalFetch(`${API_BASE}/csrf-token`, {
+      credentials: "include"
+    });
+
+    // Check response header first
+    let token = res.headers.get(CSRF_HEADER_NAME);
+    if (!token && res.ok) {
+      // Fallback to response body
+      const data = await res.json();
+      token = data.csrf_token;
+    }
+
+    if (token) {
+      // Update cookie
+      const d = new Date();
+      d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+      document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+      return token;
+    }
+  } catch (e) {
+    console.error("Failed to fetch CSRF token:", e);
+  }
+
+  // Fallback: generate client-side token
+  const token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
+  const d = new Date();
+  d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  return token;
+}
+
+async function ensureCsrfToken() {
   let token = null;
 
   // Try to read from cookie
   token = readCookie(CSRF_COOKIE_NAME);
 
   if (!token) {
-    // If no token in cookie, generate a new one
-    const d = new Date();
-    d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-    token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
-    document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+    // If no token in cookie, fetch from server
+    token = await fetchFreshCsrfToken();
   }
 
   return token;
 }
 
-function addCsrfHeader(headers = {}) {
-  const token = ensureCsrfToken();
+async function addCsrfHeader(headers = {}) {
+  const token = await ensureCsrfToken();
   return { ...headers, [CSRF_HEADER_NAME]: token };
 }
 
@@ -98,24 +129,69 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
         document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
     }
 
+    // Handle 403 Forbidden - CSRF token expired or invalid
+    if (response.status === 403 && !skipRetry) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData.detail || '';
+
+      // Check if it's a CSRF token issue
+      if (detail.includes('CSRF') || detail.includes('csrf')) {
+        console.log('CSRF token expired/invalid, fetching new token...');
+        notifyLoading(true, 'CSRF 토큰 갱신 중...');
+
+        try {
+          // Fetch fresh CSRF token from server (force refresh)
+          await fetchFreshCsrfToken();
+          console.log('CSRF token refreshed, retrying original request...');
+
+          // Update headers with new CSRF token
+          const newCsrfHeaders = await addCsrfHeader(options?.headers);
+          const newOptions = {
+            ...options,
+            headers: newCsrfHeaders,
+          };
+
+          // Retry original request with skipRetry=true to prevent infinite loop
+          return fetchWithTokenRefresh(url, newOptions, true);
+        } catch (csrfError) {
+          console.error('Failed to refresh CSRF token:', csrfError);
+          // Don't logout, just return the original error
+          return response;
+        }
+      }
+    }
+
     // Handle 401 Unauthorized - token expired
     if (response.status === 401 && !skipRetry) {
       console.log('Token expired, attempting refresh...');
+
+      // Check if this is from a login/signup request - don't refresh
+      if (url.includes('/login') || url.includes('/signup') || url.includes('/register')) {
+        console.log('401 from auth endpoint - not attempting refresh');
+        return response;
+      }
+
       // Show loading during token refresh
       notifyLoading(true, '인증 갱신 중...');
 
       // If already refreshing, wait for that to complete
       if (isRefreshing && refreshPromise) {
-        const success = await refreshPromise;
-        if (success) {
-          console.log('Token refreshed successfully, retrying original request...');
-          // Retry original request
-          return fetchWithTokenRefresh(url, options, true);
-        } else {
-          // Refresh failed - logout user
-          console.error('Token refresh failed, logging out...');
+        try {
+          const success = await refreshPromise;
+          if (success) {
+            console.log('Token refreshed successfully, retrying original request...');
+            // Retry original request
+            return fetchWithTokenRefresh(url, options, true);
+          } else {
+            // Refresh failed - logout user
+            console.error('Token refresh failed, logging out...');
+            handleLogout();
+            throw new Error('Token refresh failed');
+          }
+        } catch (e) {
+          console.error('Error waiting for refresh:', e);
           handleLogout();
-          throw new Error('Token refresh failed');
+          throw e;
         }
       }
 
@@ -183,11 +259,12 @@ export async function refreshAccessToken() {
     }
 
     // Now attempt to refresh access token
+    const csrfHeaders = await addCsrfHeader({
+      "Content-Type": "application/json",
+    });
     const res = await originalFetch(`${API_BASE}/refresh/access`, {
       method: "POST",
-      headers: addCsrfHeader({
-        "Content-Type": "application/json",
-      }),
+      headers: csrfHeaders,
       credentials: "include" // Send refresh token cookie
     });
 
@@ -205,7 +282,7 @@ export async function refreshAccessToken() {
 }
 
 // Override global fetch to use fetchWithTokenRefresh for API calls
-window.fetch = (...args) => {
+window.fetch = async (...args) => {
   const [url, options] = args;
   const urlStr = typeof url === 'string' ? url : url.url;
 
@@ -213,18 +290,20 @@ window.fetch = (...args) => {
   const bypassPaths = ["/csrf-token", "/csrf", "/login", "/signup", "/register", "/logout", "/refresh/access"];
   const shouldBypass = bypassPaths.some((p) => urlStr.includes(p));
   if (shouldBypass) {
+    const csrfHeaders = await addCsrfHeader(options?.headers);
     const bypassOptions = {
       ...options,
-      headers: addCsrfHeader(options?.headers),
+      headers: csrfHeaders,
       credentials: "include",
     };
     return originalFetch(url, bypassOptions);
   }
 
   // Add CSRF header to all outgoing requests
+  const csrfHeaders = await addCsrfHeader(options?.headers);
   const newOptions = {
     ...options,
-    headers: addCsrfHeader(options.headers),
+    headers: csrfHeaders,
     credentials: "include" // Ensure cookies are sent
   };
 
