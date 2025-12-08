@@ -31,19 +31,6 @@ def normalize(value: Optional[BigValue]) -> BigValue:
   if data < DATA_LIMIT:
       return BigValue(data * sign, high)
 
-  # 대수적 방법으로 오버헤드 없이 high 계산
-  import math
-  # data의 자릿수 근사: log10
-  try:
-      exponent_diff = int(math.log10(data)) - 5 
-  except ValueError:
-       # data가 0 이하인 경우 등 안전장치
-       exponent_diff = 0
-
-  if exponent_diff > 0:
-      high += exponent_diff
-      data //= (10 ** exponent_diff)
-      
   while data >= DATA_LIMIT:
       data //= 10
       high += 1
