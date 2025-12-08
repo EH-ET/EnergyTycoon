@@ -8,6 +8,11 @@ const CSRF_HEADER_NAME = "x-csrf-token";
 // Track if we're currently refreshing to prevent multiple refresh attempts
 let isRefreshing = false;
 let refreshPromise = null;
+let globalLoadingHandler = null;
+
+export function setGlobalLoadingCallback(cb) {
+  globalLoadingHandler = typeof cb === 'function' ? cb : null;
+}
 
 // Helper to read cookie
 function readCookie(name) {
@@ -61,12 +66,19 @@ function handleLogout() {
  * @returns {Promise<Response>}
  */
 async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
-  const { setGlobalLoading } = useStore.getState(); // Get setGlobalLoading from store
+  const { setGlobalLoading } = useStore.getState(); // Fallback handler from store
+  const notifyLoading = (isLoading, message = '') => {
+    if (globalLoadingHandler) {
+      globalLoadingHandler(isLoading, message);
+    } else {
+      setGlobalLoading(isLoading, message);
+    }
+  };
 
   let loadingTimer = null;
   const showLoadingAfterDelay = () => {
     loadingTimer = setTimeout(() => {
-      setGlobalLoading(true, '서버 응답 대기 중...');
+      notifyLoading(true, '서버 응답 대기 중...');
     }, 1000); // Show loading after 1 second
   };
 
@@ -88,7 +100,7 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
     if (response.status === 401 && !skipRetry) {
       console.log('Token expired, attempting refresh...');
       // Show loading during token refresh
-      setGlobalLoading(true, '인증 갱신 중...');
+      notifyLoading(true, '인증 갱신 중...');
 
       // If already refreshing, wait for that to complete
       if (isRefreshing && refreshPromise) {
@@ -137,7 +149,7 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
     throw error;
   } finally {
     clearTimeout(loadingTimer);
-    setGlobalLoading(false);
+    notifyLoading(false);
   }
 }
 
