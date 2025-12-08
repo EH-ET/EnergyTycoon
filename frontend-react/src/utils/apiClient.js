@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { useStore } from '../store/useStore';
 import { generators } from './data';
 import { valueFromServer, toPlainValue } from './bigValue';
@@ -6,382 +7,145 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
-const originalFetch = window.fetch.bind(window);
 
-// Track if we're currently refreshing to prevent multiple refresh attempts
+// Helper to read a cookie
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Create an Axios instance
+const apiClient = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true, // Send cookies with requests
+});
+
+// Request interceptor to add CSRF token
+apiClient.interceptors.request.use(
+  (config) => {
+    const csrfToken = getCookie(CSRF_COOKIE_NAME);
+    if (csrfToken) {
+      config.headers[CSRF_HEADER_NAME] = csrfToken;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+
+// --- Token Refresh Logic ---
 let isRefreshing = false;
-let refreshPromise = null;
-let globalLoadingHandler = null;
+let failedQueue = [];
 
-export function setGlobalLoadingCallback(cb) {
-  globalLoadingHandler = typeof cb === 'function' ? cb : null;
-}
-
-// Helper to read cookie
-function readCookie(name) {
-  const cookie = document.cookie || "";
-  const entries = cookie.split(";").map((c) => c.trim());
-  for (const entry of entries) {
-    if (!entry) continue;
-    const [k, ...rest] = entry.split("=");
-    if (k === name) return rest.join("=");
-  }
-  return null;
-}
-
-async function fetchFreshCsrfToken() {
-  // Always fetch fresh CSRF token from server
-  try {
-    const res = await originalFetch(`${API_BASE}/csrf-token`, {
-      credentials: "include"
-    });
-
-    // Check response header first
-    let token = res.headers.get(CSRF_HEADER_NAME);
-    if (!token && res.ok) {
-      // Fallback to response body
-      const data = await res.json();
-      token = data.csrf_token;
-    }
-
-    if (token) {
-      // Update cookie
-      const d = new Date();
-      d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-      document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-      return token;
-    }
-  } catch (e) {
-    console.error("Failed to fetch CSRF token:", e);
-  }
-
-  // Fallback: generate client-side token
-  const token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
-  const d = new Date();
-  d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-  return token;
-}
-
-async function ensureCsrfToken() {
-  let token = null;
-
-  // Try to read from cookie
-  token = readCookie(CSRF_COOKIE_NAME);
-
-  if (!token) {
-    // If no token in cookie, fetch from server
-    token = await fetchFreshCsrfToken();
-  }
-
-  return token;
-}
-
-async function addCsrfHeader(headers = {}) {
-  const token = await ensureCsrfToken();
-  return { ...headers, [CSRF_HEADER_NAME]: token };
-}
-
-/**
- * Handle logout - clear all tokens and reload page
- */
-function handleLogout() {
-  // Clear any client-side stored tokens (though they should be HttpOnly)
-  // and reload to ensure a clean state.
-  // The backend will clear HttpOnly cookies on logout.
-  window.location.href = "/";
-}
-
-/**
- * Wrapper for fetch that handles token refresh and server wake-up
- * @param {string} url - The URL to fetch
- * @param {RequestInit} options - Fetch options
- * @param {boolean} skipRetry - Internal flag to prevent infinite retry
- * @returns {Promise<Response>}
- */
-async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
-  const { setGlobalLoading } = useStore.getState(); // Fallback handler from store
-  const notifyLoading = (isLoading, message = '') => {
-    if (globalLoadingHandler) {
-      globalLoadingHandler(isLoading, message);
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
     } else {
-      setGlobalLoading(isLoading, message);
+      prom.resolve(token);
     }
-  };
-
-  let loadingTimer = null;
-  const showLoadingAfterDelay = () => {
-    loadingTimer = setTimeout(() => {
-      notifyLoading(true, '서버 응답 대기 중...');
-    }, 1000); // Show loading after 1 second
-  };
-
-  showLoadingAfterDelay(); // Start the timer
-
-  try {
-    let response = await originalFetch(url, options);
-
-    // Check for and update CSRF token from response headers
-    const newCsrfToken = response.headers.get(CSRF_HEADER_NAME);
-    if (newCsrfToken) {
-        const d = new Date();
-        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-    }
-
-    // Handle 403 Forbidden - CSRF token expired or invalid
-    if (response.status === 403 && !skipRetry) {
-      const errorData = await response.json().catch(() => ({}));
-      const detail = errorData.detail || '';
-
-      // Check if it's a CSRF token issue
-      if (detail.includes('CSRF') || detail.includes('csrf')) {
-        console.log('CSRF token expired/invalid, fetching new token...');
-        notifyLoading(true, 'CSRF 토큰 갱신 중...');
-
-        try {
-          // Fetch fresh CSRF token from server (force refresh)
-          await fetchFreshCsrfToken();
-          console.log('CSRF token refreshed, retrying original request...');
-
-          // Update headers with new CSRF token
-          const newCsrfHeaders = await addCsrfHeader(options?.headers);
-          const newOptions = {
-            ...options,
-            headers: newCsrfHeaders,
-          };
-
-          // Retry original request with skipRetry=true to prevent infinite loop
-          return fetchWithTokenRefresh(url, newOptions, true);
-        } catch (csrfError) {
-          console.error('Failed to refresh CSRF token:', csrfError);
-          // Don't logout, just return the original error
-          return response;
-        }
-      }
-    }
-
-    // Handle 401 Unauthorized - token expired
-    if (response.status === 401 && !skipRetry) {
-      console.log('Token expired, attempting refresh...');
-
-      // Check if this is from a login/signup request - don't refresh
-      if (url.includes('/login') || url.includes('/signup') || url.includes('/register')) {
-        console.log('401 from auth endpoint - not attempting refresh');
-        return response;
-      }
-
-      notifyLoading(true, '인증 갱신 중...');
-
-      // Centralized retry logic
-      const retryRequest = async () => {
-        console.log('Token refreshed, retrying original request...');
-        // Rebuild headers to get the latest CSRF token from the cookie
-        const newHeaders = await addCsrfHeader(options.headers);
-        const retryOptions = {
-          ...options,
-          headers: newHeaders,
-        };
-        // Retry request with new headers and skipRetry flag
-        return fetchWithTokenRefresh(url, retryOptions, true);
-      };
-
-      // If another request is already refreshing the token, wait for it to complete
-      if (isRefreshing && refreshPromise) {
-        try {
-          const success = await refreshPromise;
-          if (success) {
-            return await retryRequest();
-          } else {
-            console.error('Token refresh failed during wait, logging out...');
-            handleLogout();
-            throw new Error('Token refresh failed');
-          }
-        } catch (e) {
-          console.error('Error waiting for refresh:', e);
-          handleLogout();
-          throw e;
-        }
-      }
-
-      // This is the first request to fail, so we initiate the refresh
-      isRefreshing = true;
-      refreshPromise = refreshAccessToken();
-
-      try {
-        const success = await refreshPromise;
-        if (success) {
-          return await retryRequest();
-        } else {
-          console.error('Token refresh failed, logging out...');
-          handleLogout();
-          throw new Error('Token refresh failed');
-        }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
-        handleLogout();
-        throw refreshError;
-      } finally {
-        isRefreshing = false;
-        refreshPromise = null;
-      }
-    }
-
-    return response;
-  } catch (error) {
-    console.error('Fetch error:', error);
-    throw error;
-  } finally {
-    clearTimeout(loadingTimer);
-    notifyLoading(false);
-  }
-}
-
-/**
- * Refresh access token using refresh token (stored in HttpOnly cookie)
- * @returns {Promise<boolean>} true if refresh succeeded, false otherwise
- */
-export async function refreshAccessToken() {
-  try {
-    // First try to get a fresh CSRF token from server
-    const csrfRes = await originalFetch(`${API_BASE}/csrf-token`, { credentials: "include" });
-    const csrfData = await csrfRes.json();
-    const csrfFromHeader = csrfRes.headers.get(CSRF_HEADER_NAME);
-
-    if (csrfFromHeader) {
-        // Update CSRF cookie from header
-        const d = new Date();
-        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${csrfFromHeader}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-        console.log('CSRF token refreshed from header');
-    } else if (csrfData.csrf_token) {
-        // Fallback: Update CSRF cookie from body if header not present
-        const d = new Date();
-        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${csrfData.csrf_token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-        console.log('CSRF token refreshed from body');
-    } else {
-        console.warn("No CSRF token found in refresh response.");
-    }
-
-    // Now attempt to refresh access token
-    const csrfHeaders = await addCsrfHeader({
-      "Content-Type": "application/json",
-    });
-    const res = await originalFetch(`${API_BASE}/refresh/access`, {
-      method: "POST",
-      headers: csrfHeaders,
-      credentials: "include" // Send refresh token cookie
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      console.error("Token refresh failed:", res.status, errorData);
-      return false; // Refresh token expired or invalid
-    }
-
-    // The backend sends a new CSRF token on successful refresh. We must capture it.
-    const newCsrfToken = res.headers.get(CSRF_HEADER_NAME);
-    if (newCsrfToken) {
-        const d = new Date();
-        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-        console.log('CSRF token updated from refresh response header.');
-    }
-
-    return true; // Successfully refreshed
-  } catch (e) {
-    console.error("Token refresh failed:", e);
-    return false;
-  }
-}
-
-// Override global fetch to use fetchWithTokenRefresh for API calls
-window.fetch = async (...args) => {
-  const [url, options] = args;
-  const urlStr = typeof url === 'string' ? url : url.url;
-
-  // Skip fetchWithTokenRefresh for auth/CSRF endpoints to avoid loops and false refresh attempts
-  const bypassPaths = ["/csrf-token", "/csrf", "/login", "/signup", "/register", "/logout", "/refresh/access"];
-  const shouldBypass = bypassPaths.some((p) => urlStr.includes(p));
-  if (shouldBypass) {
-    const csrfHeaders = await addCsrfHeader(options?.headers);
-    const bypassOptions = {
-      ...options,
-      headers: csrfHeaders,
-      credentials: "include",
-    };
-    return originalFetch(url, bypassOptions);
-  }
-
-  // Add CSRF header to all outgoing requests
-  const csrfHeaders = await addCsrfHeader(options?.headers);
-  const newOptions = {
-    ...options,
-    headers: csrfHeaders,
-    credentials: "include" // Ensure cookies are sent
-  };
-
-  return fetchWithTokenRefresh(urlStr, newOptions);
+  });
+  failedQueue = [];
 };
 
-// Export original fetch for internal use (e.g., refreshAccessToken)
-export { originalFetch };
+// Response interceptor for handling token expiry
+apiClient.interceptors.response.use(
+  (response) => {
+    // If the response has a new CSRF token, update the cookie
+    const newCsrfToken = response.headers[CSRF_HEADER_NAME.toLowerCase()];
+    if (newCsrfToken) {
+        const d = new Date();
+        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
 
-// API functions
-export async function login(username, password) {
-  const response = await fetch(`${API_BASE}/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ username, password }),
-    credentials: "include" // Send cookies
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Login failed");
+    // Check if it's a 401 error and not a retry request
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // Avoid refresh loops for login/refresh endpoints
+      if (originalRequest.url.includes('/login') || originalRequest.url.includes('/refresh/access')) {
+        return Promise.reject(error);
+      }
+    
+      if (isRefreshing) {
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+        .then(() => {
+            return apiClient(originalRequest);
+        })
+        .catch(err => {
+            return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await refreshAccessToken();
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        handleLogout(); // Logout user if refresh fails
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
   }
-  return response.json();
+);
+
+
+function handleLogout() {
+    // The backend clears HttpOnly cookies on logout.
+    // We just need to redirect the user to the login page.
+    window.location.href = "/"; 
+}
+
+// API functions using the apiClient
+export async function refreshAccessToken() {
+    // This function directly uses the apiClient to ensure interceptors are applied
+    const response = await apiClient.post('/refresh/access');
+    return response.data;
+}
+
+
+export async function login(username, password) {
+  const response = await apiClient.post('/login', { username, password });
+  return response.data;
 }
 
 export async function register(username, password) {
-  const response = await fetch(`${API_BASE}/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ username, password }),
-    credentials: "include" // Send cookies
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Registration failed");
-  }
-  return response.json();
+  const response = await apiClient.post('/register', { username, password });
+  return response.data;
 }
 
 export async function logout() {
-  const response = await fetch(`${API_BASE}/logout`, {
-    method: "POST",
-    credentials: "include" // Send cookies
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Logout failed");
-  }
-  return response.json();
+  const response = await apiClient.post('/logout');
+  handleLogout(); // Ensure redirect after logout call
+  return response.data;
 }
 
 export async function fetchGeneratorTypes() {
-  const response = await fetch(`${API_BASE}/generator_types`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch generator types");
-  }
-  return response.json();
+  const response = await apiClient.get('/generator_types');
+  return response.data;
 }
 
 export async function loadGeneratorTypes(state) {
@@ -417,360 +181,137 @@ export async function loadGeneratorTypes(state) {
   });
 }
 
-export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
-  const headers = { "Content-Type": "application/json" };
-  // if (token) headers.authorization = `Bearer ${token}`; // Token is now in HttpOnly cookie
-  const response = await fetch(`${API_BASE}/progress`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ user_id: userId, generator_type_id: generatorTypeId, x_position, world_position }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to save progress");
-  }
-  return response.json();
+export async function saveProgress(userId, generatorTypeId, x_position, world_position) {
+  const response = await apiClient.post('/progress', { user_id: userId, generator_type_id: generatorTypeId, x_position, world_position });
+  return response.data;
 }
 
 export async function loadProgress(userId) {
-  const response = await fetch(`${API_BASE}/progress?user_id=${userId}`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to load progress");
-  }
-  return response.json();
+  const response = await apiClient.get(`/progress?user_id=${userId}`);
+  return response.data;
 }
 
 export async function exchangeEnergy(userId, amount) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/exchange`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ user_id: userId, amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to exchange energy");
-  }
-  return response.json();
+  const response = await apiClient.post('/exchange', { user_id: userId, amount });
+  return response.data;
 }
 
 export async function fetchExchangeRate() {
-  const response = await fetch(`${API_BASE}/change/rate`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch exchange rate");
-  }
-  return response.json();
+  const response = await apiClient.get('/change/rate');
+  return response.data;
 }
 
 export async function upgradeProduction(amount = 1) {
-  const response = await fetch(`${API_BASE}/upgrade/production`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade production");
-  }
-  return response.json();
+    const response = await apiClient.post('/upgrade/production', { amount });
+    return response.data;
 }
 
 export async function upgradeHeatReduction(amount = 1) {
-  const response = await fetch(`${API_BASE}/upgrade/heat_reduction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade heat reduction");
-  }
-  return response.json();
+    const response = await apiClient.post('/upgrade/heat_reduction', { amount });
+    return response.data;
 }
 
 export async function upgradeTolerance(amount = 1) {
-  const response = await fetch(`${API_BASE}/upgrade/tolerance`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade tolerance");
-  }
-  return response.json();
+    const response = await apiClient.post('/upgrade/tolerance', { amount });
+    return response.data;
 }
 
 export async function upgradeMaxGenerators(amount = 1) {
-  const response = await fetch(`${API_BASE}/upgrade/max_generators`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade max generators");
-  }
-  return response.json();
+    const response = await apiClient.post('/upgrade/max_generators', { amount });
+    return response.data;
 }
 
 export async function upgradeDemand(amount = 1) {
-  const response = await fetch(`${API_BASE}/upgrade/demand`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade demand");
-  }
-  return response.json();
+    const response = await apiClient.post('/upgrade/demand', { amount });
+    return response.data;
 }
 
-export async function postUpgrade(endpoint, token, amount = 1) {
-  const headers = { "Content-Type": "application/json" };
-  // if (token) headers.authorization = `Bearer ${token}`; // Token is now in HttpOnly cookie
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || `Failed to post upgrade to ${endpoint}`);
-  }
-  return response.json();
+export async function postUpgrade(endpoint, amount = 1) {
+    const response = await apiClient.post(endpoint, { amount });
+    return response.data;
 }
 
 export async function demolishGenerator(generatorId) {
-  const response = await fetch(`${API_BASE}/progress/${generatorId}`, {
-    method: "DELETE",
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to demolish generator");
-  }
-  return response.json();
+    const response = await apiClient.delete(`/progress/${generatorId}`);
+    return response.data;
 }
 
 export async function fetchMyRank(criteria = 'money') {
-  const response = await fetch(`${API_BASE}/rank/my?criteria=${criteria}`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch my rank");
-  }
-  return response.json();
+    const response = await apiClient.get(`/rank/my?criteria=${criteria}`);
+    return response.data;
 }
 
 export async function skipGeneratorBuild(generatorId) {
-  const response = await fetch(`${API_BASE}/progress/${generatorId}/build/skip`, {
-    method: "POST",
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to skip build");
-  }
-  return response.json();
+    const response = await apiClient.post(`/progress/${generatorId}/build/skip`);
+    return response.data;
 }
 
 export async function fetchRanks({ limit = 10, offset = 0, criteria = 'money' } = {}) {
-  const response = await fetch(`${API_BASE}/rank?limit=${limit}&offset=${offset}&criteria=${criteria}`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch ranks");
-  }
-  return response.json();
+    const response = await apiClient.get(`/rank?limit=${limit}&offset=${offset}&criteria=${criteria}`);
+    return response.data;
 }
 
 export async function deleteAccount(password) {
-  const response = await fetch(`${API_BASE}/delete_account`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to delete account");
-  }
-  return response.json();
+    const response = await apiClient.post('/delete_account', { password });
+    return response.data;
 }
 
 export async function autosaveProgress(payload = {}) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/progress/autosave`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to autosave progress");
-  }
-  return response.json();
+    const response = await apiClient.post('/progress/autosave', payload);
+    return response.data;
 }
 
 export async function updateGeneratorState(generatorId, payload = {}) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/progress/${generatorId}/state`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to update generator state");
-  }
-  return response.json();
+    const response = await apiClient.post(`/progress/${generatorId}/state`, payload);
+    return response.data;
 }
 
 export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/progress/${generatorId}/upgrade`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ upgrade, amount }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to upgrade generator");
-  }
-  return response.json();
+    const response = await apiClient.post(`/progress/${generatorId}/upgrade`, { upgrade, amount });
+    return response.data;
 }
 
 export async function fetchRebirthInfo() {
-  const response = await fetch(`${API_BASE}/rebirth/info`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch rebirth info");
-  }
-  return response.json();
+    const response = await apiClient.get('/rebirth/info');
+    return response.data;
 }
 
 export async function performRebirth(count = 1) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/rebirth`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ count }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to perform rebirth");
-  }
-  return response.json();
+    const response = await apiClient.post('/rebirth', { count });
+    return response.data;
 }
 
 export async function updateTutorialProgress(step) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/tutorial/progress`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ step }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to update tutorial progress");
-  }
-  return response.json();
+    const response = await apiClient.post('/tutorial/progress', { step });
+    return response.data;
 }
 
 export async function skipTutorial() {
-  const response = await fetch(`${API_BASE}/tutorial/skip`, {
-    method: "POST",
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to skip tutorial");
-  }
-  return response.json();
+    const response = await apiClient.post('/tutorial/skip');
+    return response.data;
 }
 
 export async function getTutorialStatus() {
-  const response = await fetch(`${API_BASE}/tutorial/status`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to get tutorial status");
-  }
-  return response.json();
+    const response = await apiClient.get('/tutorial/status');
+    return response.data;
 }
 
 export async function createInquiry(type, content) {
-  const headers = { "Content-Type": "application/json" };
-  const response = await fetch(`${API_BASE}/inquiry`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ type, content }),
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to create inquiry");
-  }
-  return response.json();
+    const response = await apiClient.post('/inquiry', { type, content });
+    return response.data;
 }
 
 export async function fetchInquiries() {
-  const response = await fetch(`${API_BASE}/inquiry`, {
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to fetch inquiries");
-  }
-  return response.json();
+    const response = await apiClient.get('/inquiry');
+    return response.data;
 }
 
 export async function acceptInquiry(inquiryId) {
-  const response = await fetch(`${API_BASE}/inquiry/${inquiryId}/accept`, {
-    method: "POST",
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to accept inquiry");
-  }
-  return response.json();
+    const response = await apiClient.post(`/inquiry/${inquiryId}/accept`);
+    return response.data;
 }
 
 export async function rejectInquiry(inquiryId) {
-  const response = await fetch(`${API_BASE}/inquiry/${inquiryId}/reject`, {
-    method: "POST",
-    credentials: "include"
-  });
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to reject inquiry");
-  }
-  return response.json();
+    const response = await apiClient.post(`/inquiry/${inquiryId}/reject`);
+    return response.data;
 }
