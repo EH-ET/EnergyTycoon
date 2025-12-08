@@ -10,7 +10,6 @@ import AlertModal from '../AlertModal';
 
 export default function UpgradeTab() {
   const [alertMessage, setAlertMessage] = useState('');
-  const [amounts, setAmounts] = useState({});
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
@@ -19,13 +18,6 @@ export default function UpgradeTab() {
     const offset = upgrade.levelDisplayOffset ?? 1;
     const base = user ? Number(user[upgrade.field]) || 0 : 0;
     return base + offset;
-  };
-
-  const getUpgradeCost = (user, upgrade) => {
-    const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
-    const exponentLevel = baseLevel + (upgrade.costExponentOffset ?? 1);
-    const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
-    return Math.round(baseCostPlain * Math.pow(upgrade.priceGrowth, exponentLevel));
   };
 
   const getUpgradeCostForAmount = (user, upgrade, amount) => {
@@ -50,16 +42,36 @@ export default function UpgradeTab() {
     return `${formatResourceValue(fromPlainValue(cost))} 💰`;
   };
 
-  const maxAmountFor = (upgrade) => {
-    if ((upgrade.currency || 'money') === 'money') {
-      return Math.max(1, 1 + (currentUser?.upgrade_batch_upgrade || 0));
-    }
-    return 1; // Rebirth upgrades are single-purchase only
-  };
-
   const handleUpgrade = async (upgrade) => {
-    const selectedAmount = Math.max(1, Math.min(maxAmountFor(upgrade), Number(amounts[upgrade.endpoint]) || 1));
-    const costValue = getUpgradeCostForAmount(currentUser, upgrade, selectedAmount);
+    let actualAmount = 1; // Default to 1 for rebirth or if money calculation fails
+
+    if ((upgrade.currency || 'money') === 'money') {
+      let low = 1;
+      let high = Number.MAX_SAFE_INTEGER; // Use a very large number as upper bound
+      let maxAffordable = 0;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const costValue = getUpgradeCostForAmount(currentUser, upgrade, mid);
+        
+        // Check if costValue is a valid BigValue representation
+        // compareMoneyWith expects a plain number for cost, so we need to convert BigValue cost to plain
+        // However, getUpgradeCostForAmount already returns a plain number.
+        // So, we can directly compare the plain cost with user's money.
+        if (compareMoneyWith(costValue) >= 0) { // If affordable
+          maxAffordable = mid;
+          low = mid + 1;
+        } else { // Not affordable
+          high = mid - 1;
+        }
+      }
+      actualAmount = Math.max(1, maxAffordable); // Ensure at least 1
+    } else {
+      // For rebirth upgrades, it's always 1
+      actualAmount = 1;
+    }
+
+    const costValue = getUpgradeCostForAmount(currentUser, upgrade, actualAmount);
 
     if ((upgrade.currency || 'money') === 'money' && compareMoneyWith(costValue) < 0) {
       setAlertMessage('돈이 부족합니다.');
@@ -71,7 +83,7 @@ export default function UpgradeTab() {
     }
 
     try {
-      const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), selectedAmount);
+      const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), actualAmount);
       syncUserState(newUser);
       
       // Tutorial: Detect upgrade purchase
@@ -93,9 +105,7 @@ export default function UpgradeTab() {
 
   const renderCard = (upgrade, index, pillLabel = 'Upgrade') => {
     const levelValue = getUpgradeLevel(currentUser, upgrade);
-    const maxAmount = maxAmountFor(upgrade);
-    const selectedAmount = Math.max(1, Math.min(maxAmount, Number(amounts[upgrade.endpoint]) || 1));
-    const costValue = getUpgradeCostForAmount(currentUser, upgrade, selectedAmount);
+    const costValue = getUpgradeCostForAmount(currentUser, upgrade, 1); // Display cost for 1 level
     const costValueDisplay = formatCost(costValue, upgrade.currency);
 
     return (
@@ -116,29 +126,12 @@ export default function UpgradeTab() {
               <span className="value">Lv. {levelValue}</span>
             </div>
           </div>
-          {maxAmount > 1 && (upgrade.currency || 'money') === 'money' && (
-            <div className="upgrade-amount">
-              <input
-                type="number"
-                min="1"
-                max={maxAmount}
-                value={selectedAmount}
-                onChange={(e) => {
-                  const next = Math.max(1, Math.min(maxAmount, Number(e.target.value) || 1));
-                  setAmounts((prev) => ({ ...prev, [upgrade.endpoint]: next }));
-                }}
-              />
-              <span className="amount-hint">최대 {maxAmount}회</span>
-            </div>
-          )}
           <button
             type="button"
             className="upgrade-card-btn"
             onClick={() => handleUpgrade(upgrade)}
           >
-            {((upgrade.currency || 'money') === 'money' && selectedAmount > 1)
-              ? `한번에 구매(${selectedAmount}회)`
-              : '업그레이드'}
+            최대 업그레이드
           </button>
         </div>
       </div>
