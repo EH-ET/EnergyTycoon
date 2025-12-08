@@ -118,7 +118,7 @@ async def enforce_origin(request: Request, call_next):
     # CSRF protection for state-changing requests
     if request.method not in SAFE_METHODS:
         # Skip CSRF check for authentication endpoints
-        if request.url.path not in AUTH_ENDPOINTS:
+        if request.url.path not in auth_bypass_paths:
             # If origin is not allowed, block state-changing requests
             if not is_allowed:
                  return JSONResponse(
