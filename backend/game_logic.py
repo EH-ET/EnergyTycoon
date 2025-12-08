@@ -20,18 +20,18 @@ from .bigvalue import (
 
 UPGRADE_CONFIG = {
     # 클라이언트(data.js)와 동일한 비용 곡선
-    "production": {"field": "production_bonus", "base_cost": 10, "price_growth": 1.8},
-    "heat_reduction": {"field": "heat_reduction", "base_cost": 50, "price_growth": 1.5},
-    "tolerance": {"field": "tolerance_bonus", "base_cost": 60, "price_growth": 2.0},
-    "max_generators": {"field": "max_generators_bonus", "base_cost": 300, "price_growth": 3.0},
-    "demand": {"field": "demand_bonus", "base_cost": 15, "price_growth": 2.0},
+    "production": {"field": "production_bonus", "base_cost": 10, "price_growth": 1.8, "cost_offset": 1},
+    "heat_reduction": {"field": "heat_reduction", "base_cost": 50, "price_growth": 1.5, "cost_offset": 1},
+    "tolerance": {"field": "tolerance_bonus", "base_cost": 60, "price_growth": 2.0, "cost_offset": 1},
+    "max_generators": {"field": "max_generators_bonus", "base_cost": 300, "price_growth": 3.0, "cost_offset": 1},
+    "demand": {"field": "demand_bonus", "base_cost": 15, "price_growth": 2.0, "cost_offset": 1},
 }
 
 REBIRTH_UPGRADE_CONFIG = {
     # cost = base_cost * price_growth^(current_level + i), paid with rebirth count
-    "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0},
-    "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0},
-    "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0},
+    "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
+    "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
+    "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0, "cost_offset": 0},
 }
 
 # 누적 교환량 E에 따라 증가 단계 k = floor(log_3(E)), 증가율은 2k%
@@ -200,21 +200,33 @@ def get_upgrade_batch_limit(user: User) -> int:
 def calculate_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
     meta = get_upgrade_meta(key)
     current_level = getattr(user, meta["field"], 0)
-    total_cost = 0
-    for i in range(amount):
-        level = current_level + i + 1
-        total_cost += int(meta["base_cost"] * (meta["price_growth"] ** level))
-    return total_cost
+    base_cost = float(meta["base_cost"])
+    growth = float(meta["price_growth"])
+    offset = float(meta.get("cost_offset", 1))
+    if amount <= 0:
+        return 0
+    if abs(growth - 1.0) < 1e-9:
+        return int(base_cost * amount)
+    start_exp = current_level + offset
+    ratio_power = growth ** amount
+    total_cost = base_cost * (growth ** start_exp) * ((ratio_power - 1.0) / (growth - 1.0))
+    return int(total_cost)
 
 
 def calculate_rebirth_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
     meta = get_rebirth_upgrade_meta(key)
     current_level = getattr(user, meta["field"], 0)
-    total_cost = 0
-    for i in range(amount):
-        level = current_level + i  # first level uses exponent 0 (cost = base_cost)
-        total_cost += int(meta["base_cost"] * (meta["price_growth"] ** level))
-    return total_cost
+    base_cost = float(meta["base_cost"])
+    growth = float(meta["price_growth"])
+    offset = float(meta.get("cost_offset", 0))
+    if amount <= 0:
+        return 0
+    if abs(growth - 1.0) < 1e-9:
+        return int(base_cost * amount)
+    start_exp = current_level + offset
+    ratio_power = growth ** amount
+    total_cost = base_cost * (growth ** start_exp) * ((ratio_power - 1.0) / (growth - 1.0))
+    return int(total_cost)
 
 
 def apply_upgrade(user: User, db: Session, key: str, amount: int) -> User:

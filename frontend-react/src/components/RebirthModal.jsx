@@ -27,7 +27,7 @@ export default function RebirthModal({ open, onClose }) {
     fetchInfo();
   }, [open, currentUser]);
 
-  const handleRebirth = async () => {
+  const handleRebirth = async (count = 1) => {
     if (!currentUser || loading) return;
     
     setLoading(true);
@@ -35,7 +35,7 @@ export default function RebirthModal({ open, onClose }) {
     
     try {
       const token = getAuthToken();
-      const data = await performRebirth(token);
+      const data = await performRebirth(token, count);
       
       if (data.user) {
         syncUserState(data.user);
@@ -54,6 +54,9 @@ export default function RebirthModal({ open, onClose }) {
   if (!open) return null;
 
   const nextCost = rebirthInfo ? { data: rebirthInfo.next_cost_data, high: rebirthInfo.next_cost_high } : null;
+  const chainCost = rebirthInfo ? { data: rebirthInfo.chain_cost_data, high: rebirthInfo.chain_cost_high } : null;
+  const maxChain = rebirthInfo?.max_chain ?? 1;
+  const startMoney = rebirthInfo ? { data: rebirthInfo.start_money_data, high: rebirthInfo.start_money_high } : null;
 
   return (
     <div
@@ -113,6 +116,16 @@ export default function RebirthModal({ open, onClose }) {
             <div style={{ marginBottom: '12px' }}>
               <strong>환생 비용:</strong> {nextCost ? formatResourceValue(nextCost) : '로딩 중...'}
             </div>
+            {maxChain > 1 && (
+              <div style={{ marginBottom: '12px' }}>
+                <strong>연속 환생({maxChain}회) 비용:</strong> {chainCost ? formatResourceValue(chainCost) : '-'}
+              </div>
+            )}
+            {startMoney && (
+              <div style={{ marginBottom: '12px' }}>
+                <strong>환생 후 시작 자금:</strong> {formatResourceValue(startMoney)}
+              </div>
+            )}
             
             <div style={{
               background: '#2a2a2a',
@@ -127,7 +140,7 @@ export default function RebirthModal({ open, onClose }) {
                 <li>모든 발전기</li>
                 <li>모든 업그레이드</li>
                 <li>에너지 (0으로 초기화)</li>
-                <li>돈 (10으로 초기화)</li>
+                <li>돈 (업그레이드 적용된 시작 자금으로 초기화)</li>
               </ul>
               <p style={{ margin: '12px 0 0', fontSize: '14px', color: '#4ade80' }}>
                 ✨ 생산량 및 환율이 영구적으로 {rebirthInfo.next_multiplier}배 증가합니다!
@@ -136,7 +149,7 @@ export default function RebirthModal({ open, onClose }) {
           </div>
         )}
         
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
             onClick={onClose}
             disabled={loading}
@@ -155,7 +168,7 @@ export default function RebirthModal({ open, onClose }) {
             취소
           </button>
           <button
-            onClick={handleRebirth}
+            onClick={() => handleRebirth(1)}
             disabled={loading || !rebirthInfo}
             style={{
               flex: 1,
@@ -171,6 +184,26 @@ export default function RebirthModal({ open, onClose }) {
           >
             {loading ? '환생 중...' : '환생하기'}
           </button>
+          {maxChain > 1 && (
+            <button
+              onClick={() => handleRebirth(maxChain)}
+              disabled={loading || !rebirthInfo}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid #0ea5e9',
+                background: '#0ea5e9',
+                color: '#fff',
+                cursor: loading || !rebirthInfo ? 'not-allowed' : 'pointer',
+                fontSize: '16px',
+                fontWeight: '600',
+                minWidth: '200px',
+              }}
+            >
+              {loading ? '환생 중...' : `연속 환생(${maxChain}회)`}
+            </button>
+          )}
         </div>
       </div>
     </div>
