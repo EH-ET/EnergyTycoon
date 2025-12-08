@@ -197,9 +197,16 @@ async def login(
     }
 
 
-@router.get("/csrf")
+@router.get("/csrf-token")
 async def get_csrf_token(response: Response):
     """Get a fresh CSRF token - useful when CSRF token expires"""
+    csrf_token = set_csrf_cookie(response) if response else None
+    return {"csrf_token": csrf_token, "detail": "CSRF token issued"}
+
+
+@router.get("/csrf")
+async def get_csrf_token_alias(response: Response):
+    """Alias for /csrf-token for backwards compatibility"""
     csrf_token = set_csrf_cookie(response) if response else None
     return {"csrf_token": csrf_token, "detail": "CSRF token issued"}
 
