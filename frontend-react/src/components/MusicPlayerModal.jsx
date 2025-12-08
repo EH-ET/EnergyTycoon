@@ -92,7 +92,7 @@ const MusicPlayerModal = ({ playlist }) => {
       ref={modalRef}
       style={{
         position: 'fixed',
-        top: '20px',
+        top: '70px',
         right: '20px',
         width: '280px',
         background: 'rgba(0, 0, 0, 0.7)',
