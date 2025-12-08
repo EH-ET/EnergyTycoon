@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { fetchRebirthInfo, performRebirth } from '../../utils/apiClient';
+import { fetchRebirthInfo, performRebirth, autosaveProgress } from '../../utils/apiClient';
 import { getAuthToken } from '../../store/useStore';
 import { valueFromServer, toPlainValue} from '../../utils/bigValue';
+import { readStoredPlayTime } from '../../utils/playTime';
 import './RebirthTab.css';
 
 export default function RebirthTab() {
@@ -35,15 +36,15 @@ export default function RebirthTab() {
 
   const handleRebirth = async () => {
     if (!rebirthInfo) return;
-    
+
     const costValue = valueFromServer(
       rebirthInfo.next_cost_data,
       rebirthInfo.next_cost_high,
       null
     );
     const costPlain = toPlainValue(costValue);
-    
-    const confirmMessage = 
+
+    const confirmMessage =
       `환생하시겠습니까?\n\n` +
       `비용: ${costPlain.toLocaleString()} 돈\n` +
       `새 배율: ${rebirthInfo.next_multiplier}x\n\n` +
@@ -55,18 +56,34 @@ export default function RebirthTab() {
 
     try {
       setPerforming(true);
+
+      // Save latest money/energy values before rebirth
+      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
+      const energyPayload = toEnergyServerPayload();
+      const moneyPayload = toMoneyServerPayload();
+      const playTimeMs = readStoredPlayTime();
+
+      await autosaveProgress(getAuthToken(), {
+        energy_data: energyPayload.data,
+        energy_high: energyPayload.high,
+        money_data: moneyPayload.data,
+        money_high: moneyPayload.high,
+        play_time_ms: playTimeMs,
+        supercoin: currentUser?.supercoin || 0,
+      });
+
       const token = getAuthToken();
       const result = await performRebirth(token);
-      
+
       // Update user and clear generators
       if (result.user) {
         syncUserState(result.user);
       }
       setPlacedGenerators([]);
-      
+
       // Reload rebirth info
       await loadRebirthInfo();
-      
+
       alert(result.message || '환생 성공!');
     } catch (err) {
       alert(err.message || '환생에 실패했습니다');
