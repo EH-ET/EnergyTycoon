@@ -29,6 +29,40 @@ function readCookie(name) {
   return null;
 }
 
+async function fetchFreshCsrfToken() {
+  // Always fetch fresh CSRF token from server
+  try {
+    const res = await originalFetch(`${API_BASE}/csrf-token`, {
+      credentials: "include"
+    });
+
+    // Check response header first
+    let token = res.headers.get(CSRF_HEADER_NAME);
+    if (!token && res.ok) {
+      // Fallback to response body
+      const data = await res.json();
+      token = data.csrf_token;
+    }
+
+    if (token) {
+      // Update cookie
+      const d = new Date();
+      d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+      document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+      return token;
+    }
+  } catch (e) {
+    console.error("Failed to fetch CSRF token:", e);
+  }
+
+  // Fallback: generate client-side token
+  const token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
+  const d = new Date();
+  d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  return token;
+}
+
 async function ensureCsrfToken() {
   let token = null;
 
@@ -37,35 +71,7 @@ async function ensureCsrfToken() {
 
   if (!token) {
     // If no token in cookie, fetch from server
-    try {
-      const res = await originalFetch(`${API_BASE}/csrf-token`, {
-        credentials: "include"
-      });
-
-      // Check response header first
-      const headerToken = res.headers.get(CSRF_HEADER_NAME);
-      if (headerToken) {
-        token = headerToken;
-      } else if (res.ok) {
-        // Fallback to response body
-        const data = await res.json();
-        token = data.csrf_token;
-      }
-
-      if (token) {
-        // Update cookie
-        const d = new Date();
-        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-      }
-    } catch (e) {
-      console.error("Failed to fetch CSRF token:", e);
-      // Fallback: generate client-side token
-      token = globalThis.crypto?.randomUUID?.() || `csrf_${Date.now()}`;
-      const d = new Date();
-      d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-      document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
-    }
+    token = await fetchFreshCsrfToken();
   }
 
   return token;
@@ -121,6 +127,38 @@ async function fetchWithTokenRefresh(url, options = {}, skipRetry = false) {
         const d = new Date();
         d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
         document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+    }
+
+    // Handle 403 Forbidden - CSRF token expired or invalid
+    if (response.status === 403 && !skipRetry) {
+      const errorData = await response.json().catch(() => ({}));
+      const detail = errorData.detail || '';
+
+      // Check if it's a CSRF token issue
+      if (detail.includes('CSRF') || detail.includes('csrf')) {
+        console.log('CSRF token expired/invalid, fetching new token...');
+        notifyLoading(true, 'CSRF 토큰 갱신 중...');
+
+        try {
+          // Fetch fresh CSRF token from server (force refresh)
+          await fetchFreshCsrfToken();
+          console.log('CSRF token refreshed, retrying original request...');
+
+          // Update headers with new CSRF token
+          const newCsrfHeaders = await addCsrfHeader(options?.headers);
+          const newOptions = {
+            ...options,
+            headers: newCsrfHeaders,
+          };
+
+          // Retry original request with skipRetry=true to prevent infinite loop
+          return fetchWithTokenRefresh(url, newOptions, true);
+        } catch (csrfError) {
+          console.error('Failed to refresh CSRF token:', csrfError);
+          // Don't logout, just return the original error
+          return response;
+        }
+      }
     }
 
     // Handle 401 Unauthorized - token expired
