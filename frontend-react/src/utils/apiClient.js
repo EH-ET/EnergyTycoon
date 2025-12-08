@@ -4,6 +4,7 @@ import { valueFromServer, toPlainValue, fromPlainValue } from "./bigValue.js";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_STORAGE_KEY = "et_csrf";
+const CSRF_HEADER_NAME = "x-csrf-token";
 
 // Track if we're currently refreshing to prevent multiple refresh attempts
 let isRefreshing = false;
