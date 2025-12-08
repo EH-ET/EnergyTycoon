@@ -8,34 +8,58 @@ import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/b
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 
-function getUpgradeLevel(user, upgrade) {
-  const offset = upgrade.levelDisplayOffset ?? 1;
-  const base = user ? Number(user[upgrade.field]) || 0 : 0;
-  return base + offset;
-}
-
-function getUpgradeCost(user, upgrade) {
-  const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
-  const exponentLevel = baseLevel + (upgrade.costExponentOffset ?? 1);
-  const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
-  return Math.round(baseCostPlain * Math.pow(upgrade.priceGrowth, exponentLevel));
-}
-
-function formatCost(cost, currency) {
-  if (currency === 'rebirth') {
-    return `${cost.toLocaleString('ko-KR')} 환생`;
-  }
-  return `${formatResourceValue(fromPlainValue(cost))} 💰`;
-}
-
 export default function UpgradeTab() {
   const [alertMessage, setAlertMessage] = useState('');
+  const [amounts, setAmounts] = useState({});
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
 
+  const getUpgradeLevel = (user, upgrade) => {
+    const offset = upgrade.levelDisplayOffset ?? 1;
+    const base = user ? Number(user[upgrade.field]) || 0 : 0;
+    return base + offset;
+  };
+
+  const getUpgradeCost = (user, upgrade) => {
+    const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
+    const exponentLevel = baseLevel + (upgrade.costExponentOffset ?? 1);
+    const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
+    return Math.round(baseCostPlain * Math.pow(upgrade.priceGrowth, exponentLevel));
+  };
+
+  const getUpgradeCostForAmount = (user, upgrade, amount) => {
+    const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
+    const costOffset = upgrade.costExponentOffset ?? 1;
+    const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
+    if (amount <= 0) return 0;
+    const growth = upgrade.priceGrowth || 1;
+    if (Math.abs(growth - 1) < 1e-9) {
+      return Math.round(baseCostPlain * amount);
+    }
+    const startExp = baseLevel + costOffset;
+    const ratioPower = Math.pow(growth, amount);
+    const total = baseCostPlain * Math.pow(growth, startExp) * ((ratioPower - 1) / (growth - 1));
+    return Math.round(total);
+  };
+
+  const formatCost = (cost, currency) => {
+    if (currency === 'rebirth') {
+      return `${cost.toLocaleString('ko-KR')} 환생`;
+    }
+    return `${formatResourceValue(fromPlainValue(cost))} 💰`;
+  };
+
+  const maxAmountFor = (upgrade) => {
+    if ((upgrade.currency || 'money') === 'money') {
+      return Math.max(1, 1 + (currentUser?.upgrade_batch_upgrade || 0));
+    }
+    return 1; // Rebirth upgrades are single-purchase only
+  };
+
   const handleUpgrade = async (upgrade) => {
-    const costValue = getUpgradeCost(currentUser, upgrade);
+    const selectedAmount = Math.max(1, Math.min(maxAmountFor(upgrade), Number(amounts[upgrade.endpoint]) || 1));
+    const costValue = getUpgradeCostForAmount(currentUser, upgrade, selectedAmount);
 
     if ((upgrade.currency || 'money') === 'money' && compareMoneyWith(costValue) < 0) {
       setAlertMessage('돈이 부족합니다.');
@@ -47,7 +71,7 @@ export default function UpgradeTab() {
     }
 
     try {
-      const newUser = await postUpgrade(upgrade.endpoint, getAuthToken());
+      const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), selectedAmount);
       syncUserState(newUser);
       
       // Tutorial: Detect upgrade purchase
@@ -69,7 +93,9 @@ export default function UpgradeTab() {
 
   const renderCard = (upgrade, index, pillLabel = 'Upgrade') => {
     const levelValue = getUpgradeLevel(currentUser, upgrade);
-    const costValue = getUpgradeCost(currentUser, upgrade);
+    const maxAmount = maxAmountFor(upgrade);
+    const selectedAmount = Math.max(1, Math.min(maxAmount, Number(amounts[upgrade.endpoint]) || 1));
+    const costValue = getUpgradeCostForAmount(currentUser, upgrade, selectedAmount);
     const costValueDisplay = formatCost(costValue, upgrade.currency);
 
     return (
@@ -90,33 +116,45 @@ export default function UpgradeTab() {
               <span className="value">Lv. {levelValue}</span>
             </div>
           </div>
+          {maxAmount > 1 && (upgrade.currency || 'money') === 'money' && (
+            <div className="upgrade-amount">
+              <input
+                type="number"
+                min="1"
+                max={maxAmount}
+                value={selectedAmount}
+                onChange={(e) => {
+                  const next = Math.max(1, Math.min(maxAmount, Number(e.target.value) || 1));
+                  setAmounts((prev) => ({ ...prev, [upgrade.endpoint]: next }));
+                }}
+              />
+              <span className="amount-hint">최대 {maxAmount}회</span>
+            </div>
+          )}
           <button
             type="button"
             className="upgrade-card-btn"
             onClick={() => handleUpgrade(upgrade)}
           >
-            업그레이드
+            {((upgrade.currency || 'money') === 'money' && selectedAmount > 1)
+              ? `한번에 구매(${selectedAmount}회)`
+              : '업그레이드'}
           </button>
         </div>
       </div>
     );
   };
 
+  const combined = [
+    ...upgrades.map((u) => ({ ...u, pill: 'Upgrade' })),
+    ...rebirthUpgrades.map((u) => ({ ...u, pill: 'Rebirth' })),
+  ];
+
   return (
     <div className="upgrade-tab-wrapper">
-      <section className="upgrade-section">
-        <h3 className="upgrade-section-title">돈 업그레이드</h3>
-        <div className="upgrade-grid">
-          {upgrades.map((upgrade, index) => renderCard(upgrade, index, 'Upgrade'))}
-        </div>
-      </section>
-
-      <section className="upgrade-section">
-        <h3 className="upgrade-section-title">환생 업그레이드</h3>
-        <div className="upgrade-grid">
-          {rebirthUpgrades.map((upgrade, index) => renderCard(upgrade, index, 'Rebirth'))}
-        </div>
-      </section>
+      <div className="upgrade-grid">
+        {combined.map((upgrade, index) => renderCard(upgrade, index, upgrade.pill))}
+      </div>
 
       <AlertModal
         message={alertMessage}

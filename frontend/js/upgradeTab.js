@@ -27,12 +27,15 @@ function getUpgradeCostForAmount(user, upgrade, amount = 1) {
   const costOffset = upgrade.costExponentOffset ?? 1;
   const baseCostPlain =
     upgrade.baseCost_plain ?? upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
-  let total = 0;
-  for (let i = 0; i < amount; i += 1) {
-    const level = currentLevel + i + costOffset;
-    total += Math.floor(baseCostPlain * Math.pow(upgrade.priceGrowth, level));
+  if (amount <= 0) return 0;
+  const growth = upgrade.priceGrowth || 1;
+  if (Math.abs(growth - 1) < 1e-9) {
+    return Math.floor(baseCostPlain * amount);
   }
-  return total;
+  const startExp = currentLevel + costOffset;
+  const ratioPower = Math.pow(growth, amount);
+  const total = baseCostPlain * Math.pow(growth, startExp) * ((ratioPower - 1) / (growth - 1));
+  return Math.floor(total);
 }
 
 function formatCost(cost, currency) {
@@ -46,14 +49,7 @@ function maxAmountForUpgrade(upgrade) {
   if (upgrade.currency === "money") {
     return 1 + (state.currentUser?.upgrade_batch_upgrade || 0);
   }
-  const availableRebirths = state.currentUser?.rebirth_count ?? 0;
-  let maxAffordable = 0;
-  for (let i = 1; i <= MAX_REBIRTH_BULK_INPUT; i += 1) {
-    const cost = getUpgradeCostForAmount(state.currentUser, upgrade, i);
-    if (cost > availableRebirths) break;
-    maxAffordable = i;
-  }
-  return Math.max(1, maxAffordable || 1);
+  return 1; // 환생 업그레이드는 단일 구매만 허용
 }
 
 function buildUpgradeCard(upgrade) {
