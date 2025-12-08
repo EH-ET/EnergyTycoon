@@ -34,6 +34,7 @@ export function useAutosave() {
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
           play_time_ms: Math.floor(playTimeMs || 0),
+          supercoin: currentUser?.supercoin || 0,
           generators: generators.length > 0 ? generators : undefined,
         });
         useStore.getState().setSaveStatus('success');

@@ -2,12 +2,12 @@ import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
 import { valueFromServer, addValues, multiplyByFloat, normalizeValue } from '../utils/bigValue';
-import { loadProgress, updateGeneratorState, autosaveProgress } from '../utils/apiClient';
+import { loadProgress, updateGeneratorState } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
-const ENERGY_SAVE_DELAY = 500; // 에너지 변경 후 0.5초 후 저장
+// ENERGY_SAVE_DELAY removed - useAutosave handles all saving every 30 seconds
 
 async function handleExplosion(entry, removePlacedGenerator, token, updatePlacedGenerator) {
   if (!entry) return;
@@ -103,11 +103,6 @@ export function useEnergyTimer() {
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
   const updatePlacedGenerator = useStore(state => state.updatePlacedGenerator);
-  const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
-
-  const energySaveTimerRef = useRef(null);
-  const lastSavedEnergyRef = useRef(null);
-  const lastSaveTimeRef = useRef(0); // Initialize with 0
 
   useEffect(() => {
     if (!userId) return;
@@ -236,39 +231,8 @@ export function useEnergyTimer() {
           }
         }
 
-        // 에너지 변경 시 5초 debounce로 백엔드 저장
-        // 너무 잦은 저장을 방지하기 위해 이전 저장 시간 체크 필요
-        if (energySaveTimerRef.current) {
-          clearTimeout(energySaveTimerRef.current);
-        }
-
-        energySaveTimerRef.current = setTimeout(async () => {
-          const currentTime = Date.now();
-          // Prevent saving if less than ENERGY_SAVE_DELAY has passed since the last save
-          if (currentTime - lastSaveTimeRef.current < ENERGY_SAVE_DELAY) {
-            // Reschedule if needed, or just let the next tick handle it
-            // For now, we'll just exit and rely on the next debounce to trigger
-            return;
-          }
-
-          try {
-            const token = getAuthToken();
-            const energyPayload = toEnergyServerPayload();
-            const playTimeMs = readStoredPlayTime();
-            const { currentUser } = useStore.getState();
-
-            // Save with BigValue format (data, high) and supercoin
-            await autosaveProgress(token, {
-              energy_data: energyPayload.data,
-              energy_high: energyPayload.high,
-              play_time_ms: playTimeMs,
-              supercoin: currentUser?.supercoin || 0,
-            });
-            lastSaveTimeRef.current = Date.now(); // Update save time
-          } catch (e) {
-            // Silent fail
-          }
-        }, ENERGY_SAVE_DELAY);
+        // Note: Energy saving is now handled by useAutosave hook (every 30 seconds)
+        // Removed redundant debounced save to reduce server traffic
       }
 
       if (buildCompleted && userFromStore?.user_id) {
@@ -294,11 +258,8 @@ export function useEnergyTimer() {
 
     return () => {
       clearInterval(timer);
-      if (energySaveTimerRef.current) {
-        clearTimeout(energySaveTimerRef.current);
-      }
     };
-  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, toEnergyServerPayload, updatePlacedGenerator, removePlacedGenerator]);
+  }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, updatePlacedGenerator, removePlacedGenerator]);
 }
 
 export function useEnergyRate() {

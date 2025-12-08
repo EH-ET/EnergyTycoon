@@ -3,9 +3,10 @@ import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { upgrades, rebirthUpgrades } from '../../utils/data';
-import { postUpgrade } from '../../utils/apiClient';
+import { postUpgrade, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
+import { readStoredPlayTime } from '../../utils/playTime';
 import AlertModal from '../AlertModal';
 
 export default function UpgradeTab() {
@@ -94,9 +95,24 @@ export default function UpgradeTab() {
     }
 
     try {
+      // Save latest money/energy values before upgrade
+      const { toEnergyServerPayload, toMoneyServerPayload, placedGenerators } = useStore.getState();
+      const energyPayload = toEnergyServerPayload();
+      const moneyPayload = toMoneyServerPayload();
+      const playTimeMs = readStoredPlayTime();
+
+      await autosaveProgress(getAuthToken(), {
+        energy_data: energyPayload.data,
+        energy_high: energyPayload.high,
+        money_data: moneyPayload.data,
+        money_high: moneyPayload.high,
+        play_time_ms: playTimeMs,
+        supercoin: currentUser?.supercoin || 0,
+      });
+
       const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), actualAmount);
       syncUserState(newUser);
-      
+
       // Tutorial: Detect upgrade purchase
       if (currentUser?.tutorial === 8) {
         dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);

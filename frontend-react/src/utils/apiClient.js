@@ -274,6 +274,15 @@ export async function refreshAccessToken() {
       return false; // Refresh token expired or invalid
     }
 
+    // The backend sends a new CSRF token on successful refresh. We must capture it.
+    const newCsrfToken = res.headers.get(CSRF_HEADER_NAME);
+    if (newCsrfToken) {
+        const d = new Date();
+        d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
+        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+        console.log('CSRF token updated from refresh response header.');
+    }
+
     return true; // Successfully refreshed
   } catch (e) {
     console.error("Token refresh failed:", e);
