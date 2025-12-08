@@ -1,4 +1,6 @@
 import { useStore } from '../store/useStore';
+import { generators } from './data';
+import { valueFromServer, toPlainValue } from './bigValue';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -280,6 +282,39 @@ export async function fetchGeneratorTypes() {
     throw new Error(errorData.detail || "Failed to fetch generator types");
   }
   return response.json();
+}
+
+export async function loadGeneratorTypes(state) {
+  const data = await fetchGeneratorTypes();
+  const list = data.generator_types || data.types;
+  if (!list) return;
+
+  list.forEach((t, idxFromServer) => {
+    const typeId = t.id || t.generator_type_id;
+    if (!typeId) return;
+    const nameFromServer = t.name;
+    const indexFromServer = Number.isInteger(t.index) ? t.index : (Number.isInteger(t.order) ? t.order : null);
+    const matchedIndex = generators.findIndex((g) => g?.이름 === nameFromServer);
+    const fallbackName = indexFromServer != null && indexFromServer >= 0 ? generators[indexFromServer]?.이름 : generators[idxFromServer]?.이름;
+    const typeName = nameFromServer || fallbackName || String(idxFromServer);
+    const resolvedIndex = (indexFromServer != null && indexFromServer >= 0 && indexFromServer < generators.length)
+      ? indexFromServer
+      : (matchedIndex >= 0 ? matchedIndex : idxFromServer);
+
+    const costValue = valueFromServer(t.cost_data, t.cost_high, t.cost ?? generators[resolvedIndex]?.설치비용);
+    const cost = toPlainValue(costValue);
+
+    state.generatorTypeMap[typeName] = typeId;
+    state.generatorTypeInfoMap[typeName] = { id: typeId, cost };
+
+    if (fallbackName && fallbackName !== typeName) {
+      state.generatorTypeMap[fallbackName] = typeId;
+      state.generatorTypeInfoMap[fallbackName] = { id: typeId, cost };
+    }
+
+    state.generatorTypeIdToName[typeId] = fallbackName || typeName;
+    state.generatorTypesById[typeId] = { name: fallbackName || typeName, cost, index: resolvedIndex };
+  });
 }
 
 export async function saveProgress(userId, generatorTypeId, x_position, world_position, token, energy) {
