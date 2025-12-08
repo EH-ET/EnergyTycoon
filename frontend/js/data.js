@@ -68,6 +68,12 @@ const rawUpgrades = [
   {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 120, "priceGrowth": 1.2}
 ];
 
+const rawRebirthUpgrades = [
+  {"이름": "연속 환생 허용 횟수", "endpoint": "rebirth_chain", "field": "rebirth_chain_upgrade", "설명": "한 번에 여러 번 환생할 수 있는 최대 횟수를 늘립니다.", "baseCost": 1, "priceGrowth": 2.0, "costExponentOffset": 0},
+  {"이름": "전역 업그레이드 일괄 구매", "endpoint": "upgrade_batch", "field": "upgrade_batch_upgrade", "설명": "업그레이드 탭에서 한 번에 올릴 수 있는 최대 단계를 늘립니다.", "baseCost": 1, "priceGrowth": 2.0, "costExponentOffset": 0},
+  {"이름": "환생 시작 자금 배수", "endpoint": "rebirth_start_money", "field": "rebirth_start_money_upgrade", "설명": "환생 직후 시작하는 기본 자금을 10배씩 늘립니다.", "baseCost": 3, "priceGrowth": 3.0, "costExponentOffset": 0}
+];
+
 function withResourceFields(obj, key) {
   const v = fromPlainValue(obj[key]);
   return {
@@ -86,5 +92,24 @@ export const generators = rawGenerators.map((g) => {
 
 export const upgrades = rawUpgrades.map((u) => {
   const v = fromPlainValue(u.baseCost);
-  return { ...u, baseCost_plain: u.baseCost, baseCost_data: v.data, baseCost_high: v.high };
+  return {
+    ...u,
+    baseCost_plain: u.baseCost,
+    baseCost_data: v.data,
+    baseCost_high: v.high,
+    currency: "money",
+    costExponentOffset: u.costExponentOffset ?? 1,
+  };
+});
+
+export const rebirthUpgrades = rawRebirthUpgrades.map((u) => {
+  const v = fromPlainValue(u.baseCost);
+  return {
+    ...u,
+    baseCost_plain: u.baseCost,
+    baseCost_data: v.data,
+    baseCost_high: v.high,
+    currency: "rebirth",
+    costExponentOffset: u.costExponentOffset ?? 0,
+  };
 });

@@ -60,6 +60,9 @@ def ensure_user_upgrade_columns():
                 ("max_generators_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("demand_bonus", "INTEGER NOT NULL DEFAULT 0"),
                 ("rebirth_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("rebirth_chain_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("upgrade_batch_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("rebirth_start_money_upgrade", "INTEGER NOT NULL DEFAULT 0"),
                 ("tutorial", "INTEGER NOT NULL DEFAULT 1"),
                 ("supercoin", "INTEGER NOT NULL DEFAULT 0"),
                 ("build_speed_reduction", "INTEGER NOT NULL DEFAULT 0"),
@@ -107,6 +110,21 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS rebirth_count INTEGER NOT NULL DEFAULT 0"
                 )
                 existing.add("rebirth_count")
+            if "rebirth_chain_upgrade" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rebirth_chain_upgrade INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("rebirth_chain_upgrade")
+            if "upgrade_batch_upgrade" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrade_batch_upgrade INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("upgrade_batch_upgrade")
+            if "rebirth_start_money_upgrade" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rebirth_start_money_upgrade INTEGER NOT NULL DEFAULT 0"
+                )
+                existing.add("rebirth_start_money_upgrade")
             if "tutorial" not in existing:
                 conn.exec_driver_sql(
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial INTEGER NOT NULL DEFAULT 1"
