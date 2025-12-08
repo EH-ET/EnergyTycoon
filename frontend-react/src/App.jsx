@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore, loadUserData, getAuthToken, ensureSessionStart, initTrapGuard, installTrapFetchGuard } from './store/useStore';
-import { fetchGeneratorTypes, loadProgress } from './utils/apiClient';
+import { fetchGeneratorTypes, loadProgress, setGlobalLoadingCallback } from './utils/apiClient';
 import { useEnergyTimer } from './hooks/useEnergyTimer';
 import { useAutosave } from './hooks/useAutosave';
 import { useViewport } from './hooks/useViewport';
