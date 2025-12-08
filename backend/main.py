@@ -76,7 +76,7 @@ app.add_middleware(
 # Origin check middleware for state-changing requests (basic CSRF guard)
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 # Authentication endpoints that can bypass CSRF token requirement
-AUTH_ENDPOINTS = {"/login", "/signup"}
+auth_bypass_paths = ["/login", "/register", "/refresh/access", "/csrf-token"]
 
 
 def _is_origin_allowed(origin: str) -> bool:
