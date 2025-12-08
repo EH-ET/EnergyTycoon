@@ -78,7 +78,8 @@ pwd_context = CryptContext(
 )
 
 # Refresh 토큰 회전을 위한 간단 화이트리스트 (프로세스 메모리 상)
-_refresh_whitelist: Dict[str, str] = {}
+# In-memory whitelist is replaced by user.refresh_jti in the database
+# to support multiple server instances.
 
 
 def generate_uuid() -> str:
@@ -131,36 +132,53 @@ def issue_access_token(user_id: str) -> str:
     return _encode_token(payload, ACCESS_TOKEN_TTL)
 
 
-def issue_refresh_token(user_id: str) -> str:
+def issue_refresh_token(user: "User", db: Session) -> str:
+    from .models import User
     jti = generate_uuid()
-    _refresh_whitelist[user_id] = jti
+    user.refresh_jti = jti
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     payload = {
-        "sub": user_id,
+        "sub": user.user_id,
         "typ": TOKEN_TYPE_REFRESH,
         "jti": jti,
     }
     return _encode_token(payload, REFRESH_TOKEN_TTL)
 
 
-def issue_token_pair(user_id: str) -> tuple[str, str]:
-    return issue_access_token(user_id), issue_refresh_token(user_id)
+def issue_token_pair(user: "User", db: Session) -> tuple[str, str]:
+    from .models import User
+    return issue_access_token(user.user_id), issue_refresh_token(user, db)
 
 
-def revoke_token(token: str) -> None:
+def revoke_token(token: str, db: Session) -> None:
+    from .models import User
     try:
-        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+        # Verify signature but not expiration, as we might need to revoke an expired token
+        decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG], options={"verify_exp": False})
     except jwt.PyJWTError:
-        return
-        # If the token is invalid, there's nothing to revoke
+        return  # Invalid token, nothing to do
+
     if decoded.get("typ") == TOKEN_TYPE_REFRESH:
         user_id = decoded.get("sub")
-        jti = decoded.get("jti")
-        if user_id and _refresh_whitelist.get(user_id) == jti:
-            _refresh_whitelist.pop(user_id, None)
+        if not user_id:
+            return
+        user = db.query(User).filter_by(user_id=user_id).first()
+        # Only revoke if the JTI matches the one in the DB
+        if user and user.refresh_jti and user.refresh_jti == decoded.get("jti"):
+            user.refresh_jti = None
+            db.add(user)
+            db.commit()
 
 
-def revoke_user_tokens(user_id: str) -> None:
-    _refresh_whitelist.pop(user_id, None)
+def revoke_user_tokens(user_id: str, db: Session) -> None:
+    from .models import User
+    user = db.query(User).filter_by(user_id=user_id).first()
+    if user:
+        user.refresh_jti = None
+        db.add(user)
+        db.commit()
 
 
 def require_user_from_token(token: str, db: Session, expected_type: str):
@@ -180,13 +198,16 @@ def require_user_from_token(token: str, db: Session, expected_type: str):
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token subject")
 
-    if expected_type == TOKEN_TYPE_REFRESH:
-        jti = data.get("jti")
-        if not jti or _refresh_whitelist.get(user_id) != jti:
-            raise HTTPException(status_code=401, detail="Refresh token revoked or invalid")
     user = db.query(User).filter_by(user_id=user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Even if the token is valid, if the user doesn't exist, it's an auth error.
+        raise HTTPException(status_code=401, detail="User not found for token")
+
+    if expected_type == TOKEN_TYPE_REFRESH:
+        jti = data.get("jti")
+        if not jti or not user.refresh_jti or user.refresh_jti != jti:
+            raise HTTPException(status_code=401, detail="Refresh token revoked or invalid")
+
     return user
 
 
