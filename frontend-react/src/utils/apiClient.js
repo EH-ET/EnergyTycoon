@@ -209,9 +209,16 @@ window.fetch = (...args) => {
   const [url, options] = args;
   const urlStr = typeof url === 'string' ? url : url.url;
 
-  // Skip fetchWithTokenRefresh for CSRF token endpoint itself to avoid infinite loop
-  if (urlStr.includes(`${API_BASE}/csrf-token`)) {
-    return originalFetch(url, options);
+  // Skip fetchWithTokenRefresh for auth/CSRF endpoints to avoid loops and false refresh attempts
+  const bypassPaths = ["/csrf-token", "/csrf", "/login", "/signup", "/register", "/logout", "/refresh/access"];
+  const shouldBypass = bypassPaths.some((p) => urlStr.includes(p));
+  if (shouldBypass) {
+    const bypassOptions = {
+      ...options,
+      headers: addCsrfHeader(options?.headers),
+      credentials: "include",
+    };
+    return originalFetch(url, bypassOptions);
   }
 
   // Add CSRF header to all outgoing requests
