@@ -16,7 +16,7 @@ if str(ROOT_DIR) not in sys.path:
 from backend import models  # noqa: F401 - ensure models are registered
 from backend.database import Base, SessionLocal, engine
 from backend.init_db import ensure_user_upgrade_columns, ensure_big_value_columns, ensure_generator_columns, ensure_map_progress_columns, ensure_play_time_column, sync_generator_types, ensure_generator_type_columns, ensure_refresh_jti_column
-from backend.routes import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes, rebirth_routes, tutorial_routes, inquiry_routes, special_routes
+from backend.routes import auth_routes, change_routes, generator_routes, progress_routes, rank_routes, upgrade_routes, rebirth_routes, tutorial_routes, inquiry_routes, special_routes, sync_routes
 from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
@@ -178,6 +178,7 @@ app.include_router(rebirth_routes.router)
 app.include_router(tutorial_routes.router, prefix="/tutorial", tags=["tutorial"])
 app.include_router(special_routes.router)
 app.include_router(inquiry_routes.router)
+app.include_router(sync_routes.router)
 
 
 @app.get("/")

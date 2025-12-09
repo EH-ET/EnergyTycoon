@@ -456,9 +456,13 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
     # Energy validation (using BigValue, no to_plain())
     energy_value = from_payload(payload.energy_data, payload.energy_high)
     if energy_value is not None:
+        # Prefer client-reported production to reduce server recalculation
+        total_production_per_sec_bv = from_payload(payload.production_data, payload.production_high, 0)
+        if total_production_per_sec_bv is None:
+            total_production_per_sec_bv = _calculate_total_energy_production(user, db)
+
         # Check for suspicious increases based on production rate * 1,000,000 seconds (allow idle play)
         current_energy_bv = get_user_energy_value(user)
-        total_production_per_sec_bv = _calculate_total_energy_production(user, db)
 
         # Allow a generous increase to avoid false positives after large rebirths/builds:
         # - production_rate * 10,000,000 seconds
