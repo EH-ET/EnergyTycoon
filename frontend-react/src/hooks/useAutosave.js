@@ -14,7 +14,6 @@ export function useAutosave() {
 
     const save = async () => {
       try {
-        const token = getAuthToken();
         const energyPayload = toEnergyServerPayload();
         const moneyPayload = toMoneyServerPayload();
         const playTimeMs = readStoredPlayTime();
@@ -28,7 +27,7 @@ export function useAutosave() {
             running: g.running !== false,
           }));
 
-        await autosaveProgress(token, {
+        await autosaveProgress({
           energy_data: energyPayload.data,
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,

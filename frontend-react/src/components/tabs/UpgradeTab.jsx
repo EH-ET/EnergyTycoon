@@ -101,7 +101,7 @@ export default function UpgradeTab() {
       const moneyPayload = toMoneyServerPayload();
       const playTimeMs = readStoredPlayTime();
 
-      await autosaveProgress(getAuthToken(), {
+      await autosaveProgress({
         energy_data: energyPayload.data,
         energy_high: energyPayload.high,
         money_data: moneyPayload.data,

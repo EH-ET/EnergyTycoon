@@ -61,7 +61,7 @@ export default function TradeTab() {
       const currentMoney = toPlainValue(getMoneyValue());
       const playTimeMs = readStoredPlayTime();
 
-      const saveResult = await autosaveProgress(getAuthToken(), {
+      const saveResult = await autosaveProgress({
         energy: currentEnergyPlain,
         money: currentMoney,
         energy_data: energyPayload.data,

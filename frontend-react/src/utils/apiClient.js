@@ -255,7 +255,8 @@ export async function demolishGenerator(generatorId) {
 }
 
 export async function fetchMyRank(criteria = 'money') {
-    const response = await apiClient.get(`/rank/my?criteria=${criteria}`);
+    const validCriteria = criteria || 'money';
+    const response = await apiClient.get(`/rank?criteria=${validCriteria}`);
     return response.data;
 }
 
@@ -265,7 +266,8 @@ export async function skipGeneratorBuild(generatorId) {
 }
 
 export async function fetchRanks({ limit = 10, offset = 0, criteria = 'money' } = {}) {
-    const response = await apiClient.get(`/rank?limit=${limit}&offset=${offset}&criteria=${criteria}`);
+    const validCriteria = criteria || 'money';
+    const response = await apiClient.get(`/ranks?limit=${limit}&offset=${offset}&criteria=${validCriteria}`);
     return response.data;
 }
 
@@ -315,21 +317,21 @@ export async function getTutorialStatus() {
 }
 
 export async function createInquiry(type, content) {
-    const response = await apiClient.post('/inquiry', { type, content });
+    const response = await apiClient.post('/inquiries', { type, content });
     return response.data;
 }
 
 export async function fetchInquiries() {
-    const response = await apiClient.get('/inquiry');
+    const response = await apiClient.get('/inquiries');
     return response.data;
 }
 
 export async function acceptInquiry(inquiryId) {
-    const response = await apiClient.post(`/inquiry/${inquiryId}/accept`);
+    const response = await apiClient.post(`/inquiries/${inquiryId}/accept`);
     return response.data;
 }
 
 export async function rejectInquiry(inquiryId) {
-    const response = await apiClient.post(`/inquiry/${inquiryId}/reject`);
+    const response = await apiClient.post(`/inquiries/${inquiryId}/reject`);
     return response.data;
 }
