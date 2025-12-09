@@ -1,9 +1,7 @@
 import axios from 'axios';
 import { useStore } from '../store/useStore';
-import { generators } from './data';
+import { generators, API_BASE } from './data';
 import { valueFromServer, toPlainValue } from './bigValue';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 const CSRF_COOKIE_NAME = "csrf_token";
 const CSRF_HEADER_NAME = "x-csrf-token";
