@@ -29,7 +29,8 @@ export default function TradeTab() {
     if (!currentUser) return;
     try {
       const data = await fetchExchangeRate();
-      setExchangeRate(data.rate);
+      const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
+      setExchangeRate(toPlainValue(rateBV));
     } catch (e) {
       // Silent fail
     }
@@ -88,9 +89,10 @@ export default function TradeTab() {
       const afterMoney = getMoneyValue();
       const gainedBigValue = subtractValues(afterMoney, beforeMoney);
       
-      setExchangeRate(data.rate || exchangeRate);
+      const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
+      setExchangeRate(toPlainValue(rateBV));
 
-      const rateText = data.rate ? ` (rate ${data.rate.toFixed(2)})` : '';
+      const rateText = ` (rate ${formatResourceValue(rateBV)})`;
       setMessage(`성공: ${formatResourceValue(exchangeAmountBigValue)} 에너지 → ${formatResourceValue(gainedBigValue)} 돈${rateText}`);
     } catch (e) {
       let errorMsg = '교환 실패';

@@ -19,6 +19,7 @@ from ..bigvalue import (
     from_plain,
     normalize,
     to_payload,
+    normalize_value,
 )
 
 router = APIRouter()
@@ -52,6 +53,8 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 
     # 점진적 환율 적용하여 실제 획득량 계산 (BigValue 반환)
     gained_bv, avg_rate = calculate_progressive_exchange(user, amount_bv)
+    rate_bv = normalize_value(BigValue(int(max(avg_rate, 0) * 1000), 0))
+    rate_payload = to_payload(rate_bv)
 
     # BigValue 연산으로 차감 및 지급
     energy_value = subtract_values(energy_value, amount_bv)
@@ -74,6 +77,8 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
         "money_data": user.money_data,
         "money_high": user.money_high,
         "rate": avg_rate,
+        "rate_data": rate_payload["data"],
+        "rate_high": rate_payload["high"],
         "gained_data": gained_payload["data"],
         "gained_high": gained_payload["high"],
         "user": UserOut.model_validate(user),
@@ -84,4 +89,6 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 async def get_exchange_rate(auth=Depends(get_user_and_db)):
     user, _, _ = auth
     rate = current_market_rate(user)
-    return {"rate": rate}
+    rate_bv = normalize_value(BigValue(int(max(rate, 0) * 1000), 0))
+    rate_payload = to_payload(rate_bv)
+    return {"rate": rate, "rate_data": rate_payload["data"], "rate_high": rate_payload["high"]}
