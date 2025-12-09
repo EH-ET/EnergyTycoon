@@ -1,0 +1,42 @@
+timeout: "1200s"
+substitutions:
+  _REGION: "asia-northeast3"
+  _SERVICE_NAME: "energy-tycoon-backend"
+  _REPO_NAME: "energy-tycoon-backend-repo"
+options:
+  substitution_option: ALLOW_LOOSE
+steps:
+  - id: "build-and-push-image"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${SHORT_SHA}"
+        echo "Building ${IMAGE}"
+        docker build -t "${IMAGE}" .
+        docker push "${IMAGE}"
+        echo "IMAGE=${IMAGE}"
+
+  - id: "terraform-apply-cloud-run"
+    name: "hashicorp/terraform:1.5.7"
+    entrypoint: "bash"
+    env:
+      - "TF_LOG=ERROR"
+      - "TF_VAR_image_tag=${SHORT_SHA}"
+    secretEnv:
+      - "TFVARS_CONTENT"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        cd terraform
+        printf "%s" "${TFVARS_CONTENT}" > terraform.auto.tfvars
+        terraform init -input=false
+        terraform apply -auto-approve
+
+availableSecrets:
+  secretManager:
+    - versionName: "projects/energytycoon/secrets/terraform-backend-tfvars/versions/latest"
+      env: "TFVARS_CONTENT"

@@ -1,0 +1,18 @@
+# Use the same patterns as .dockerignore to keep build context small
+.git
+.gitignore
+.gcloudignore
+.DS_Store
+.venv
+__pycache__/
+*.pyc
+*.log
+.env
+data/
+frontend/
+frontend-react/
+nginx/
+terraform/
+node_modules/
+dist/
+build/
