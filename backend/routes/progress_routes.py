@@ -459,16 +459,20 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         current_energy_bv = get_user_energy_value(user)
         energy_delta_bv = subtract_values(energy_value, current_energy_bv)
 
-        # Allow a generous increase to avoid false positives after large rebirths/builds:
-        # - production_rate * 10,000,000 seconds
-        # - minimum 1B
-        max_by_rate = multiply_plain(total_production_per_sec_bv, 10_000_000)
-        min_increase_bv = from_plain(1_000_000_000)
+        production_is_zero = total_production_per_sec_bv.data <= 0 and total_production_per_sec_bv.high <= 0
+        is_first_energy_sync = current_energy_bv.data == 0 and current_energy_bv.high == 0
 
-        max_allowed_increase = _max_bv(max_by_rate, min_increase_bv)
+        if not production_is_zero and not is_first_energy_sync:
+            # Allow a generous increase to avoid false positives after large rebirths/builds:
+            # - production_rate * 10,000,000 seconds
+            # - minimum 1B
+            max_by_rate = multiply_plain(total_production_per_sec_bv, 10_000_000)
+            min_increase_bv = from_plain(1_000_000_000)
 
-        if compare(energy_delta_bv, max_allowed_increase) > 0:
-            raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
+            max_allowed_increase = _max_bv(max_by_rate, min_increase_bv)
+
+            if compare(energy_delta_bv, max_allowed_increase) > 0:
+                raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
 
         set_user_energy_value(user, energy_value)
         updated = True
