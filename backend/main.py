@@ -21,9 +21,9 @@ from backend.auth_utils import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 app = FastAPI()
 
-_deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.netlify.app").rstrip("/")
-# Allow preview/stage Netlify domains by default (overridable via FRONTEND_ORIGIN_REGEX)
-_default_origin_regex = r"^https://.*\\.netlify\\.app$"
+_deploy_frontend = os.getenv("DEPLOY_FRONTEND_URL", "https://energytycoon.pages.dev").rstrip("/")
+# Allow preview/stage Cloudflare Pages domains by default (overridable via FRONTEND_ORIGIN_REGEX)
+_default_origin_regex = r"^https://.*\\.pages\\.dev$"
 _local_origins = [
     _deploy_frontend,
 ]
