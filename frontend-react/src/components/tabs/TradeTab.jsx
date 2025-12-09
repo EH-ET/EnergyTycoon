@@ -21,7 +21,8 @@ export default function TradeTab() {
 
   useEffect(() => {
     loadRate();
-    const timer = setInterval(loadRate, 5000);
+    // 60초마다 환율 업데이트 (트래픽 92% 감소: 720 → 60 req/hour)
+    const timer = setInterval(loadRate, 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -40,7 +41,7 @@ export default function TradeTab() {
     const currentEnergyValue = getEnergyValue();
     const currentEnergyPlain = toPlainValue(currentEnergyValue);
     const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
-    
+
     if (exchangeAmountPlain <= 0) {
       setAlertMessage('교환할 에너지가 없습니다');
       return;
@@ -53,6 +54,9 @@ export default function TradeTab() {
 
     try {
       setIsLoading(true);
+
+      // 거래 직전에 최신 환율을 가져와서 표시 업데이트
+      await loadRate();
 
       // 교환 전 현재 에너지/돈을 백엔드에 즉시 동기화
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();

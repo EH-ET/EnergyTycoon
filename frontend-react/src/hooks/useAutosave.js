@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { autosaveProgress } from '../utils/apiClient';
 import { readStoredPlayTime } from '../utils/playTime';
@@ -8,6 +8,7 @@ export function useAutosave() {
   const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
   const toMoneyServerPayload = useStore(state => state.toMoneyServerPayload);
   const placedGenerators = useStore(state => state.placedGenerators);
+  const lastSavedRef = useRef(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -27,7 +28,7 @@ export function useAutosave() {
             running: g.running !== false,
           }));
 
-        await autosaveProgress({
+        const payload = {
           energy_data: energyPayload.data,
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,
@@ -35,7 +36,16 @@ export function useAutosave() {
           play_time_ms: Math.floor(playTimeMs || 0),
           supercoin: currentUser?.supercoin || 0,
           generators: generators.length > 0 ? generators : undefined,
-        });
+        };
+
+        // Skip if data hasn't changed (compare with last saved)
+        const payloadStr = JSON.stringify(payload);
+        if (lastSavedRef.current === payloadStr) {
+          return; // No changes, skip save
+        }
+
+        await autosaveProgress(payload);
+        lastSavedRef.current = payloadStr;
         useStore.getState().setSaveStatus('success');
       } catch (e) {
         console.error('Autosave failed:', e);
@@ -43,8 +53,8 @@ export function useAutosave() {
       }
     };
 
-    // 30초마다 자동 저장
-    const timer = setInterval(save, 30000);
+    // 2분마다 자동 저장 (트래픽 75% 감소)
+    const timer = setInterval(save, 120000);
 
     return () => clearInterval(timer);
   }, [currentUser, placedGenerators, toEnergyServerPayload, toMoneyServerPayload]);
