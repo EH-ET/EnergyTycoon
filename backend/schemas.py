@@ -77,6 +77,8 @@ class ProgressAutoSaveIn(BaseModel):
     energy_high: Optional[int] = None
     money_data: Optional[int] = None
     money_high: Optional[int] = None
+    production_data: Optional[int] = None
+    production_high: Optional[int] = None
     play_time_ms: Optional[int] = Field(default=None, ge=0)
     supercoin: Optional[int] = Field(default=None, ge=0)
     generators: Optional[List[GeneratorStateUpdate]] = None

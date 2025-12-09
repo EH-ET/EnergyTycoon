@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { autosaveProgress } from '../utils/apiClient';
 import { readStoredPlayTime } from '../utils/playTime';
+import { computeEnergyPerSecond } from './useEnergyTimer';
+import { normalizeValue } from '../utils/bigValue';
 
 export function useAutosave() {
   const currentUser = useStore(state => state.currentUser);
@@ -28,11 +30,17 @@ export function useAutosave() {
             running: g.running !== false,
           }));
 
+        // Compute total production per second on client for validation
+        const productionBV = computeEnergyPerSecond(placedGenerators, currentUser, 1);
+        const productionNormalized = normalizeValue(productionBV);
+
         const payload = {
           energy_data: energyPayload.data,
           energy_high: energyPayload.high,
           money_data: moneyPayload.data,
           money_high: moneyPayload.high,
+          production_data: productionNormalized.data,
+          production_high: productionNormalized.high,
           play_time_ms: Math.floor(playTimeMs || 0),
           supercoin: currentUser?.supercoin || 0,
           generators: generators.length > 0 ? generators : undefined,
