@@ -26,6 +26,9 @@ function getCookie(name) {
 const apiClient = axios.create({
   baseURL: API_BASE,
   withCredentials: true, // Send cookies with requests
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Request interceptor to add CSRF token
