@@ -2,7 +2,7 @@
 import { fromPlainValue } from "./bigValue.js";
 
 const DEPLOY_FRONTEND_URL = "https://energytycoon.pages.dev";
-const DEPLOY_BACKEND_URL = "https://energy-tycoon.onrender.com";
+const DEPLOY_BACKEND_URL = "https://energy-tycoon-backend-bx7iyzi5sq-du.a.run.app";
 
 function trimTrailingSlash(url) {
   if (!url) return url;

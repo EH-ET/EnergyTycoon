@@ -37,6 +37,10 @@ def normalize(value: Optional[BigValue]) -> BigValue:
       
   return BigValue(data * sign, high)
 
+# Backward compatibility alias used by some routes
+def normalize_value(value: Optional[BigValue]) -> BigValue:
+  return normalize(value)
+
 
 def from_plain(amount: int) -> BigValue:
   safe = max(0, int(amount or 0))
