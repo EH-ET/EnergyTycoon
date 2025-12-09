@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
@@ -14,6 +14,73 @@ export default function UpgradeTab() {
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
+
+  // Debounce를 위한 ref들
+  const upgradeDebounceTimer = useRef(null);
+  const pendingUpgrades = useRef([]);
+  const isSyncing = useRef(false);
+
+  // 컴포넌트 언마운트 시 남은 업그레이드 동기화
+  useEffect(() => {
+    return () => {
+      if (upgradeDebounceTimer.current) {
+        clearTimeout(upgradeDebounceTimer.current);
+        // 즉시 동기화
+        if (pendingUpgrades.current.length > 0) {
+          syncPendingUpgrades();
+        }
+      }
+    };
+  }, []);
+
+  // 대기 중인 업그레이드를 서버에 동기화
+  const syncPendingUpgrades = useCallback(async () => {
+    if (isSyncing.current || pendingUpgrades.current.length === 0) {
+      return;
+    }
+
+    isSyncing.current = true;
+    const upgradesToSync = [...pendingUpgrades.current];
+    pendingUpgrades.current = [];
+
+    try {
+      // 1. 먼저 현재 money/energy 상태를 autosave로 동기화
+      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
+      const energyPayload = toEnergyServerPayload();
+      const moneyPayload = toMoneyServerPayload();
+      const playTimeMs = readStoredPlayTime();
+
+      await autosaveProgress({
+        energy_data: energyPayload.data,
+        energy_high: energyPayload.high,
+        money_data: moneyPayload.data,
+        money_high: moneyPayload.high,
+        play_time_ms: playTimeMs,
+        supercoin: currentUser?.supercoin || 0,
+      });
+
+      // 2. 모든 대기 중인 업그레이드를 순차적으로 서버에 전송
+      for (const { upgrade, amount } of upgradesToSync) {
+        try {
+          const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), amount);
+          syncUserState(newUser);
+
+          // Tutorial 이벤트
+          if (currentUser?.tutorial === 8) {
+            dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
+          }
+        } catch (e) {
+          console.error('Upgrade sync failed:', upgrade.이름, e);
+          setAlertMessage(e.message || '업그레이드 실패');
+        }
+      }
+    } catch (e) {
+      console.error('Sync failed:', e);
+      setAlertMessage('동기화 실패');
+    } finally {
+      isSyncing.current = false;
+    }
+  }, [currentUser, syncUserState]);
 
   const getUpgradeBatchLimit = (user) => {
     const level = Number(user?.upgrade_batch_upgrade) || 0;
@@ -94,32 +161,18 @@ export default function UpgradeTab() {
       return;
     }
 
-    try {
-      // Save latest money/energy values before upgrade
-      const { toEnergyServerPayload, toMoneyServerPayload, placedGenerators } = useStore.getState();
-      const energyPayload = toEnergyServerPayload();
-      const moneyPayload = toMoneyServerPayload();
-      const playTimeMs = readStoredPlayTime();
+    // Debounce 처리: pending queue에 추가하고 타이머 설정
+    pendingUpgrades.current.push({ upgrade, amount: actualAmount });
 
-      await autosaveProgress({
-        energy_data: energyPayload.data,
-        energy_high: energyPayload.high,
-        money_data: moneyPayload.data,
-        money_high: moneyPayload.high,
-        play_time_ms: playTimeMs,
-        supercoin: currentUser?.supercoin || 0,
-      });
-
-      const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), actualAmount);
-      syncUserState(newUser);
-
-      // Tutorial: Detect upgrade purchase
-      if (currentUser?.tutorial === 8) {
-        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
-      }
-    } catch (e) {
-      setAlertMessage(e.message);
+    // 기존 타이머가 있으면 취소하고 새로 설정
+    if (upgradeDebounceTimer.current) {
+      clearTimeout(upgradeDebounceTimer.current);
     }
+
+    // 1초 후 서버 동기화 (연속 업그레이드 시 한 번만 동기화)
+    upgradeDebounceTimer.current = setTimeout(() => {
+      syncPendingUpgrades();
+    }, 1000);
   };
 
   if (!currentUser) {
