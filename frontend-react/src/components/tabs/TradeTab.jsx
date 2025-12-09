@@ -66,13 +66,12 @@ export default function TradeTab() {
       const playTimeMs = readStoredPlayTime();
 
       const saveResult = await autosaveProgress({
-        energy: currentEnergyPlain,
-        money: currentMoney,
         energy_data: energyPayload.data,
         energy_high: energyPayload.high,
         money_data: moneyPayload.data,
         money_high: moneyPayload.high,
         play_time_ms: playTimeMs,
+        supercoin: currentUser?.supercoin || 0
       });
 
       if (saveResult.user) {
