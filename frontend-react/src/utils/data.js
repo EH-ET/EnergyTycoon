@@ -30,9 +30,9 @@ export const API_BASE = (() => {
     const host = hostname || "127.0.0.1";
     return `http://${host}:8000`;
   }
-  // In production, use relative path /api which is proxied by Netlify
-  if (protocol === "http:" || protocol === "https:") return "/api";
-  return "http://127.0.0.1:8000";
+  // In production, use direct backend URL (not Netlify proxy)
+  // Cross-site cookies with SameSite=None; Secure
+  return DEPLOY_BACKEND_URL;
 })();
 
 const rawGenerators = [
