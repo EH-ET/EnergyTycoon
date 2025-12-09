@@ -23,7 +23,7 @@ steps:
 
   - id: "terraform-apply-cloud-run"
     name: "hashicorp/terraform:1.5.7"
-    entrypoint: "bash"
+    entrypoint: "sh"
     env:
       - "TF_LOG=ERROR"
       - "TF_VAR_image_tag=${SHORT_SHA}"
@@ -32,7 +32,7 @@ steps:
     args:
       - "-c"
       - |
-        set -euo pipefail
+        set -eu
         cd terraform
         export TF_VAR_image_url="$(cat /workspace/image_url.txt)"
         printf "%s" "$${TFVARS_CONTENT}" > terraform.auto.tfvars
