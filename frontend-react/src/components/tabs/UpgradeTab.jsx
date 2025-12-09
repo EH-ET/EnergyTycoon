@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
-import { getAuthToken } from '../../store/useStore';
 import { upgrades, rebirthUpgrades } from '../../utils/data';
 import { postUpgrade, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
@@ -62,7 +61,8 @@ export default function UpgradeTab() {
       // 2. 모든 대기 중인 업그레이드를 순차적으로 서버에 전송
       for (const { upgrade, amount } of upgradesToSync) {
         try {
-          const newUser = await postUpgrade(upgrade.endpoint, getAuthToken(), amount);
+          const safeAmount = Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1;
+          const newUser = await postUpgrade(upgrade.endpoint, safeAmount);
           syncUserState(newUser);
 
           // Tutorial 이벤트
@@ -148,7 +148,8 @@ export default function UpgradeTab() {
       return getMaxAffordableAmount(upgrade);
     })();
 
-    const actualAmount = Math.min(Math.max(1, targetAmount), batchLimit);
+    const rawAmount = Math.min(Math.max(1, targetAmount), batchLimit);
+    const actualAmount = Number.isFinite(rawAmount) && rawAmount > 0 ? Math.floor(rawAmount) : 1;
 
     const costValue = getUpgradeCostForAmount(currentUser, upgrade, actualAmount);
 
