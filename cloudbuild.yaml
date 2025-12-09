@@ -5,6 +5,8 @@ substitutions:
   _REPO_NAME: "energy-tycoon-backend-repo"
 options:
   substitution_option: ALLOW_LOOSE
+  # Use regional user-owned bucket to satisfy BYOSA service account requirement
+  default_logs_bucket_behavior: REGIONAL_USER_OWNED_BUCKET
 steps:
   - id: "build-and-push-image"
     name: "gcr.io/cloud-builders/docker"
