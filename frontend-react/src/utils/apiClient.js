@@ -210,7 +210,14 @@ export async function loadProgress(userId) {
 }
 
 export async function exchangeEnergy(userId, amount) {
-  const response = await apiClient.post('/exchange', { user_id: userId, amount });
+  // The 'amount' parameter is expected to be a BigValue object.
+  // The payload is structured to match what the backend's ExchangeIn schema requires.
+  const payload = {
+    user_id: userId,
+    amount_data: amount.data,
+    amount_high: amount.high,
+  };
+  const response = await apiClient.post('/change/energy2money', payload);
   return response.data;
 }
 
