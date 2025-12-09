@@ -31,7 +31,7 @@ export const API_BASE = (() => {
     return `http://${host}:8000`;
   }
   // In production, directly point to the backend server
-  return DEPLOY_BACKEND_URL;
+  return "/api";
 })();
 
 const rawGenerators = [
