@@ -90,6 +90,11 @@ terraform apply -var-file="terraform.tfvars" -var="image_tag=${IMAGE_TAG}"
 ```
 Terraform will update the Cloud Run service to the new image.
 
+If you already have the full image URI (for example, when a CI build step writes it to a file), you can override the composition entirely:
+```bash
+terraform apply -var-file="terraform.tfvars" -var="image_url=${FULL_IMAGE_URI}"
+```
+
 ## Redeploying later
 
 1) Choose a new `IMAGE_TAG`.

@@ -63,6 +63,12 @@ variable "image_tag" {
   default     = "latest"
 }
 
+variable "image_url" {
+  description = "Full image URI to deploy (overrides repo/name/tag composition when set)."
+  type        = string
+  default     = ""
+}
+
 variable "env_vars" {
   description = "Plain environment variables for the Cloud Run service."
   type        = map(string)
