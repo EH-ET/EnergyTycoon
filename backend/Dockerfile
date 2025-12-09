@@ -35,8 +35,8 @@ COPY --chown=appuser:appuser . .
 USER appuser
 
 # Expose port (Cloud Run uses PORT environment variable)
-EXPOSE ${PORT:-8000}
+EXPOSE 8080
 
 # Run the application
 # Cloud Run injects PORT env var, default to 8000 for local development
-CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn backend.main:app --host 0.0.0.0 --port $PORT
