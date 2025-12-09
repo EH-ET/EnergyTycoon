@@ -35,7 +35,7 @@ COPY --chown=appuser:appuser . .
 USER appuser
 
 # Expose port (Cloud Run uses PORT environment variable)
-EXPOSE 8000
+EXPOSE ${PORT:-8000}
 
 # Run the application
 # Cloud Run injects PORT env var, default to 8000 for local development
