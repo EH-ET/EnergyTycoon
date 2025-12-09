@@ -1,7 +1,7 @@
 // 공통 상수와 하드코딩된 기본 데이터
 import { fromPlainValue } from "./bigValue.js";
 
-const DEPLOY_FRONTEND_URL = "https://energytycoon.netlify.app";
+const DEPLOY_FRONTEND_URL = "https://energytycoon.pages.dev";
 const DEPLOY_BACKEND_URL = "https://energy-tycoon.onrender.com";
 
 function trimTrailingSlash(url) {
