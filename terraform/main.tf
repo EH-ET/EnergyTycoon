@@ -18,8 +18,9 @@ provider "google" {
 }
 
 locals {
-  container_image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}/${var.service_name}:${var.image_tag}"
-  secret_ids      = { for s in var.secret_env_vars : s.secret => s if s.secret != "" }
+  default_container_image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repo_name}/${var.service_name}:${var.image_tag}"
+  container_image         = var.image_url != "" ? var.image_url : local.default_container_image
+  secret_ids              = { for s in var.secret_env_vars : s.secret => s if s.secret != "" }
 }
 
 resource "google_project_service" "apis" {

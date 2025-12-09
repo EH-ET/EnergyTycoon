@@ -19,7 +19,7 @@ steps:
         echo "Building ${IMAGE}"
         docker build -t "${IMAGE}" .
         docker push "${IMAGE}"
-        echo "IMAGE=${IMAGE}"
+        echo "${IMAGE}" > /workspace/image_url.txt
 
   - id: "terraform-apply-cloud-run"
     name: "hashicorp/terraform:1.5.7"
@@ -34,6 +34,7 @@ steps:
       - |
         set -euo pipefail
         cd terraform
+        export TF_VAR_image_url="$(cat /workspace/image_url.txt)"
         printf "%s" "${TFVARS_CONTENT}" > terraform.auto.tfvars
         terraform init -input=false
         terraform apply -auto-approve
