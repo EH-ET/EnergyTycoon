@@ -6,6 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PORT=8080
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc postgresql-client && \
@@ -23,4 +24,4 @@ USER appuser
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
