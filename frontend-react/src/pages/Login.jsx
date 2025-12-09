@@ -20,7 +20,8 @@ function getCsrfToken() {
   const token = (crypto?.randomUUID?.() || `csrf_${Date.now()}`);
   const d = new Date();
   d.setTime(d.getTime() + 7 * 24 * 60 * 60 * 1000);
-  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+  // Cross-site requires SameSite=None; Secure
+  document.cookie = `${CSRF_COOKIE_NAME}=${token}; path=/; expires=${d.toUTCString()}; SameSite=None; Secure`;
   return token;
 }
 
@@ -105,7 +106,7 @@ export default function Login({ onLoginSuccess }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-Token": getCsrfToken()
+          "x-csrf-token": getCsrfToken()
         },
         credentials: "include",
         body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
@@ -156,7 +157,7 @@ export default function Login({ onLoginSuccess }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRF-Token": getCsrfToken()
+          "x-csrf-token": getCsrfToken()
         },
         credentials: "include",
         body: JSON.stringify({ username: cleanUsername, password: cleanPassword })
