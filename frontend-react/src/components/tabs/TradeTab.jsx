@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-import { getAuthToken } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
-import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
+import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
 import { readStoredPlayTime } from '../../utils/playTime';
 
@@ -21,7 +20,7 @@ export default function TradeTab() {
 
   useEffect(() => {
     loadRate();
-    // 60초마다 환율 업데이트 (트래픽 92% 감소: 720 → 60 req/hour)
+    // 60초마다 환율 업데이트
     const timer = setInterval(loadRate, 60000);
     return () => clearInterval(timer);
   }, []);
@@ -29,7 +28,7 @@ export default function TradeTab() {
   const loadRate = async () => {
     if (!currentUser) return;
     try {
-      const data = await fetchExchangeRate(getAuthToken());
+      const data = await fetchExchangeRate();
       setExchangeRate(data.rate);
     } catch (e) {
       // Silent fail
@@ -37,12 +36,14 @@ export default function TradeTab() {
   };
 
   const handleExchange = async () => {
-    // Calculate amount from percentage of current energy
     const currentEnergyValue = getEnergyValue();
-    const currentEnergyPlain = toPlainValue(currentEnergyValue);
-    const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
+    const percentageMultiplier = percentage / 100.0;
 
-    if (exchangeAmountPlain <= 0) {
+    // BigValue 연산을 사용하여 교환할 양 계산
+    const exchangeAmountBigValue = multiplyByFloat(currentEnergyValue, percentageMultiplier);
+    const zeroBigValue = { data: 0, high: 0 };
+
+    if (compareValues(exchangeAmountBigValue, zeroBigValue) <= 0) {
       setAlertMessage('교환할 에너지가 없습니다');
       return;
     }
@@ -54,15 +55,14 @@ export default function TradeTab() {
 
     try {
       setIsLoading(true);
-
-      // 거래 직전에 최신 환율을 가져와서 표시 업데이트
       await loadRate();
 
-      // 교환 전 현재 에너지/돈을 백엔드에 즉시 동기화
+      // 교환 전 상태 동기화 (autosave는 여전히 plain value 필요)
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
+      const currentEnergyPlain = toPlainValue(currentEnergyValue);
+      const currentMoney = toPlainValue(getMoneyValue());
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
-      const currentMoney = toPlainValue(getMoneyValue());
       const playTimeMs = readStoredPlayTime();
 
       const saveResult = await autosaveProgress({
@@ -75,41 +75,31 @@ export default function TradeTab() {
         play_time_ms: playTimeMs,
       });
 
-      // 저장 후 state 업데이트
       if (saveResult.user) {
         syncUserState(saveResult.user);
       }
 
-      const beforeMoney = toPlainValue(getMoneyValue());
-      const data = await exchangeEnergy(
-        getAuthToken(),
-        currentUser.user_id,
-        exchangeAmountPlain,
-        currentEnergyPlain
-      );
+      const beforeMoney = getMoneyValue();
+      const data = await exchangeEnergy(currentUser.user_id, exchangeAmountBigValue);
 
       if (data.user) {
         syncUserState(data.user);
       }
 
-      const gained = toPlainValue(getMoneyValue()) - beforeMoney;
+      const afterMoney = getMoneyValue();
+      const gainedBigValue = subtractValues(afterMoney, beforeMoney);
+      
       setExchangeRate(data.rate || exchangeRate);
 
       const rateText = data.rate ? ` (rate ${data.rate.toFixed(2)})` : '';
-      setMessage(`성공: ${formatResourceValue(fromPlainValue(exchangeAmountPlain))} 에너지 → ${formatResourceValue(fromPlainValue(gained))} 돈${rateText}`);
+      setMessage(`성공: ${formatResourceValue(exchangeAmountBigValue)} 에너지 → ${formatResourceValue(gainedBigValue)} 돈${rateText}`);
     } catch (e) {
-      // Safely handle error objects
       let errorMsg = '교환 실패';
       if (e instanceof Error) {
-        errorMsg = e.message || errorMsg;
+        const detail = e.response?.data?.detail;
+        errorMsg = detail || e.message || errorMsg;
       } else if (typeof e === 'string') {
         errorMsg = e;
-      } else if (e && typeof e === 'object') {
-        try {
-          errorMsg = e.detail || e.message || JSON.stringify(e);
-        } catch {
-          errorMsg = '교환 실패 (에러 정보 확인 불가)';
-        }
       }
       console.error('Exchange error:', e);
       setAlertMessage(errorMsg);
@@ -118,81 +108,42 @@ export default function TradeTab() {
     }
   };
 
-  const formatPlain = (plain) => formatResourceValue(fromPlainValue(Math.max(0, Number(plain) || 0)));
+  const calculateProgressiveExchange = (amountBV) => {
+    const zeroBV = { data: 0, high: 0 };
+    if (compareValues(amountBV, zeroBV) <= 0 || !currentUser) {
+      return zeroBV;
+    }
 
-  // Calculate progressive exchange rate (matches backend logic)
-  const calculateProgressiveExchange = (amount) => {
-    if (amount <= 0 || !currentUser) return 0;
-
-    // 1. Calculate base numerator (rebirth + exchange_rate_multiplier)
+    const amount = toPlainValue(amountBV);
     let baseNumerator = 1.0;
     const rebirthCount = currentUser.rebirth_count || 0;
     const exchangeMultLevel = currentUser.exchange_rate_multiplier || 0;
 
-    if (rebirthCount > 0) {
-      baseNumerator *= Math.pow(2, rebirthCount);
-    }
-    if (exchangeMultLevel > 0) {
-      baseNumerator *= Math.pow(2, exchangeMultLevel);
-    }
+    if (rebirthCount > 0) baseNumerator *= Math.pow(2, rebirthCount);
+    if (exchangeMultLevel > 0) baseNumerator *= Math.pow(2, exchangeMultLevel);
 
-    // 2. Market bonus factor (demand_bonus)
     const demandVal = currentUser.demand_bonus || 0;
     const marketBonusFactor = 1.0 / (1.0 + demandVal * 0.05);
 
-    // 3. Calculate midpoint for progressive rate
-    // Midpoint = CurrentSold + Amount / 2
-    const soldEnergyBV = fromPlainValue(0);
-    soldEnergyBV.data = currentUser.sold_energy_data || 0;
-    soldEnergyBV.high = currentUser.sold_energy_high || 0;
+    const soldEnergyBV = { data: currentUser.sold_energy_data || 0, high: currentUser.sold_energy_high || 0 };
     const soldEnergyPlain = toPlainValue(soldEnergyBV);
     const midpoint = soldEnergyPlain + amount / 2;
 
-    // 4. Calculate log3(midpoint)
-    const LOG3_10 = 2.09590327429;
-    let logMid = 0;
-    if (midpoint > 0) {
-      logMid = Math.log(midpoint) / Math.log(3);
-    }
-    if (logMid < 0) logMid = 0;
-
-    // 5. Growth = 1 + 0.05 * floor(log3(midpoint))
-    const growth = 1.0 + Math.floor(logMid) * 0.05;
-
-    // 6. Average rate
+    const logMid = midpoint > 0 ? Math.log(midpoint) / Math.log(3) : 0;
+    const growth = 1.0 + Math.floor(Math.max(0, logMid)) * 0.05;
     const avgRate = Math.max(0.0000001, baseNumerator / (growth * marketBonusFactor));
-
-    // 7. Total money = amount * avgRate
-    return Math.floor(amount * avgRate);
+    
+    return fromPlainValue(Math.floor(amount * avgRate));
   };
 
-  // Calculate amount from percentage
   const currentEnergyValue = getEnergyValue();
-  const currentEnergyPlain = toPlainValue(currentEnergyValue);
-  const exchangeAmountPlain = Math.floor((currentEnergyPlain * percentage) / 100);
+  const percentageMultiplier = percentage / 100.0;
+  const exchangeAmountBigValue = multiplyByFloat(currentEnergyValue, percentageMultiplier);
+  const expectedGainBigValue = calculateProgressiveExchange(exchangeAmountBigValue);
 
-  const expectedGain = calculateProgressiveExchange(exchangeAmountPlain);
+  const canTrade = Boolean(currentUser) && compareValues(exchangeAmountBigValue, {data: 0, high: 0}) > 0 && compareValues(expectedGainBigValue, {data: 0, high: 0}) >= 0;
 
-  const canTrade = Boolean(currentUser) && exchangeAmountPlain > 0 && expectedGain >= 1;
-
-  const rateText = typeof exchangeRate === 'number'
-    ? formatResourceValue(fromPlainValue(exchangeRate))
-    : '-';
-
-  const meterFill = useMemo(() => {
-    const normalized = Math.max(0, Math.min(1, (exchangeRate || 0) / 100));
-    return `${normalized * 100}%`;
-  }, [exchangeRate]);
-
-  const chartPoints = useMemo(() => {
-    const rate = typeof exchangeRate === 'number' ? exchangeRate : 50;
-    const demandY = 170 - Math.min(140, rate * 1.4);
-    const supplyY = 30 + Math.min(140, rate * 0.8);
-    return {
-      demand: `40,${demandY} 120,${demandY + 40} 220,190`,
-      supply: `40,150 120,${supplyY} 220,30`,
-    };
-  }, [exchangeRate]);
+  const rateText = typeof exchangeRate === 'number' ? formatResourceValue(fromPlainValue(exchangeRate)) : '-';
 
   return (
     <div style={{
@@ -217,17 +168,10 @@ export default function TradeTab() {
       }}>
         {/* Left Column: Controls */}
         <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* 타이틀 */}
           <div style={{ fontSize: '14px', color: '#9ba4b5', fontWeight: 600 }}>교환</div>
           
-          {/* Range Input */}
           <div>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: '8px'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '12px', color: '#7c8aa6' }}>보유 에너지의</span>
               <span style={{ fontSize: '16px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
             </div>
@@ -249,7 +193,6 @@ export default function TradeTab() {
             />
           </div>
 
-          {/* 교환 버튼 */}
           <button
             type="button"
             onClick={handleExchange}
@@ -278,38 +221,18 @@ export default function TradeTab() {
 
         {/* Right Column: Info */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* 현재 환율 */}
-          <div style={{ 
-            flex: 1,
-            padding: '12px',
-            background: '#0d1117',
-            borderRadius: '8px',
-            border: '1px solid #1f2a3d',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center'
-          }}>
+          <div style={{ flex: 1, padding: '12px', background: '#0d1117', borderRadius: '8px', border: '1px solid #1f2a3d', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>현재 환율</div>
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#fbbf24' }}>
               1 에너지 → {rateText} 돈
             </div>
           </div>
 
-          {/* 예상 교환 */}
-          <div style={{ 
-            flex: 1,
-            padding: '12px',
-            background: '#0d1117',
-            borderRadius: '8px',
-            border: '1px solid #1f2a3d',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center'
-          }}>
+          <div style={{ flex: 1, padding: '12px', background: '#0d1117', borderRadius: '8px', border: '1px solid #1f2a3d', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <div style={{ fontSize: '11px', color: '#7c8aa6', marginBottom: '4px' }}>예상 교환</div>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#e8edf5', lineHeight: '1.4' }}>
-              {formatPlain(exchangeAmountPlain)} 에너지<br/>
-              → {formatPlain(expectedGain)} 돈
+              {formatResourceValue(exchangeAmountBigValue)} 에너지<br/>
+              → {formatResourceValue(expectedGainBigValue)} 돈
             </div>
           </div>
         </div>
