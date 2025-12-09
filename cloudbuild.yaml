@@ -15,11 +15,11 @@ steps:
       - "-c"
       - |
         set -euo pipefail
-        IMAGE="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${SHORT_SHA}"
-        echo "Building $IMAGE"
-        docker build -t "$IMAGE" .
-        docker push "$IMAGE"
-        echo "$IMAGE" > /workspace/image_url.txt
+        image_uri="${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO_NAME}/${_SERVICE_NAME}:${SHORT_SHA}"
+        echo "Building ${image_uri}"
+        docker build -t "${image_uri}" .
+        docker push "${image_uri}"
+        echo "${image_uri}" > /workspace/image_url.txt
 
   - id: "terraform-apply-cloud-run"
     name: "hashicorp/terraform:1.5.7"
