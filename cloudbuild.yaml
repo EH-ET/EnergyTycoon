@@ -35,7 +35,7 @@ steps:
         set -euo pipefail
         cd terraform
         export TF_VAR_image_url="$(cat /workspace/image_url.txt)"
-        printf "%s" "${TFVARS_CONTENT}" > terraform.auto.tfvars
+        printf "%s" "$${TFVARS_CONTENT}" > terraform.auto.tfvars
         terraform init -input=false
         terraform apply -auto-approve
 
