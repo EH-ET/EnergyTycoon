@@ -66,7 +66,8 @@ apiClient.interceptors.response.use(
     if (newCsrfToken) {
         const d = new Date();
         d.setTime(d.getTime() + (365 * 24 * 60 * 60 * 1000)); // 1 year
-        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=Lax`;
+        // Cross-site requires SameSite=None; Secure
+        document.cookie = `${CSRF_COOKIE_NAME}=${newCsrfToken}; path=/; expires=${d.toUTCString()}; SameSite=None; Secure`;
     }
     return response;
   },
@@ -75,11 +76,16 @@ apiClient.interceptors.response.use(
 
     // Check if it's a 401 error and not a retry request
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Avoid refresh loops for login/refresh endpoints
-      if (originalRequest.url.includes('/login') || originalRequest.url.includes('/refresh/access')) {
+      console.log('401 error detected:', originalRequest.url);
+
+      // Avoid refresh loops for login/signup/refresh endpoints
+      const bypassUrls = ['/login', '/signup', '/register', '/refresh/access', '/refresh/refresh'];
+      if (bypassUrls.some(url => originalRequest.url.includes(url))) {
+        console.log('401 from auth endpoint, not attempting refresh');
         return Promise.reject(error);
       }
-    
+
+      // If we're already refreshing, wait for that to complete
       if (isRefreshing) {
         return new Promise(function(resolve, reject) {
           failedQueue.push({ resolve, reject });
@@ -96,15 +102,26 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        console.log('Attempting to refresh access token...');
         await refreshAccessToken();
+        console.log('Access token refreshed successfully');
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
         processQueue(refreshError);
         handleLogout(); // Logout user if refresh fails
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
+      }
+    }
+
+    // Handle 403 Forbidden - CSRF token issues
+    if (error.response?.status === 403) {
+      const detail = error.response?.data?.detail || '';
+      if (detail.toLowerCase().includes('csrf')) {
+        console.error('CSRF token error:', detail);
       }
     }
 
