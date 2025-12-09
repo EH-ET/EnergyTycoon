@@ -38,7 +38,7 @@ export default function InfoTab() {
 
     const loadRank = async () => {
       try {
-        const data = await fetchMyRank(getAuthToken(), rankCriteria);
+        const data = await fetchMyRank(rankCriteria);
         setMyRank(data);
       } catch (e) {
         console.error('rank load failed', e);
@@ -47,7 +47,7 @@ export default function InfoTab() {
 
     const loadLeaderboard = async () => {
       try {
-        const data = await fetchRanks(getAuthToken(), { limit: 100, offset: 0, criteria: rankCriteria });
+        const data = await fetchRanks({ limit: 100, offset: 0, criteria: rankCriteria });
         let ranks = data.ranks || [];
 
         if (rankCriteria === 'money' || rankCriteria === 'energy') {

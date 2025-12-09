@@ -11,12 +11,7 @@ export function useRankUpdate() {
 
     const updateRank = async () => {
       try {
-        const token = getAuthToken();
-        if (!token) {
-          return;
-        }
-
-        const data = await fetchMyRank(token);
+        const data = await fetchMyRank('money');
         const nextUser = {
           ...currentUser,
           rank: data.rank,
