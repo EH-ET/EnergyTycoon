@@ -12,10 +12,7 @@ from ..bigvalue import (
     set_user_money_value,
     get_user_energy_value,
     set_user_energy_value,
-    compare_plain,
-    subtract_plain,
     from_payload,
-    to_plain,
     from_plain,
     to_payload,
     BigValue,
@@ -25,12 +22,10 @@ from ..bigvalue import (
     multiply_plain,
     multiply_by_float,
     add_values,
-    add_plain,
     _max_bv,
 )
 from ..init_db import get_build_time_by_name
 from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
-import os
 
 router = APIRouter()
 
@@ -461,21 +456,18 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
         if total_production_per_sec_bv is None:
             total_production_per_sec_bv = _calculate_total_energy_production(user, db)
 
-        # Check for suspicious increases based on production rate * 1,000,000 seconds (allow idle play)
         current_energy_bv = get_user_energy_value(user)
+        energy_delta_bv = subtract_values(energy_value, current_energy_bv)
 
         # Allow a generous increase to avoid false positives after large rebirths/builds:
         # - production_rate * 10,000,000 seconds
-        # - current_energy * 100
         # - minimum 1B
         max_by_rate = multiply_plain(total_production_per_sec_bv, 10_000_000)
-        headroom_current = multiply_plain(current_energy_bv, 100)
         min_increase_bv = from_plain(1_000_000_000)
 
-        max_increase_bv = _max_bv(_max_bv(max_by_rate, headroom_current), min_increase_bv)
-        max_allowed_energy = add_values(current_energy_bv, max_increase_bv)
+        max_allowed_increase = _max_bv(max_by_rate, min_increase_bv)
 
-        if compare(energy_value, max_allowed_energy) > 0:
+        if compare(energy_delta_bv, max_allowed_increase) > 0:
             raise HTTPException(status_code=400, detail="Energy increase is suspiciously large")
 
         set_user_energy_value(user, energy_value)
