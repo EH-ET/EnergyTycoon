@@ -252,7 +252,7 @@ export async function upgradeDemand(amount = 1) {
 }
 
 export async function postUpgrade(endpoint, amount = 1) {
-    const response = await apiClient.post(endpoint, { amount });
+    const response = await apiClient.post(`/upgrade/${endpoint}`, { amount });
     return response.data;
 }
 
