@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, valueToServer, compareValues } from '../utils/bigValue.js';
+import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, valueToServer, compareValues, subtractPlainValue } from '../utils/bigValue.js';
 
 const STORAGE_KEYS = {
   user: "et_u",
@@ -145,6 +145,14 @@ export const useStore = create((set, get) => ({
     user.money_data = normalized.data;
     user.money_high = normalized.high;
     set({ currentUser: { ...user } });
+  },
+
+  subtractFromMoney: (plainAmount) => {
+    const user = get().currentUser;
+    if (!user) return;
+    const currentMoney = get().getMoneyValue();
+    const newMoney = subtractPlainValue(currentMoney, plainAmount);
+    get().setMoneyValue(newMoney);
   },
 
   setEnergyValue: (value) => {

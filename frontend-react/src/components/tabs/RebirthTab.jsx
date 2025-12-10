@@ -1,53 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { fetchRebirthInfo, performRebirth, autosaveProgress } from '../../utils/apiClient';
+import { performRebirth, autosaveProgress } from '../../utils/apiClient';
 import { getAuthToken } from '../../store/useStore';
-import { valueFromServer, toPlainValue} from '../../utils/bigValue';
+import { fromPlainValue, multiplyByPlain, formatResourceValue, compareValues, powerOfPlain } from '../../utils/bigValue';
 import { readStoredPlayTime } from '../../utils/playTime';
 import './RebirthTab.css';
+
+// 환생 공식 상수
+const BASE_REBIRTH_COST = 15_000_000; // 15M
+
+// 환생 비용 계산: 15M × 8^n (BigValue)
+function calculateRebirthCost(rebirthCount) {
+  const baseCost = fromPlainValue(BASE_REBIRTH_COST);
+  const multiplier = powerOfPlain(8, rebirthCount);
+  return multiplyByPlain(baseCost, Math.round(multiplier.data / 1000)); // BigValue 곱셈
+}
+
+// 환생 배수 계산: 2^n
+function calculateRebirthMultiplier(rebirthCount) {
+  return Math.pow(2, rebirthCount);
+}
+
+// 환생 시작 자금 계산: 10 × 10^level (BigValue)
+function calculateRebirthStartMoney(level) {
+  const base = fromPlainValue(10);
+  const multiplier = powerOfPlain(10, level);
+  return multiplyByPlain(base, Math.round(multiplier.data / 1000)); // BigValue 곱셈
+}
 
 export default function RebirthTab() {
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
-  
-  const [rebirthInfo, setRebirthInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const getMoneyValue = useStore(state => state.getMoneyValue);
+  const setSaveStatus = useStore(state => state.setSaveStatus);
+
   const [performing, setPerforming] = useState(false);
 
-  useEffect(() => {
-    loadRebirthInfo();
-  }, []);
+  if (!currentUser) {
+    return <div className="rebirth-tab">로그인이 필요합니다</div>;
+  }
 
-  const loadRebirthInfo = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const token = getAuthToken();
-      const data = await fetchRebirthInfo(token);
-      setRebirthInfo(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 프론트엔드에서 환생 정보 계산
+  const rebirthCount = currentUser.rebirth_count || 0;
+  const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
+  const rebirthStartMoneyLevel = currentUser.rebirth_start_money_upgrade || 0;
+
+  const nextCost = calculateRebirthCost(rebirthCount);
+  const chainCost = calculateRebirthCost(rebirthCount + maxChain - 1);
+  const currentMultiplier = calculateRebirthMultiplier(rebirthCount);
+  const nextMultiplier = calculateRebirthMultiplier(rebirthCount + 1);
+  const startMoney = calculateRebirthStartMoney(rebirthStartMoneyLevel);
+
+  const moneyValue = getMoneyValue();
+  const canAfford = compareValues(moneyValue, nextCost) >= 0;
 
   const handleRebirth = async () => {
-    if (!rebirthInfo) return;
-
-    const costValue = valueFromServer(
-      rebirthInfo.next_cost_data,
-      rebirthInfo.next_cost_high,
-      null
-    );
-    const costPlain = toPlainValue(costValue);
+    if (!canAfford) {
+      alert('돈이 부족합니다.');
+      return;
+    }
 
     const confirmMessage =
       `환생하시겠습니까?\n\n` +
-      `비용: ${costPlain.toLocaleString()} 돈\n` +
-      `새 배율: ${rebirthInfo.next_multiplier}x\n\n` +
+      `비용: ${formatResourceValue(nextCost)}\n` +
+      `새 배율: ${nextMultiplier}x\n\n` +
       `⚠️ 모든 발전기와 업그레이드가 초기화됩니다!`;
 
     if (!confirm(confirmMessage)) {
@@ -57,7 +74,7 @@ export default function RebirthTab() {
     try {
       setPerforming(true);
 
-      // Save latest money/energy values before rebirth
+      // 환생 전 즉시 저장
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
@@ -72,86 +89,69 @@ export default function RebirthTab() {
         supercoin: currentUser?.supercoin || 0,
       });
 
+      setSaveStatus('success'); // 저장 성공 알림
+
+      // 환생 수행
       const token = getAuthToken();
       const result = await performRebirth(token);
 
-      // Update user and clear generators
+      // 사용자 상태 업데이트 및 발전기 초기화
       if (result.user) {
         syncUserState(result.user);
       }
       setPlacedGenerators([]);
 
-      // Reload rebirth info
-      await loadRebirthInfo();
+      setSaveStatus('success'); // 환생 후 저장 성공 알림
 
       alert(result.message || '환생 성공!');
     } catch (err) {
+      setSaveStatus('error'); // 저장 실패 알림
       alert(err.message || '환생에 실패했습니다');
     } finally {
       setPerforming(false);
     }
   };
 
-  if (loading) {
-    return <div className="rebirth-tab">로딩 중...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="rebirth-tab">
-        <p className="error">오류: {error}</p>
-        <button onClick={loadRebirthInfo}>다시 시도</button>
-      </div>
-    );
-  }
-
-  if (!rebirthInfo) {
-    return <div className="rebirth-tab">데이터를 불러올 수 없습니다</div>;
-  }
-
-  const costValue = valueFromServer(
-    rebirthInfo.next_cost_data,
-    rebirthInfo.next_cost_high,
-    null
-  );
-  const costPlain = toPlainValue(costValue);
-  
-  const moneyValue = currentUser?.money_value || 
-    valueFromServer(currentUser?.money_data, currentUser?.money_high, currentUser?.money);
-  const moneyPlain = toPlainValue(moneyValue);
-  
-  const canAfford = moneyPlain >= costPlain;
-
   return (
     <div className="rebirth-tab">
       <h2>🌟 환생 (Rebirth)</h2>
-      
+
       <div className="rebirth-info">
         <div className="info-row">
           <span className="label">현재 환생 횟수:</span>
-          <span className="value">{rebirthInfo.rebirth_count}</span>
+          <span className="value">{rebirthCount}</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">현재 배율:</span>
-          <span className="value multiplier">{rebirthInfo.current_multiplier}x</span>
+          <span className="value multiplier">{currentMultiplier}x</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">다음 환생 비용:</span>
           <span className={`value ${canAfford ? 'can-afford' : 'cannot-afford'}`}>
-            {costPlain.toLocaleString()} 돈
+            {formatResourceValue(nextCost)}
           </span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">다음 배율:</span>
-          <span className="value multiplier">{rebirthInfo.next_multiplier}x</span>
+          <span className="value multiplier">{nextMultiplier}x</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">현재 돈:</span>
-          <span className="value">{moneyPlain.toLocaleString()}</span>
+          <span className="value">{formatResourceValue(moneyValue)}</span>
+        </div>
+
+        <div className="info-row">
+          <span className="label">환생 시작 자금:</span>
+          <span className="value">{formatResourceValue(startMoney)}</span>
+        </div>
+
+        <div className="info-row">
+          <span className="label">연속 환생 한도:</span>
+          <span className="value">{maxChain}회</span>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export default function RebirthTab() {
         </ul>
       </div>
 
-      <button 
+      <button
         className="rebirth-button"
         onClick={handleRebirth}
         disabled={!canAfford || performing}

@@ -70,9 +70,19 @@ export default function InfoTab() {
       }
     };
 
-    loadRank();
-    loadLeaderboard();
-  }, [currentUser, rankCriteria]);
+    const loadAllRankingData = () => {
+      loadRank();
+      loadLeaderboard();
+    };
+
+    // 초기 로드
+    loadAllRankingData();
+
+    // 5분마다 랭킹 정보 갱신
+    const intervalId = setInterval(loadAllRankingData, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser?.user_id, rankCriteria]);
 
   if (!currentUser) {
     return (
