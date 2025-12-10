@@ -390,11 +390,12 @@ export default function Main() {
                   style={{
                     position: 'absolute',
                     left: `${screenX}px`,
-                    bottom: '15%',
-                    transform: 'translate(-50%, -90%)',
+                    bottom: '0%',
+                    transform: 'translate(-50%, -100%)',
                     pointerEvents: 'auto',
                     cursor: 'pointer',
-                    textAlign: 'center'
+                    textAlign: 'center',
+                    marginBottom: '30px'
                   }}
                   >
                     {/* Tooltip */}
