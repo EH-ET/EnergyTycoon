@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { performRebirth, autosaveProgress } from '../../utils/apiClient';
-import { getAuthToken } from '../../store/useStore';
 import { fromPlainValue, multiplyByPlain, formatResourceValue, compareValues, powerOfPlain } from '../../utils/bigValue';
 import { readStoredPlayTime } from '../../utils/playTime';
 import './RebirthTab.css';
@@ -91,9 +90,8 @@ export default function RebirthTab() {
 
       setSaveStatus('success'); // 저장 성공 알림
 
-      // 환생 수행
-      const token = getAuthToken();
-      const result = await performRebirth(token);
+      // 환생 수행 (1회)
+      const result = await performRebirth(1);
 
       // 사용자 상태 업데이트 및 발전기 초기화
       if (result.user) {

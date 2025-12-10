@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { upgrades, rebirthUpgrades } from '../../utils/data';
-import { postUpgrade, autosaveProgress } from '../../utils/apiClient';
+import { postBulkUpgrades, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import { readStoredPlayTime } from '../../utils/playTime';
@@ -63,25 +63,25 @@ export default function UpgradeTab() {
         supercoin: currentUser?.supercoin || 0,
       });
 
-      // 2. 모든 대기 중인 업그레이드를 순차적으로 서버에 전송
-      for (const { upgrade, amount } of upgradesToSync) {
-        try {
-          const safeAmount = Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1;
-          const newUser = await postUpgrade(upgrade.endpoint, safeAmount);
-          syncUserState(newUser);
+      // 2. 모든 대기 중인 업그레이드를 한 번의 API 요청으로 전송
+      const upgradesPayload = upgradesToSync.map(({ upgrade, amount }) => ({
+        endpoint: upgrade.endpoint,
+        amount: Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1
+      }));
 
-          // Tutorial 이벤트
-          if (currentUser?.tutorial === 8) {
-            dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
-          }
-        } catch (e) {
-          console.error('Upgrade sync failed:', upgrade.이름, e);
-          setAlertMessage(e.message || '업그레이드 실패');
-        }
+      const result = await postBulkUpgrades(upgradesPayload);
+
+      if (result.user) {
+        syncUserState(result.user);
+      }
+
+      // Tutorial 이벤트
+      if (currentUser?.tutorial === 8) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
       }
     } catch (e) {
       console.error('Sync failed:', e);
-      setAlertMessage('동기화 실패');
+      setAlertMessage(e.message || '업그레이드 동기화 실패');
     } finally {
       isSyncing.current = false;
     }

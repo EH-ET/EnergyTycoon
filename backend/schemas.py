@@ -61,6 +61,15 @@ class UpgradeRequest(BaseModel):
     energy: Optional[int] = Field(default=None, ge=0)
 
 
+class BulkUpgradeItem(BaseModel):
+    endpoint: str
+    amount: int = Field(1, ge=1)
+
+
+class BulkUpgradeRequest(BaseModel):
+    upgrades: list[BulkUpgradeItem]
+
+
 class RebirthRequest(BaseModel):
     count: int = Field(1, ge=1)
 

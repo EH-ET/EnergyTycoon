@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
 import { formatResourceValue, fromPlainValue, compareValues, valueFromServer } from '../../utils/bigValue';
 import { fetchRanks } from '../../utils/apiClient';
@@ -12,6 +12,7 @@ export default function InfoTab() {
   const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
   const [myRank, setMyRank] = useState(null);
   const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
+  const lastFetchTimeRef = useRef(0); // 마지막 API 호출 시간
 
   useEffect(() => {
     if (!currentUser) return;
@@ -71,6 +72,16 @@ export default function InfoTab() {
     };
 
     const loadAllRankingData = () => {
+      const now = Date.now();
+      const timeSinceLastFetch = now - lastFetchTimeRef.current;
+      const FIVE_MINUTES = 5 * 60 * 1000;
+
+      // 5분이 지나지 않았으면 API 호출하지 않음
+      if (timeSinceLastFetch < FIVE_MINUTES && lastFetchTimeRef.current > 0) {
+        return;
+      }
+
+      lastFetchTimeRef.current = now;
       loadRank();
       loadLeaderboard();
     };

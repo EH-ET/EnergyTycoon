@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore, getAuthToken } from '../store/useStore';
+import { useStore } from '../store/useStore';
 import { generators } from '../utils/data';
 import { saveProgress } from '../utils/apiClient';
 import { makeImageSrcByIndex, computeMaxGenerators } from '../utils/generatorHelpers';
@@ -127,14 +127,11 @@ export default function Main() {
     }
 
     try {
-      const token = getAuthToken();
       const res = await saveProgress(
         currentUser.user_id,
         genTypeId,
         worldX,
-        0,
-        token,
-        currentUser.energy
+        0
       );
 
       if (res.user) {
