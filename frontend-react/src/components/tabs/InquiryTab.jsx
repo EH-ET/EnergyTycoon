@@ -101,7 +101,7 @@ export default function InquiryTab() {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', paddingBottom: '0px' }}>
             {message && (
               <span className={`inquiry-message ${message.type}`} style={{ fontSize: '14px', color: message.type === 'success' ? '#4ade80' : '#f87171' }}>
                 {message.text}
