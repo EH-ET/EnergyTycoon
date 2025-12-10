@@ -95,7 +95,8 @@ export default function InquiryTab() {
                 resize: 'none',
                 fontSize: '14px',
                 lineHeight: '1.5',
-                minHeight: '200px'
+                minHeight: '200px',
+                overflowY: 'auto'
               }}
             />
           </div>
