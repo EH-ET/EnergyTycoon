@@ -229,7 +229,7 @@ def calculate_rebirth_upgrade_cost(user: User, key: str, amount: int = 1) -> int
     return int(total_cost)
 
 
-def apply_upgrade(user: User, db: Session, key: str, amount: int) -> User:
+def apply_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
     meta = get_upgrade_meta(key)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Increase amount must be at least 1")
@@ -242,12 +242,15 @@ def apply_upgrade(user: User, db: Session, key: str, amount: int) -> User:
         raise HTTPException(status_code=400, detail="Not enough money")
     set_user_money_value(user, subtract_plain(money_value, cost))
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
-    db.commit()
-    db.refresh(user)
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
     return user
 
 
-def apply_rebirth_upgrade(user: User, db: Session, key: str, amount: int) -> User:
+def apply_rebirth_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
     meta = get_rebirth_upgrade_meta(key)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Increase amount must be at least 1")
@@ -257,6 +260,9 @@ def apply_rebirth_upgrade(user: User, db: Session, key: str, amount: int) -> Use
         raise HTTPException(status_code=400, detail="환생이 부족합니다.")
     setattr(user, "rebirth_count", rebirths - cost)
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
-    db.commit()
-    db.refresh(user)
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
     return user
