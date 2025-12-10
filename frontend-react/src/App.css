@@ -4,6 +4,7 @@ html, body {
   margin: 0;
   overflow-x: hidden;
   position: relative;
+  overflow-y: hidden;
 }
 
 #root {
@@ -15,8 +16,7 @@ html, body {
 
 main {
   flex: 1;
-  height: 65vh;
-  min-height: 55vh;
+  min-height: 0;
   background: #f5f5f5; /* 드롭 영역 시각적 표시 */
 }
 
@@ -270,23 +270,9 @@ main {
   font-weight: 700;
 }
 
-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transform: translateY(calc(100% - 70px));
-  transition: transform 0.3s ease-in-out;
-  z-index: 10;
-}
-
-footer:hover {
-  transform: translateY(0);
-}
-
 .build-bar {
   width: 100%;
-  min-height: 32vh;
+  height: clamp(250px, 30vh, 300px);
   display: flex;
   gap: 12px;
   align-items: stretch;
@@ -295,7 +281,6 @@ footer:hover {
   border-top: 2px solid #000000;
   position: relative;
   z-index: 5;
-  transition: height 0.35s ease;
   padding: 10px 12px;
   box-sizing: border-box;
 }
@@ -382,7 +367,7 @@ footer:hover {
   font-family: "Istok Web-Bold", Helvetica;
   font-weight: 700;
   color: #ffffff;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   letter-spacing: 0;
   line-height: normal;
   background-color: #141414;
