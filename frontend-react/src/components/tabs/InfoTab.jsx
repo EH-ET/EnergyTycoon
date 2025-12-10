@@ -8,11 +8,26 @@ import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVEN
 export default function InfoTab() {
   const currentUser = useStore(state => state.currentUser);
   const [playTime, setPlayTime] = useState(0);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
-  const [myRank, setMyRank] = useState(null);
   const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
+  const [, forceRender] = useState(0); // force re-render when cache updates
   const lastFetchTimeRef = useRef({}); // 기준별 마지막 API 호출 시간 { money: timestamp, energy: timestamp, ... }
+  const leaderboardCacheRef = useRef({}); // 기준별 랭킹 캐시 { money: [], energy: [], ... }
+  const myRankCacheRef = useRef({}); // 기준별 내 랭킹 캐시 { money: {...}, energy: {...}, ... }
+  const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
+
+  // 현재 기준의 캐시된 데이터
+  const leaderboard = leaderboardCacheRef.current[rankCriteria] || [];
+  const myRank = myRankCacheRef.current[rankCriteria] || null;
+
+  const setMyRankCache = (criteria, value) => {
+    myRankCacheRef.current = { ...myRankCacheRef.current, [criteria]: value };
+    forceRender(v => v + 1);
+  };
+
+  const setLeaderboardCache = (criteria, value) => {
+    leaderboardCacheRef.current = { ...leaderboardCacheRef.current, [criteria]: value };
+    forceRender(v => v + 1);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -40,7 +55,7 @@ export default function InfoTab() {
     const loadRank = async () => {
       try {
         const data = await fetchMyRank(rankCriteria);
-        setMyRank(data);
+        setMyRankCache(rankCriteria, data);
       } catch (e) {
         console.error('rank load failed', e);
       }
@@ -59,7 +74,7 @@ export default function InfoTab() {
           });
         }
 
-        setLeaderboard(ranks);
+        setLeaderboardCache(rankCriteria, ranks);
         if (ranks.length) {
           setLeaderboardStatus(`총 ${data.total}명 중 상위 ${ranks.length}명`);
         } else {
