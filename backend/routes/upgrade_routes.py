@@ -83,23 +83,77 @@ UPGRADE_TYPE_MAP = {
 @router.post("/upgrade/bulk")
 async def bulk_upgrade(payload: BulkUpgradeRequest, auth=Depends(get_user_and_db)):
     """
-    Bulk upgrade endpoint - applies multiple upgrades in one request
+    Bulk upgrade endpoint - applies multiple upgrades in one request.
+    Partial success is allowed: successful items are committed, the first failure is reported and stops further processing.
     """
     user, db, _ = auth
 
-    # Apply all upgrades sequentially
-    for upgrade_item in payload.upgrades:
+    results: list[dict] = []
+    failed = None
+
+    for idx, upgrade_item in enumerate(payload.upgrades):
         endpoint = upgrade_item.endpoint
         amount = upgrade_item.amount
 
         if endpoint not in UPGRADE_TYPE_MAP:
-            raise HTTPException(status_code=400, detail=f"Invalid upgrade endpoint: {endpoint}")
+            failed = {"index": idx, "endpoint": endpoint, "amount": amount, "error": "Invalid upgrade endpoint"}
+            break
 
         upgrade_type, upgrade_name = UPGRADE_TYPE_MAP[endpoint]
 
-        if upgrade_type == "upgrade":
-            user = apply_upgrade(user, db, upgrade_name, amount)
-        elif upgrade_type == "rebirth":
-            user = apply_rebirth_upgrade(user, db, upgrade_name, amount)
+        try:
+            if upgrade_type == "upgrade":
+                user = apply_upgrade(user, db, upgrade_name, amount, commit=True)
+            elif upgrade_type == "rebirth":
+                user = apply_rebirth_upgrade(user, db, upgrade_name, amount, commit=True)
+            results.append({"index": idx, "endpoint": endpoint, "amount": amount, "status": "applied"})
+        except HTTPException as e:
+            failed = {"index": idx, "endpoint": endpoint, "amount": amount, "error": e.detail}
+            break
+        except Exception as e:
+            failed = {"index": idx, "endpoint": endpoint, "amount": amount, "error": str(e)}
+            break
+
+    # Always refresh the latest user state after applying successful items
+    db.refresh(user)
+
+    response = {
+        "user": UserOut.model_validate(user),
+        "results": results,
+        "partial_failure": failed is not None,
+    }
+    if failed:
+        response["failed"] = failed
+    return response
+    try:
+        for idx, upgrade_item in enumerate(payload.upgrades):
+            endpoint = upgrade_item.endpoint
+            amount = upgrade_item.amount
+
+            if endpoint not in UPGRADE_TYPE_MAP:
+                raise HTTPException(status_code=400, detail=f"Invalid upgrade endpoint: {endpoint}")
+
+            upgrade_type, upgrade_name = UPGRADE_TYPE_MAP[endpoint]
+
+            try:
+                if upgrade_type == "upgrade":
+                    user = apply_upgrade(user, db, upgrade_name, amount, commit=False)
+                elif upgrade_type == "rebirth":
+                    user = apply_rebirth_upgrade(user, db, upgrade_name, amount, commit=False)
+            except HTTPException as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=e.status_code,
+                    detail=f"[{idx}] {endpoint} x{amount}: {e.detail}"
+                )
+
+        db.commit()
+        db.refresh(user)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
     return {"user": UserOut.model_validate(user)}
