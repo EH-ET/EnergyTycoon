@@ -22,6 +22,7 @@ export default function Main() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedGeneratorId, setSelectedGeneratorId] = useState(null);
   const [alertMessage, setAlertMessage] = useState('');
+  const [, forceLayoutTick] = useState(0);
   const mainRef = useRef(null);
   const scrollSyncRef = useRef(false);
 
@@ -46,12 +47,19 @@ export default function Main() {
   const setUserOffsetX = useStore(state => state.setUserOffsetX);
   const backgroundWidth = useStore(state => state.backgroundWidth);
   const worldWidth = backgroundWidth || SCROLL_RANGE || BG_FALLBACK_WIDTH;
+  const containerHeight = mainRef.current?.clientHeight || Math.max(480, window.innerHeight * 0.6 || 600);
 
   useEffect(() => {
     if (selectedGeneratorId && !selectedGenerator) {
       setSelectedGeneratorId(null);
     }
   }, [selectedGeneratorId, selectedGenerator]);
+
+  useEffect(() => {
+    const handleResize = () => forceLayoutTick(v => v + 1);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const setBackgroundSize = useStore(state => state.setBackgroundSize);
 
   // Tutorial: Detect scroll
@@ -303,9 +311,9 @@ export default function Main() {
                   ? '#f1c40f'
                   : '#e74c3c';
 
-              // 원래 위치 계산 방식과 동일하게
-              const containerHeight = 600; // main 영역 대략적인 높이
-              const defaultY = Math.max(32, containerHeight - 60);
+              // main 영역 높이에 맞춰 발전기 바닥선을 맞춤
+              const verticalPadding = Math.max(64, width * 0.35);
+              const defaultY = Math.max(48, containerHeight - verticalPadding);
 
               // Helper calculations for tooltip
               const getBaseProduction = () => {
