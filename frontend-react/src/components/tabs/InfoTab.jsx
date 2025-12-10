@@ -1,17 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
 import { formatResourceValue, fromPlainValue, compareValues, valueFromServer } from '../../utils/bigValue';
 import { fetchRanks } from '../../utils/apiClient';
 import { fetchMyRank } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
 
+// Persist ranking data across component unmounts so we don't refetch on every tab re-entry
+const rankCache = {
+  lastFetchTime: {},   // { criteria: timestamp }
+  leaderboard: {},     // { criteria: [] }
+  myRank: {},          // { criteria: {...} }
+};
+
 export default function InfoTab() {
   const currentUser = useStore(state => state.currentUser);
   const [playTime, setPlayTime] = useState(0);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
-  const [myRank, setMyRank] = useState(null);
   const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
+  const [, forceRender] = useState(0); // force re-render when cache updates
+  const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
+
+  // 현재 기준의 캐시된 데이터
+  const leaderboard = rankCache.leaderboard[rankCriteria] || [];
+  const myRank = rankCache.myRank[rankCriteria] || null;
+
+  const setMyRankCache = (criteria, value) => {
+    rankCache.myRank = { ...rankCache.myRank, [criteria]: value };
+    forceRender(v => v + 1);
+  };
+
+  const setLeaderboardCache = (criteria, value) => {
+    rankCache.leaderboard = { ...rankCache.leaderboard, [criteria]: value };
+    forceRender(v => v + 1);
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -39,7 +59,7 @@ export default function InfoTab() {
     const loadRank = async () => {
       try {
         const data = await fetchMyRank(rankCriteria);
-        setMyRank(data);
+        setMyRankCache(rankCriteria, data);
       } catch (e) {
         console.error('rank load failed', e);
       }
@@ -58,7 +78,7 @@ export default function InfoTab() {
           });
         }
 
-        setLeaderboard(ranks);
+        setLeaderboardCache(rankCriteria, ranks);
         if (ranks.length) {
           setLeaderboardStatus(`총 ${data.total}명 중 상위 ${ranks.length}명`);
         } else {
@@ -70,9 +90,31 @@ export default function InfoTab() {
       }
     };
 
-    loadRank();
-    loadLeaderboard();
-  }, [currentUser, rankCriteria]);
+    const loadAllRankingData = () => {
+      const now = Date.now();
+      const lastFetchTime = rankCache.lastFetchTime[rankCriteria] || 0;
+      const timeSinceLastFetch = now - lastFetchTime;
+      const FIVE_MINUTES = 5 * 60 * 1000;
+
+      // 해당 기준으로 5분이 지나지 않았으면 API 호출하지 않음
+      if (timeSinceLastFetch < FIVE_MINUTES && lastFetchTime > 0) {
+        return;
+      }
+
+      // 현재 기준의 마지막 호출 시간 업데이트
+      rankCache.lastFetchTime[rankCriteria] = now;
+      loadRank();
+      loadLeaderboard();
+    };
+
+    // 초기 로드
+    loadAllRankingData();
+
+    // 5분마다 랭킹 정보 갱신
+    const intervalId = setInterval(loadAllRankingData, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser?.user_id, rankCriteria]);
 
   if (!currentUser) {
     return (

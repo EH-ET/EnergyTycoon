@@ -256,6 +256,12 @@ export async function postUpgrade(endpoint, amount = 1) {
     return response.data;
 }
 
+export async function postBulkUpgrades(upgrades) {
+    // upgrades: [{ endpoint: string, amount: number }, ...]
+    const response = await apiClient.post('/upgrade/bulk', { upgrades });
+    return response.data;
+}
+
 export async function demolishGenerator(generatorId) {
     const response = await apiClient.delete(`/progress/${generatorId}`);
     return response.data;

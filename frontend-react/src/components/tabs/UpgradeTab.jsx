@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { upgrades, rebirthUpgrades } from '../../utils/data';
-import { postUpgrade, autosaveProgress } from '../../utils/apiClient';
+import { postBulkUpgrades, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import { readStoredPlayTime } from '../../utils/playTime';
@@ -14,20 +14,24 @@ export default function UpgradeTab() {
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
 
-  // Debounce를 위한 ref들
-  const upgradeDebounceTimer = useRef(null);
+  // Queue를 위한 ref들
   const pendingUpgrades = useRef([]);
   const isSyncing = useRef(false);
+  const hasChanges = useRef(false);
 
-  // 컴포넌트 언마운트 시 남은 업그레이드 동기화
+  // 1분마다 변경사항 체크 및 동기화
   useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (hasChanges.current && pendingUpgrades.current.length > 0) {
+        syncPendingUpgrades();
+      }
+    }, 60 * 1000); // 1분
+
     return () => {
-      if (upgradeDebounceTimer.current) {
-        clearTimeout(upgradeDebounceTimer.current);
-        // 즉시 동기화
-        if (pendingUpgrades.current.length > 0) {
-          syncPendingUpgrades();
-        }
+      clearInterval(intervalId);
+      // 컴포넌트 언마운트 시 남은 업그레이드 동기화
+      if (hasChanges.current && pendingUpgrades.current.length > 0) {
+        syncPendingUpgrades();
       }
     };
   }, []);
@@ -39,6 +43,7 @@ export default function UpgradeTab() {
     }
 
     isSyncing.current = true;
+    hasChanges.current = false;
     const upgradesToSync = [...pendingUpgrades.current];
     pendingUpgrades.current = [];
 
@@ -58,25 +63,25 @@ export default function UpgradeTab() {
         supercoin: currentUser?.supercoin || 0,
       });
 
-      // 2. 모든 대기 중인 업그레이드를 순차적으로 서버에 전송
-      for (const { upgrade, amount } of upgradesToSync) {
-        try {
-          const safeAmount = Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1;
-          const newUser = await postUpgrade(upgrade.endpoint, safeAmount);
-          syncUserState(newUser);
+      // 2. 모든 대기 중인 업그레이드를 한 번의 API 요청으로 전송
+      const upgradesPayload = upgradesToSync.map(({ upgrade, amount }) => ({
+        endpoint: upgrade.endpoint,
+        amount: Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1
+      }));
 
-          // Tutorial 이벤트
-          if (currentUser?.tutorial === 8) {
-            dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
-          }
-        } catch (e) {
-          console.error('Upgrade sync failed:', upgrade.이름, e);
-          setAlertMessage(e.message || '업그레이드 실패');
-        }
+      const result = await postBulkUpgrades(upgradesPayload);
+
+      if (result.user) {
+        syncUserState(result.user);
+      }
+
+      // Tutorial 이벤트
+      if (currentUser?.tutorial === 8) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
       }
     } catch (e) {
       console.error('Sync failed:', e);
-      setAlertMessage('동기화 실패');
+      setAlertMessage(e.message || '업그레이드 동기화 실패');
     } finally {
       isSyncing.current = false;
     }
@@ -162,18 +167,33 @@ export default function UpgradeTab() {
       return;
     }
 
-    // Debounce 처리: pending queue에 추가하고 타이머 설정
+    // 1. Queue에 업그레이드 추가
     pendingUpgrades.current.push({ upgrade, amount: actualAmount });
+    hasChanges.current = true;
 
-    // 기존 타이머가 있으면 취소하고 새로 설정
-    if (upgradeDebounceTimer.current) {
-      clearTimeout(upgradeDebounceTimer.current);
+    // 2. 즉시 로컬 상태 업데이트 (프론트엔드에서 실시간 반영)
+    const updatedUser = { ...currentUser };
+
+    // 돈/환생 차감
+    if ((upgrade.currency || 'money') === 'money') {
+      const { subtractFromMoney } = useStore.getState();
+      subtractFromMoney(costValue);
+    } else if (upgrade.currency === 'rebirth') {
+      updatedUser.rebirth_count = (updatedUser.rebirth_count || 0) - costValue;
     }
 
-    // 1초 후 서버 동기화 (연속 업그레이드 시 한 번만 동기화)
-    upgradeDebounceTimer.current = setTimeout(() => {
-      syncPendingUpgrades();
-    }, 1000);
+    // 업그레이드 레벨 증가
+    if (upgrade.field) {
+      updatedUser[upgrade.field] = (updatedUser[upgrade.field] || 0) + actualAmount;
+    }
+
+    // 로컬 상태 업데이트 (persist: false로 서버 동기화는 나중에)
+    syncUserState(updatedUser, { persist: false });
+
+    // Tutorial 이벤트
+    if (currentUser?.tutorial === 8) {
+      dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
+    }
   };
 
   if (!currentUser) {

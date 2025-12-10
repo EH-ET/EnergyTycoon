@@ -115,7 +115,7 @@ export default function TradeTab() {
       return zeroBV;
     }
 
-    const amount = toPlainValue(amountBV);
+    // BigValue로 계산
     let baseNumerator = 1.0;
     const rebirthCount = currentUser.rebirth_count || 0;
     const exchangeMultLevel = currentUser.exchange_rate_multiplier || 0;
@@ -127,14 +127,17 @@ export default function TradeTab() {
     const marketBonusFactor = 1.0 / (1.0 + demandVal * 0.05);
 
     const soldEnergyBV = { data: currentUser.sold_energy_data || 0, high: currentUser.sold_energy_high || 0 };
-    const soldEnergyPlain = toPlainValue(soldEnergyBV);
-    const midpoint = soldEnergyPlain + amount / 2;
+    const halfAmountBV = multiplyByFloat(amountBV, 0.5);
+    const midpointBV = addValues(soldEnergyBV, halfAmountBV);
 
-    const logMid = midpoint > 0 ? Math.log(midpoint) / Math.log(3) : 0;
+    // log3 계산은 toPlainValue 사용 (근사값)
+    const midpointPlain = toPlainValue(midpointBV);
+    const logMid = midpointPlain > 0 ? Math.log(midpointPlain) / Math.log(3) : 0;
     const growth = 1.0 + Math.floor(Math.max(0, logMid)) * 0.05;
     const avgRate = Math.max(0.0000001, baseNumerator / (growth * marketBonusFactor));
-    
-    return fromPlainValue(Math.floor(amount * avgRate));
+
+    // BigValue로 곱셈
+    return multiplyByFloat(amountBV, avgRate);
   };
 
   const currentEnergyValue = getEnergyValue();

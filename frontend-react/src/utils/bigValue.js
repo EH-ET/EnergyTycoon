@@ -83,6 +83,48 @@ export function multiplyByPlain(value, multiplier) {
   return normalizeValue({ data: resultData, high: nv.high });
 }
 
+export function multiplyValues(a, b) {
+  // BigValue 간 곱셈
+  const normA = normalizeValue(a);
+  const normB = normalizeValue(b);
+
+  if (normA.data === 0 || normB.data === 0) {
+    return normalizeValue({ data: 0, high: 0 });
+  }
+
+  // data끼리 곱하고, high를 합산
+  const resultData = normA.data * normB.data;
+  const resultHigh = normA.high + normB.high;
+
+  return normalizeValue({ data: resultData, high: resultHigh });
+}
+
+export function powerOfPlain(base, exponent) {
+  // base^exponent를 BigValue로 계산
+  if (exponent === 0) return fromPlainValue(1);
+  if (exponent === 1) return fromPlainValue(base);
+  if (base === 0) return normalizeValue({ data: 0, high: 0 });
+  if (base === 1) return fromPlainValue(1);
+
+  // 큰 지수를 효율적으로 처리
+  let result = fromPlainValue(1);
+  let currentBase = fromPlainValue(base);
+  let exp = exponent;
+
+  // 이진 거듭제곱 알고리즘
+  while (exp > 0) {
+    if (exp % 2 === 1) {
+      // exp가 홀수일 때 result에 currentBase 곱하기
+      result = multiplyByFloat(result, toPlainValue(currentBase));
+    }
+    // currentBase를 제곱
+    currentBase = multiplyByFloat(currentBase, toPlainValue(currentBase));
+    exp = Math.floor(exp / 2);
+  }
+
+  return result;
+}
+
 export function divideBy2(value) {
   // O(1) division by 2
   const nv = normalizeValue(value);

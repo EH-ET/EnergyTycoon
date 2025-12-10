@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore, getAuthToken } from '../store/useStore';
+import { useStore } from '../store/useStore';
 import { getTutorialStep } from '../utils/tutorialSteps';
 import { updateTutorialProgress, skipTutorial } from '../utils/apiClient';
 import { getRequiredAction, onTutorialEvent } from '../utils/tutorialEvents';
@@ -12,20 +12,21 @@ export default function TutorialOverlay() {
   const [highlightedElement, setHighlightedElement] = useState(null);
 
   useEffect(() => {
-    if (!currentUser || !currentUser.tutorial) return;
-    
+    if (!currentUser) return;
+
     const tutorialStep = currentUser.tutorial;
-    
-    // Tutorial completed or skipped
-    if (tutorialStep === 0 || tutorialStep > 11) {
+
+    // Tutorial not started, completed, or skipped
+    if (!tutorialStep || tutorialStep === 0 || tutorialStep > 11) {
       setCurrentStep(null);
+      setHighlightedElement(null);
       return;
     }
 
     const step = getTutorialStep(tutorialStep);
     if (step) {
       setCurrentStep(step);
-      
+
       // Find and highlight element
       if (step.highlightSelector) {
         setTimeout(() => {
@@ -34,7 +35,7 @@ export default function TutorialOverlay() {
         }, 100);
       }
     }
-  }, [currentUser]);
+  }, [currentUser?.tutorial]);
 
   // Listen for required actions
   useEffect(() => {
@@ -54,11 +55,11 @@ export default function TutorialOverlay() {
 
   const handleNext = async () => {
     if (!currentStep || !currentUser) return;
-    
+
     try {
       const nextStep = currentStep.id + 1;
-      const data = await updateTutorialProgress(nextStep > 11 ? 0 : nextStep, getAuthToken());
-      
+      const data = await updateTutorialProgress(nextStep > 11 ? 0 : nextStep);
+
       // Update user state
       syncUserState({ ...currentUser, tutorial: data.tutorial });
     } catch (error) {
@@ -68,11 +69,11 @@ export default function TutorialOverlay() {
 
   const handleSkip = async () => {
     if (!currentUser) return;
-    
+
     if (!window.confirm('튜토리얼을 건너뛰시겠습니까?')) return;
-    
+
     try {
-      const data = await skipTutorial(getAuthToken());
+      const data = await skipTutorial();
       syncUserState({ ...currentUser, tutorial: data.tutorial });
     } catch (error) {
       console.error('Failed to skip tutorial:', error);
