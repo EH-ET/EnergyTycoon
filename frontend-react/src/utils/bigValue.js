@@ -83,6 +83,22 @@ export function multiplyByPlain(value, multiplier) {
   return normalizeValue({ data: resultData, high: nv.high });
 }
 
+export function multiplyValues(a, b) {
+  // BigValue 간 곱셈
+  const normA = normalizeValue(a);
+  const normB = normalizeValue(b);
+
+  if (normA.data === 0 || normB.data === 0) {
+    return normalizeValue({ data: 0, high: 0 });
+  }
+
+  // data끼리 곱하고, high를 합산
+  const resultData = normA.data * normB.data;
+  const resultHigh = normA.high + normB.high;
+
+  return normalizeValue({ data: resultData, high: resultHigh });
+}
+
 export function powerOfPlain(base, exponent) {
   // base^exponent를 BigValue로 계산
   if (exponent === 0) return fromPlainValue(1);

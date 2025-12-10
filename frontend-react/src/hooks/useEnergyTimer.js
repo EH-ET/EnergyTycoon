@@ -2,41 +2,29 @@ import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
 import { valueFromServer, addValues, multiplyByFloat, normalizeValue } from '../utils/bigValue';
-import { loadProgress, updateGeneratorState } from '../utils/apiClient';
+import { loadProgress } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 // ENERGY_SAVE_DELAY removed - useAutosave handles all saving every 30 seconds
 
-async function handleExplosion(entry, removePlacedGenerator, token, updatePlacedGenerator) {
+function handleExplosion(entry, updatePlacedGenerator) {
   if (!entry) return;
   const meta = entry.genIndex != null && entry.genIndex >= 0 ? generators[entry.genIndex] : null;
   const rebuildMs = entry.baseBuildDurationMs
     || entry.buildDurationMs
     || getBuildDurationMs(meta);
 
-  try {
-    const res = await updateGeneratorState(entry.generator_id, { explode: true }, token);
-
-    // Update generator with response from server
-    if (res.generator && updatePlacedGenerator) {
-      updatePlacedGenerator(entry.generator_id, (prev) => ({
-        ...prev,
-        running: res.generator.running !== false,
-        isDeveloping: Boolean(res.generator.isdeveloping),
-        heat: typeof res.generator.heat === 'number' ? res.generator.heat : 0,
-        buildCompleteTs: res.generator.build_complete_ts ? res.generator.build_complete_ts * 1000 : Date.now() + rebuildMs,
-        // Preserve baseCost for skip cost calculation
-        baseCost: prev.baseCost || res.generator.cost || entry.baseCost,
-      }));
-    }
-  } catch (err) {
-    // Fallback to local update if server fails
-    entry.running = false;
-    entry.isDeveloping = true;
-    entry.heat = 0;
-    entry.buildCompleteTs = Date.now() + rebuildMs;
+  // 로컬에서만 업데이트 (서버 동기화는 useAutosave가 2분마다 처리)
+  if (updatePlacedGenerator) {
+    updatePlacedGenerator(entry.generator_id, (prev) => ({
+      ...prev,
+      running: false,
+      isDeveloping: true,
+      heat: 0,
+      buildCompleteTs: Date.now() + rebuildMs,
+    }));
   }
 }
 
@@ -199,7 +187,7 @@ export function useEnergyTimer() {
             : (meta ? Number(meta["내열한계"]) || 0 : 0);
         const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10 + userToleranceBonus * 10;
         if (toleranceBuff > 0 && next.heat > toleranceBuff) {
-          handleExplosion(next, removePlacedGenerator, getAuthToken(), updatePlacedGenerator);
+          handleExplosion(next, updatePlacedGenerator);
         }
 
         return next;

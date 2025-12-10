@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { performRebirth } from '../utils/apiClient';
-import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOfPlain } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOfPlain, multiplyValues } from '../utils/bigValue';
 
 // 환생 공식 (RebirthTab과 동일)
 const BASE_REBIRTH_COST = 15_000_000; // 15M
@@ -9,7 +9,7 @@ const BASE_REBIRTH_COST = 15_000_000; // 15M
 function calculateRebirthCost(rebirthCount) {
   const baseCost = fromPlainValue(BASE_REBIRTH_COST);
   const multiplier = powerOfPlain(8, rebirthCount);
-  return multiplyByPlain(baseCost, Math.round(multiplier.data / 1000));
+  return multiplyValues(baseCost, multiplier); // BigValue 간 곱셈
 }
 
 function calculateRebirthMultiplier(rebirthCount) {
@@ -19,7 +19,7 @@ function calculateRebirthMultiplier(rebirthCount) {
 function calculateRebirthStartMoney(level) {
   const base = fromPlainValue(10);
   const multiplier = powerOfPlain(10, level);
-  return multiplyByPlain(base, Math.round(multiplier.data / 1000));
+  return multiplyValues(base, multiplier); // BigValue 간 곱셈
 }
 
 export default function RebirthModal({ open, onClose }) {

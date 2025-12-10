@@ -12,7 +12,7 @@ export default function InfoTab() {
   const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
   const [myRank, setMyRank] = useState(null);
   const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
-  const lastFetchTimeRef = useRef(0); // 마지막 API 호출 시간
+  const lastFetchTimeRef = useRef({}); // 기준별 마지막 API 호출 시간 { money: timestamp, energy: timestamp, ... }
 
   useEffect(() => {
     if (!currentUser) return;
@@ -73,15 +73,17 @@ export default function InfoTab() {
 
     const loadAllRankingData = () => {
       const now = Date.now();
-      const timeSinceLastFetch = now - lastFetchTimeRef.current;
+      const lastFetchTime = lastFetchTimeRef.current[rankCriteria] || 0;
+      const timeSinceLastFetch = now - lastFetchTime;
       const FIVE_MINUTES = 5 * 60 * 1000;
 
-      // 5분이 지나지 않았으면 API 호출하지 않음
-      if (timeSinceLastFetch < FIVE_MINUTES && lastFetchTimeRef.current > 0) {
+      // 해당 기준으로 5분이 지나지 않았으면 API 호출하지 않음
+      if (timeSinceLastFetch < FIVE_MINUTES && lastFetchTime > 0) {
         return;
       }
 
-      lastFetchTimeRef.current = now;
+      // 현재 기준의 마지막 호출 시간 업데이트
+      lastFetchTimeRef.current[rankCriteria] = now;
       loadRank();
       loadLeaderboard();
     };
