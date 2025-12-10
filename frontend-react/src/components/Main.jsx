@@ -391,7 +391,7 @@ export default function Main() {
                     position: 'absolute',
                     left: `${screenX}px`,
                     bottom: '15%',
-                    transform: 'translate(-50%, -50%)',
+                    transform: 'translate(-50%, -90%)',
                     pointerEvents: 'auto',
                     cursor: 'pointer',
                     textAlign: 'center'
@@ -436,7 +436,12 @@ export default function Main() {
                       }}
                     />
                   )}
-                  <div style={{ fontSize: '16px', fontWeight: '900', color: nameColor }}>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '900',
+                    color: nameColor,
+                    textShadow: '1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000'
+                  }}>
                     {generator.name}
                   </div>
                 </div>
