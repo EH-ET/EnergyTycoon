@@ -172,13 +172,16 @@ export default function UpgradeTab() {
     hasChanges.current = true;
 
     // 2. 즉시 로컬 상태 업데이트 (프론트엔드에서 실시간 반영)
-    const updatedUser = { ...currentUser };
-
-    // 돈/환생 차감
     if ((upgrade.currency || 'money') === 'money') {
       const { subtractFromMoney } = useStore.getState();
       subtractFromMoney(costValue);
-    } else if (upgrade.currency === 'rebirth') {
+    }
+
+    // 최신 사용자 상태를 가져와서 안전하게 덮어쓰기
+    const baseUser = useStore.getState().currentUser || currentUser || {};
+    const updatedUser = { ...baseUser };
+
+    if (upgrade.currency === 'rebirth') {
       updatedUser.rebirth_count = (updatedUser.rebirth_count || 0) - costValue;
     }
 

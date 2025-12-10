@@ -291,7 +291,7 @@ export default function Main() {
             style={{
               backgroundImage: 'url(/backgroundImgEhET.png)',
               backgroundRepeat: 'no-repeat',
-              backgroundPosition: '0 0',
+              backgroundPosition: '0 100%',
               backgroundSize: 'auto 100%',
               width: `${worldWidth}px`
             }}
@@ -310,10 +310,6 @@ export default function Main() {
                 : isRunning
                   ? '#f1c40f'
                   : '#e74c3c';
-
-              // main 영역 높이에 맞춰 발전기 바닥선을 맞춤
-              const verticalPadding = Math.max(64, width * 0.35);
-              const defaultY = Math.max(48, containerHeight - verticalPadding);
 
               // Helper calculations for tooltip
               const getBaseProduction = () => {
@@ -394,8 +390,8 @@ export default function Main() {
                   style={{
                     position: 'absolute',
                     left: `${screenX}px`,
-                    top: `${defaultY}px`,
-                    transform: 'translate(-50%, -100%)',
+                    bottom: '15%',
+                    transform: 'translate(-50%, -50%)',
                     pointerEvents: 'auto',
                     cursor: 'pointer',
                     textAlign: 'center'
