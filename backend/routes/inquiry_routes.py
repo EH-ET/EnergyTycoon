@@ -94,10 +94,10 @@ async def accept_inquiry(inquiry_id: str, auth=Depends(get_user_and_db)):
         raise HTTPException(status_code=404, detail="Inquiry not found")
     
     # Give supercoin to user
-    user = db.query(User).filter(User.user_id == inquiry.user_id).first()
-    if user:
-        user.supercoin += 1
-        db.add(user)
+    submitter = db.query(User).filter(User.user_id == inquiry.user_id).first()
+    if submitter:
+        submitter.supercoin += 1
+        db.add(submitter)
     
     # Delete inquiry
     db.delete(inquiry)
