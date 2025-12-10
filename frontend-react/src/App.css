@@ -286,7 +286,7 @@ footer:hover {
 
 .build-bar {
   width: 100%;
-  min-height: 32vh;
+  min-height: 28vh;
   display: flex;
   gap: 12px;
   align-items: stretch;
