@@ -310,6 +310,11 @@ export default function Main() {
                 : isRunning
                   ? '#f1c40f'
                   : '#e74c3c';
+              
+              const genInfo = generators.find(g => g.이름 === generator.name);
+              const sizeFactor = genInfo?.크기 || 1;
+              const verticalOffset = (sizeFactor || 1) * 20;
+              const finalBottom = `calc(20% - ${verticalOffset}px)`;
 
               // Helper calculations for tooltip
               const getBaseProduction = () => {
@@ -390,12 +395,11 @@ export default function Main() {
                   style={{
                     position: 'absolute',
                     left: `${screenX}px`,
-                    bottom: '0%',
+                    bottom: finalBottom,
                     transform: 'translate(-50%, -100%)',
                     pointerEvents: 'auto',
                     cursor: 'pointer',
-                    textAlign: 'center',
-                    marginBottom: '30px'
+                    textAlign: 'center'
                   }}
                   >
                     {/* Tooltip */}
