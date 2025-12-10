@@ -7,6 +7,12 @@ import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents'
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
 
+// Cache profile rank fetches across component mounts (5-minute TTL)
+const profileRankCache = {
+  timestamp: 0,
+  data: null,
+};
+
 export default function Header() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMoneyModal, setShowMoneyModal] = useState(false);
@@ -51,14 +57,30 @@ export default function Header() {
     if (!current?.user_id) {
       return;
     }
-    
+
+    const now = Date.now();
+    const FIVE_MINUTES = 5 * 60 * 1000;
+
+    // Use cached rank if within TTL
+    if (profileRankCache.data && now - profileRankCache.timestamp < FIVE_MINUTES) {
+      const cached = profileRankCache.data;
+      const latestUser = useStore.getState().currentUser;
+      if (latestUser) {
+        syncUserState({
+          ...latestUser,
+          rank: cached.rank,
+          rank_score: cached.score,
+        }, { persist: false });
+      }
+      return;
+    }
+
     setIsRankLoading(true);
     try {
-      const token = getAuthToken();
-      
-      const data = await fetchMyRank(token);
-      
-      // Get latest state again before updating
+      const data = await fetchMyRank('money');
+      profileRankCache.data = data;
+      profileRankCache.timestamp = Date.now();
+
       const latestUser = useStore.getState().currentUser;
       if (latestUser) {
         syncUserState({
