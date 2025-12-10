@@ -5,27 +5,31 @@ import { fetchRanks } from '../../utils/apiClient';
 import { fetchMyRank } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
 
+// Persist ranking data across component unmounts so we don't refetch on every tab re-entry
+const rankCache = {
+  lastFetchTime: {},   // { criteria: timestamp }
+  leaderboard: {},     // { criteria: [] }
+  myRank: {},          // { criteria: {...} }
+};
+
 export default function InfoTab() {
   const currentUser = useStore(state => state.currentUser);
   const [playTime, setPlayTime] = useState(0);
   const [rankCriteria, setRankCriteria] = useState('money'); // money, energy, playtime, rebirth
   const [, forceRender] = useState(0); // force re-render when cache updates
-  const lastFetchTimeRef = useRef({}); // 기준별 마지막 API 호출 시간 { money: timestamp, energy: timestamp, ... }
-  const leaderboardCacheRef = useRef({}); // 기준별 랭킹 캐시 { money: [], energy: [], ... }
-  const myRankCacheRef = useRef({}); // 기준별 내 랭킹 캐시 { money: {...}, energy: {...}, ... }
   const [leaderboardStatus, setLeaderboardStatus] = useState('랭킹을 불러오는 중...');
 
   // 현재 기준의 캐시된 데이터
-  const leaderboard = leaderboardCacheRef.current[rankCriteria] || [];
-  const myRank = myRankCacheRef.current[rankCriteria] || null;
+  const leaderboard = rankCache.leaderboard[rankCriteria] || [];
+  const myRank = rankCache.myRank[rankCriteria] || null;
 
   const setMyRankCache = (criteria, value) => {
-    myRankCacheRef.current = { ...myRankCacheRef.current, [criteria]: value };
+    rankCache.myRank = { ...rankCache.myRank, [criteria]: value };
     forceRender(v => v + 1);
   };
 
   const setLeaderboardCache = (criteria, value) => {
-    leaderboardCacheRef.current = { ...leaderboardCacheRef.current, [criteria]: value };
+    rankCache.leaderboard = { ...rankCache.leaderboard, [criteria]: value };
     forceRender(v => v + 1);
   };
 
@@ -88,7 +92,7 @@ export default function InfoTab() {
 
     const loadAllRankingData = () => {
       const now = Date.now();
-      const lastFetchTime = lastFetchTimeRef.current[rankCriteria] || 0;
+      const lastFetchTime = rankCache.lastFetchTime[rankCriteria] || 0;
       const timeSinceLastFetch = now - lastFetchTime;
       const FIVE_MINUTES = 5 * 60 * 1000;
 
@@ -98,7 +102,7 @@ export default function InfoTab() {
       }
 
       // 현재 기준의 마지막 호출 시간 업데이트
-      lastFetchTimeRef.current[rankCriteria] = now;
+      rankCache.lastFetchTime[rankCriteria] = now;
       loadRank();
       loadLeaderboard();
     };
