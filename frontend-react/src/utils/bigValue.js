@@ -84,7 +84,7 @@ export function multiplyByPlain(value, multiplier) {
 }
 
 export function multiplyValues(a, b) {
-  // BigValue 간 곱셈
+  // BigValue 간 곱셈 (스케일 보정 포함)
   const normA = normalizeValue(a);
   const normB = normalizeValue(b);
 
@@ -92,8 +92,9 @@ export function multiplyValues(a, b) {
     return normalizeValue({ data: 0, high: 0 });
   }
 
-  // data끼리 곱하고, high를 합산
-  const resultData = normA.data * normB.data;
+  // 두 값 모두 DATA_SCALE(1000)을 곱한 상태이므로,
+  // 스케일이 두 번 곱해지는 것을 보정하기 위해 DATA_SCALE로 한 번 나눠준다.
+  const resultData = Math.floor((normA.data * normB.data) / DATA_SCALE);
   const resultHigh = normA.high + normB.high;
 
   return normalizeValue({ data: resultData, high: resultHigh });
