@@ -132,8 +132,10 @@ apiClient.interceptors.response.use(
 
 
 function handleLogout() {
-    // The backend clears HttpOnly cookies on logout.
-    // We just need to redirect the user to the login page.
+    // Clear all client-side state (Zustand and localStorage)
+    useStore.getState().logout();
+    
+    // Redirect the user to the login page.
     window.location.href = "/"; 
 }
 

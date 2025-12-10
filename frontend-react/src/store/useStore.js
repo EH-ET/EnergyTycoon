@@ -42,6 +42,15 @@ export const useStore = create((set, get) => ({
   setContentMode: (mode) => set({ contentMode: mode }),
   setGlobalLoading: (isLoading, message = '') => set({ isGlobalLoading: isLoading, globalLoadingMessage: message }),
 
+  logout: () => {
+    clearClientSession();
+    set({
+      currentUser: null,
+      placedGenerators: [],
+      userOffsetX: 0,
+    });
+  },
+
   setCurrentUser: (user) => set({ currentUser: user }),
 
   setPlacedGenerators: (generators) => set({ placedGenerators: generators }),
