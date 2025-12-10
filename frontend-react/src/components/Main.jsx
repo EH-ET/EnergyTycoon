@@ -396,7 +396,6 @@ export default function Main() {
                     position: 'absolute',
                     left: `${screenX}px`,
                     bottom: finalBottom,
-                    transform: 'translate(-50%, -100%)',
                     pointerEvents: 'auto',
                     cursor: 'pointer',
                     textAlign: 'center'
@@ -435,7 +434,6 @@ export default function Main() {
                         position: 'absolute',
                         top: '-20px',
                         left: '50%',
-                        transform: 'translate(-50%, 0)',
                         width: '48px',
                         pointerEvents: 'none'
                       }}
