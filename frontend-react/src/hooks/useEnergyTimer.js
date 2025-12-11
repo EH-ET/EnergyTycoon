@@ -204,14 +204,17 @@ export function useEnergyTimer() {
         if (runningCount > 0) {
           const chance = runningCount / 1_000_000;
           if (Math.random() < chance) {
-            // Award 1 supercoin
-            const { currentUser: user, syncUserState } = useStore.getState();
-            if (user) {
-              const newSupercoin = (user.supercoin || 0) + 1;
-              syncUserState({ ...user, supercoin: newSupercoin });
-
+            // Award 1 supercoin via server API
+            const { default: { awardSupercoin } } = await import('../utils/apiClient');
+            try {
+              const result = await awardSupercoin();
+              const { syncUserState } = useStore.getState();
+              syncUserState({ supercoin: result.supercoin });
+              
               // Show notification
-              console.log(`🪙 Supercoin acquired! Total: ${newSupercoin}`);
+              console.log(`🪙 Supercoin acquired! Total: ${result.supercoin}`);
+            } catch (err) {
+              console.error('Failed to award supercoin:', err);
             }
           }
         }

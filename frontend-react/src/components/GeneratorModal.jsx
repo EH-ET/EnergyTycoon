@@ -85,8 +85,14 @@ export default function GeneratorModal({ generator, onClose }) {
       const token = getAuthToken();
       const res = await skipGeneratorBuild(generator.generator_id, token);
 
+      // Preserve current energy and money values (only update money for cost deduction)
       if (res.user) {
-        syncUserState(res.user);
+        const currentEnergy = useStore.getState().getEnergyValue();
+        syncUserState({
+          ...res.user,
+          energy_data: currentEnergy.data,
+          energy_high: currentEnergy.high,
+        });
       }
 
       if (res.generator) {
@@ -215,7 +221,9 @@ export default function GeneratorModal({ generator, onClose }) {
 
     // Calculate proportion and multiply BigValue using multiplyByFloat (same as backend)
     const proportion = remainingSeconds / totalDurationSeconds;
-    const skipCost = multiplyByFloat(costValue, proportion);
+    let skipCost = multiplyByFloat(costValue, proportion);
+    // Reduce cost by 10x (same as backend)
+    skipCost = multiplyByFloat(skipCost, 0.1);
 
     // Ensure at least cost of 1
     if (skipCost.data === 0 && skipCost.high === 0) {

@@ -15,9 +15,9 @@ function calculateRebirthCost(rebirthCount) {
   return multiplyValues(baseCost, multiplier); // BigValue 간 곱셈
 }
 
-// 환생 배수 계산: 2^n
+// 환생 배수 계산: 2^n (BigValue)
 function calculateRebirthMultiplier(rebirthCount) {
-  return Math.pow(2, rebirthCount);
+  return powerOfPlain(2, rebirthCount);
 }
 
 // 환생 시작 자금 계산: 10 × 10^level (BigValue)
@@ -82,7 +82,8 @@ export default function RebirthTab() {
       }
       setPlacedGenerators([]);
 
-      // 환생 후 올바른 상태를 저장
+      // 환생 후 올바른 상태를 저장 (syncUserState 후에 호출해야 새로운 값을 가져옴)
+      // 서버에서 받은 새로운 상태로 autosave
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
@@ -94,7 +95,7 @@ export default function RebirthTab() {
         money_data: moneyPayload.data,
         money_high: moneyPayload.high,
         play_time_ms: playTimeMs,
-        supercoin: currentUser?.supercoin || 0,
+        // supercoin은 서버에서 관리하므로 보내지 않음
       });
 
       setSaveStatus('success'); // 저장 성공 알림
@@ -120,7 +121,7 @@ export default function RebirthTab() {
 
         <div className="info-row">
           <span className="label">현재 배율:</span>
-          <span className="value multiplier">{currentMultiplier}x</span>
+          <span className="value multiplier">{formatResourceValue(fromPlainValue(currentMultiplier))}x</span>
         </div>
 
         <div className="info-row">
@@ -132,7 +133,7 @@ export default function RebirthTab() {
 
         <div className="info-row">
           <span className="label">다음 배율:</span>
-          <span className="value multiplier">{nextMultiplier}x</span>
+          <span className="value multiplier">{formatResourceValue(fromPlainValue(nextMultiplier))}x</span>
         </div>
 
         <div className="info-row">

@@ -368,3 +368,8 @@ export async function rejectInquiry(inquiryId) {
     const response = await apiClient.post(`/inquiries/${inquiryId}/reject`);
     return response.data;
 }
+
+export async function awardSupercoin() {
+    const response = await apiClient.post('/special/award_supercoin');
+    return response.data;
+}
