@@ -15,7 +15,7 @@ class TutorialProgressIn(BaseModel):
     step: int
 
 
-@router.put("/progress", include_in_schema=False)
+@router.post("/progress", include_in_schema=False)
 def update_tutorial_progress(
     data: TutorialProgressIn,
     user_and_db: tuple = Depends(get_user_and_db)
