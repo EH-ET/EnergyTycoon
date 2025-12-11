@@ -132,7 +132,7 @@ export default function GeneratorTab() {
             zIndex: 5000,
             maxWidth: '220px',
             padding: '10px',
-            background: 'rgba(0,0,0,0.9)',
+            background: 'rgba(0,0,0,0.45)',
             color: '#fff',
             borderRadius: '8px',
             boxShadow: '0 8px 22px rgba(0,0,0,0.45)',

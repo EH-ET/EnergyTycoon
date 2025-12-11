@@ -9,23 +9,20 @@ import { readStoredPlayTime } from '../utils/playTime';
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
 // ENERGY_SAVE_DELAY removed - useAutosave handles all saving every 30 seconds
 
-function handleExplosion(entry, updatePlacedGenerator) {
-  if (!entry) return;
+function handleExplosion(entry) {
+  if (!entry) return null;
   const meta = entry.genIndex != null && entry.genIndex >= 0 ? generators[entry.genIndex] : null;
   const rebuildMs = entry.baseBuildDurationMs
     || entry.buildDurationMs
     || getBuildDurationMs(meta);
 
-  // 로컬에서만 업데이트 (서버 동기화는 useAutosave가 2분마다 처리)
-  if (updatePlacedGenerator) {
-    updatePlacedGenerator(entry.generator_id, (prev) => ({
-      ...prev,
-      running: false,
-      isDeveloping: true,
-      heat: 0,
-      buildCompleteTs: Date.now() + rebuildMs,
-    }));
-  }
+  return {
+    ...entry,
+    running: false,
+    isDeveloping: true,
+    heat: 0,
+    buildCompleteTs: Date.now() + rebuildMs,
+  };
 }
 
 function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
@@ -187,7 +184,7 @@ export function useEnergyTimer() {
             : (meta ? Number(meta["내열한계"]) || 0 : 0);
         const toleranceBuff = baseTolerance + (upgrades.tolerance || 0) * 10 + userToleranceBonus * 10;
         if (toleranceBuff > 0 && next.heat > toleranceBuff) {
-          handleExplosion(next, updatePlacedGenerator);
+          return handleExplosion(next);
         }
 
         return next;
