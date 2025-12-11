@@ -6,17 +6,26 @@ import { computeEnergyPerSecond } from './useEnergyTimer';
 import { normalizeValue } from '../utils/bigValue';
 
 export function useAutosave() {
-  const currentUser = useStore(state => state.currentUser);
-  const toEnergyServerPayload = useStore(state => state.toEnergyServerPayload);
-  const toMoneyServerPayload = useStore(state => state.toMoneyServerPayload);
-  const placedGenerators = useStore(state => state.placedGenerators);
   const lastSavedRef = useRef(null);
 
   useEffect(() => {
-    if (!currentUser) return;
-
     const save = async () => {
-      if (useStore.getState().isAutosaveLocked) {
+      // Get current state directly from store (avoid dependency issues)
+      const {
+        currentUser,
+        placedGenerators,
+        toEnergyServerPayload,
+        toMoneyServerPayload,
+        isAutosaveLocked,
+        setSaveStatus
+      } = useStore.getState();
+
+      if (!currentUser) {
+        console.log("Autosave skipped: no user logged in");
+        return;
+      }
+
+      if (isAutosaveLocked) {
         console.log("Autosave is locked, skipping.");
         return;
       }
@@ -61,7 +70,7 @@ export function useAutosave() {
         console.log("Autosave executing...", { energy: energyPayload, money: moneyPayload });
         await autosaveProgress(payload);
         lastSavedRef.current = payloadStr;
-        useStore.getState().setSaveStatus('success');
+        setSaveStatus('success');
         console.log("Autosave successful");
       } catch (e) {
         console.error('Autosave failed:', e);
@@ -69,9 +78,14 @@ export function useAutosave() {
       }
     };
 
+    console.log("Autosave timer initialized - will save every 2 minutes");
+
     // 2분마다 자동 저장 (트래픽 75% 감소)
     const timer = setInterval(save, 120000);
 
-    return () => clearInterval(timer);
-  }, [currentUser, placedGenerators, toEnergyServerPayload, toMoneyServerPayload]);
+    return () => {
+      console.log("Autosave timer cleared");
+      clearInterval(timer);
+    };
+  }, []); // Empty dependency array - only run once on mount
 }
