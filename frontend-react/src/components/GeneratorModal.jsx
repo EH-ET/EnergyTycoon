@@ -35,6 +35,7 @@ export default function GeneratorModal({ generator, onClose }) {
   const updatePlacedGenerator = useStore(state => state.updatePlacedGenerator);
   const addGeneratorUpgradeToQueue = useStore(state => state.addGeneratorUpgradeToQueue);
 
+
   const updateGeneratorEntry = (patcher) => {
     if (!generator?.generator_id) return;
     updatePlacedGenerator(generator.generator_id, (prev) => {
@@ -120,28 +121,13 @@ export default function GeneratorModal({ generator, onClose }) {
     }
 
     const nextRunning = generator.running === false;
-    try {
-      const token = getAuthToken();
-      const res = await updateGeneratorState(
-        id,
-        { running: nextRunning, heat: generator.heat },
-        token
-      );
-
-      const serverRunning = res.generator ? res.generator.running !== false : nextRunning;
-      const serverHeat = typeof res.generator?.heat === 'number' ? res.generator.heat : generator.heat;
-      updateGeneratorEntry((prev) => ({
-        ...prev,
-        running: serverRunning,
-        heat: typeof serverHeat === 'number' ? serverHeat : prev?.heat,
-      }));
-
-      if (res.user) {
-        syncUserState(res.user);
-      }
-    } catch (err) {
-      setAlertMessage(err.message || '상태 변경 실패');
-    }
+    
+    // 즉시 로컬 상태 업데이트 (서버 호출 없이)
+    // useAutosave가 2분마다 자동으로 서버에 저장합니다
+    updateGeneratorEntry((prev) => ({
+      ...prev,
+      running: nextRunning,
+    }));
   };
 
   const handleUpgrade = async (key) => {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { formatResourceValue } from '../utils/bigValue';
 import { useEnergyRate } from '../hooks/useEnergyTimer';
-import { fetchExchangeRate, fetchMyRank } from '../utils/apiClient';
+import { fetchExchangeRate, fetchMyRank, updateTutorialProgress } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
@@ -49,6 +49,22 @@ export default function Header() {
     event.stopPropagation();
     setShowProfileModal(false);
     setShowSettingsModal(true);
+  };
+
+  const handleRestartTutorial = async (event) => {
+    event.stopPropagation();
+    if (!window.confirm('튜토리얼을 다시 시작하시겠습니까?')) return;
+    
+    try {
+      const data = await updateTutorialProgress(1);
+      const latestUser = useStore.getState().currentUser;
+      if (latestUser) {
+        syncUserState({ ...latestUser, tutorial: data.tutorial });
+      }
+      setShowProfileModal(false);
+    } catch (error) {
+      console.error('Failed to restart tutorial:', error);
+    }
   };
 
   const refreshRank = async () => {
@@ -206,27 +222,37 @@ export default function Header() {
                     : (typeof currentUser?.rank === 'number' ? `${currentUser.rank}위` : '-')
                 }
               </p>
-              <div className="modal-actions" style={{ display: 'flex', gap: '8px' }}>
+              <div className="modal-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button
-                  className="modal-button settings-open-btn"
+                  className="modal-button tutorial-btn"
                   type="button"
-                  style={{ flex: 1, color: '#fff', borderColor: '#444' }}
-                  onClick={handleOpenSettings}
+                  style={{ width: '100%', color: '#fff', borderColor: '#444' }}
+                  onClick={handleRestartTutorial}
                 >
-                  설정
+                  튜토리얼 보기
                 </button>
-                <button
-                  className="modal-button logout-btn"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowProfileModal(false);
-                    handleLogout();
-                  }}
-                  style={{ flex: 1, color: '#fff', borderColor: '#444' }}
-                >
-                  로그아웃
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="modal-button settings-open-btn"
+                    type="button"
+                    style={{ flex: 1, color: '#fff', borderColor: '#444' }}
+                    onClick={handleOpenSettings}
+                  >
+                    설정
+                  </button>
+                  <button
+                    className="modal-button logout-btn"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowProfileModal(false);
+                      handleLogout();
+                    }}
+                    style={{ flex: 1, color: '#fff', borderColor: '#444' }}
+                  >
+                    로그아웃
+                  </button>
+                </div>
               </div>
             </div>
           )}

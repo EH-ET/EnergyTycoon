@@ -729,3 +729,5 @@ async def bulk_upgrade_generators(payload: BulkGeneratorUpgradeRequest, auth=Dep
         "user": UserOut.model_validate(user),
         "generators": updated_generator_data
     }
+
+

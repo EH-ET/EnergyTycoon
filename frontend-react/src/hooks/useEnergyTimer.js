@@ -36,7 +36,8 @@ function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
 function applyHeatReduction(heatRate, upgrades = {}) {
   const lvl = upgrades.heat_reduction || 0;
   if (!lvl) return heatRate;
-  const factor = Math.max(0.1, 1 - 0.1 * lvl);
+  // 발열 감소: 10% 감소 per level (곱연산 적용: 0.9^level)
+  const factor = Math.pow(0.9, lvl);
   return heatRate * factor;
 }
 
