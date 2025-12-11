@@ -73,10 +73,6 @@ export default function RebirthTab() {
     try {
       setPerforming(true);
 
-      // 환생 중 주기적 autosave 방지
-      const { lockAutosave } = useStore.getState();
-      lockAutosave();
-
       // 환생 수행 (1회)
       const result = await performRebirth(1);
 
@@ -108,9 +104,6 @@ export default function RebirthTab() {
       setSaveStatus('error'); // 저장 실패 알림
       alert(err.message || '환생에 실패했습니다');
     } finally {
-      // autosave 잠금 해제
-      const { unlockAutosave } = useStore.getState();
-      unlockAutosave();
       setPerforming(false);
     }
   };

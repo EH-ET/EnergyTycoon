@@ -153,7 +153,8 @@ export default function Header() {
         setTimeSinceLastSave(`${diff}초 전`);
       } else {
         const minutes = Math.floor(diff / 60);
-        setTimeSinceLastSave(`${minutes}분 전`);
+        const seconds = diff % 60;
+        setTimeSinceLastSave(`${minutes}분 ${seconds}초 전`);
       }
     };
 
