@@ -538,7 +538,8 @@ async def autosave_progress(payload: ProgressAutoSaveIn, auth=Depends(get_user_a
                         updated = True
     
     if not updated:
-        raise HTTPException(status_code=400, detail="No fields provided to autosave")
+        # No changes detected - return success without error
+        return {"user": UserOut.model_validate(user), "message": "No changes to save"}
     
     db.commit()
     db.refresh(user)
@@ -588,12 +589,15 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         raise HTTPException(status_code=404, detail="Generator type not found")
     
     # Calculate proportional cost using BigValue (no to_plain())
+    # Cost is reduced by 10x for faster progression
     try:
         total_duration = max(1, _build_duration(gt, gen.level, user))
         full_cost_val = BigValue(gt.cost_data, gt.cost_high)
-        # Proportional cost based on remaining time: (remaining / total_duration) * full_cost
+        # Proportional cost based on remaining time: (remaining / total_duration) * full_cost / 10
         proportion = remaining / total_duration
         cost_val = multiply_by_float(full_cost_val, proportion)
+        # Reduce cost by 10x
+        cost_val = multiply_by_float(cost_val, 0.1)
         # Ensure at least cost of 1
         if cost_val.data == 0:
             cost_val = from_plain(1)

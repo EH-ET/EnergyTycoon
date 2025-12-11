@@ -63,3 +63,15 @@ async def upgrade_exchange_mult(auth=Depends(get_user_and_db)):
     user, db, _ = auth
     upgraded_user = apply_special_upgrade(user, db, "exchange_mult")
     return UserOut.model_validate(upgraded_user)
+
+
+@router.post("/special/award_supercoin")
+async def award_supercoin(auth=Depends(get_user_and_db)):
+    """
+    Award 1 supercoin to user (called automatically from frontend when lucky)
+    """
+    user, db, _ = auth
+    user.supercoin = (user.supercoin or 0) + 1
+    db.commit()
+    db.refresh(user)
+    return {"supercoin": user.supercoin}

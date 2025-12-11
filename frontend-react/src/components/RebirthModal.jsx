@@ -13,7 +13,7 @@ function calculateRebirthCost(rebirthCount) {
 }
 
 function calculateRebirthMultiplier(rebirthCount) {
-  return Math.pow(2, rebirthCount);
+  return powerOfPlain(2, rebirthCount);
 }
 
 function calculateRebirthStartMoney(level) {
@@ -114,10 +114,10 @@ export default function RebirthModal({ open, onClose }) {
             <strong>현재 환생 횟수:</strong> {rebirthCount}회
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <strong>현재 배수:</strong> {currentMultiplier}x
+            <strong>현재 배수:</strong> {formatResourceValue(currentMultiplier)}x
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <strong>다음 배수:</strong> {nextMultiplier}x
+            <strong>다음 배수:</strong> {formatResourceValue(nextMultiplier)}x
           </div>
           <div style={{ marginBottom: '12px' }}>
             <strong>환생 비용:</strong> {formatResourceValue(nextCost)}
@@ -147,7 +147,7 @@ export default function RebirthModal({ open, onClose }) {
               <li>돈 (업그레이드 적용된 시작 자금으로 초기화)</li>
             </ul>
             <p style={{ margin: '12px 0 0', fontSize: '14px', color: '#4ade80' }}>
-              ✨ 생산량 및 환율이 영구적으로 {nextMultiplier}배 증가합니다!
+              ✨ 생산량 및 환율이 영구적으로 {formatResourceValue(nextMultiplier)}배 증가합니다!
             </p>
           </div>
         </div>

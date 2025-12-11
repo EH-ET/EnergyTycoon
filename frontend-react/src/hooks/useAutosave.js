@@ -56,7 +56,7 @@ export function useAutosave() {
           production_data: productionNormalized.data,
           production_high: productionNormalized.high,
           play_time_ms: Math.floor(playTimeMs || 0),
-          supercoin: currentUser?.supercoin || 0,
+          // supercoin은 서버에서만 관리하므로 autosave에 포함하지 않음
           generators: generators.length > 0 ? generators : undefined,
         };
 
