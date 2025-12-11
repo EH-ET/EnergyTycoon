@@ -147,7 +147,7 @@ export default function RebirthModal({ open, onClose }) {
               <li>돈 (업그레이드 적용된 시작 자금으로 초기화)</li>
             </ul>
             <p style={{ margin: '12px 0 0', fontSize: '14px', color: '#4ade80' }}>
-              ✨ 생산량 및 환율이 영구적으로 {nextMultiplier}배 증가합니다!
+              ✨ 생산량 및 환율이 영구적으로 {formatResourceValue(nextMultiplier)}배 증가합니다!
             </p>
           </div>
         </div>
