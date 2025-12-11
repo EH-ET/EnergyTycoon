@@ -137,12 +137,12 @@ export default function Header() {
   }, [currentUser?.user_id]);
 
   const saveStatus = useStore(state => state.saveStatus);
-  const [timeSinceLastSave, setTimeSinceLastSave] = useState('');
+  const [timeSinceLastSave, setTimeSinceLastSave] = useState('대기 중');
 
   useEffect(() => {
     const updateTimeSince = () => {
       if (!saveStatus?.timestamp) {
-        setTimeSinceLastSave('');
+        setTimeSinceLastSave('대기 중');
         return;
       }
 
