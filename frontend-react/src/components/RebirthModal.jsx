@@ -114,10 +114,10 @@ export default function RebirthModal({ open, onClose }) {
             <strong>현재 환생 횟수:</strong> {rebirthCount}회
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <strong>현재 배수:</strong> {formatResourceValue(fromPlainValue(currentMultiplier))}x
+            <strong>현재 배수:</strong> {formatResourceValue(currentMultiplier)}x
           </div>
           <div style={{ marginBottom: '12px' }}>
-            <strong>다음 배수:</strong> {formatResourceValue(fromPlainValue(nextMultiplier))}x
+            <strong>다음 배수:</strong> {formatResourceValue(nextMultiplier)}x
           </div>
           <div style={{ marginBottom: '12px' }}>
             <strong>환생 비용:</strong> {formatResourceValue(nextCost)}

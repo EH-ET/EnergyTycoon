@@ -121,7 +121,7 @@ export default function RebirthTab() {
 
         <div className="info-row">
           <span className="label">현재 배율:</span>
-          <span className="value multiplier">{formatResourceValue(fromPlainValue(currentMultiplier))}x</span>
+          <span className="value multiplier">{formatResourceValue(currentMultiplier)}x</span>
         </div>
 
         <div className="info-row">
@@ -133,7 +133,7 @@ export default function RebirthTab() {
 
         <div className="info-row">
           <span className="label">다음 배율:</span>
-          <span className="value multiplier">{formatResourceValue(fromPlainValue(nextMultiplier))}x</span>
+          <span className="value multiplier">{formatResourceValue(nextMultiplier)}x</span>
         </div>
 
         <div className="info-row">
