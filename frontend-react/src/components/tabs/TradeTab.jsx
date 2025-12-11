@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-import { exchangeEnergy, fetchExchangeRate } from '../../utils/apiClient';
+import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues, subtractValues } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
 
@@ -56,6 +56,25 @@ export default function TradeTab() {
     try {
       setIsLoading(true);
       await loadRate();
+
+      // 교환 전 에너지만 서버에 동기화 (에너지 부족 에러 방지)
+      try {
+        const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
+        const energyPayload = toEnergyServerPayload();
+        const moneyPayload = toMoneyServerPayload();
+
+        // 간단한 동기화 (에너지/돈만)
+        await autosaveProgress({
+          energy_data: energyPayload.data,
+          energy_high: energyPayload.high,
+          money_data: moneyPayload.data,
+          money_high: moneyPayload.high,
+          supercoin: currentUser?.supercoin || 0,
+        });
+      } catch (saveErr) {
+        // 동기화 실패해도 교환은 계속 진행
+        console.warn('Pre-exchange autosave failed, continuing anyway:', saveErr);
+      }
 
       const beforeMoney = getMoneyValue();
       const data = await exchangeEnergy(currentUser.user_id, exchangeAmountBigValue);
