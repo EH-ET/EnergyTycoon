@@ -137,15 +137,29 @@ export default function Header() {
   }, [currentUser?.user_id]);
 
   const saveStatus = useStore(state => state.saveStatus);
-  const [saveMessage, setSaveMessage] = useState(null);
+  const [timeSinceLastSave, setTimeSinceLastSave] = useState('');
 
   useEffect(() => {
-    if (!saveStatus) return;
-    setSaveMessage(saveStatus.status);
-    const timer = setTimeout(() => {
-      setSaveMessage(null);
-    }, 3000);
-    return () => clearTimeout(timer);
+    const updateTimeSince = () => {
+      if (!saveStatus?.timestamp) {
+        setTimeSinceLastSave('');
+        return;
+      }
+
+      const now = Date.now();
+      const diff = Math.floor((now - saveStatus.timestamp) / 1000); // seconds
+
+      if (diff < 60) {
+        setTimeSinceLastSave(`${diff}초 전`);
+      } else {
+        const minutes = Math.floor(diff / 60);
+        setTimeSinceLastSave(`${minutes}분 전`);
+      }
+    };
+
+    updateTimeSince();
+    const timer = setInterval(updateTimeSince, 1000); // Update every second
+    return () => clearInterval(timer);
   }, [saveStatus]);
 
   return (
@@ -216,21 +230,19 @@ export default function Header() {
             </div>
           )}
         </div>
-        {saveMessage && (
+        {timeSinceLastSave && (
           <span style={{
             marginLeft: '16px',
-            fontSize: '13px',
-            fontWeight: 'bold',
-            padding: '4px 12px',
-            borderRadius: '12px',
-            background: saveMessage === 'success' ? 'rgba(46, 204, 113, 0.2)' : 'rgba(231, 76, 60, 0.2)',
-            color: saveMessage === 'success' ? '#2ecc71' : '#e74c3c',
-            border: `1px solid ${saveMessage === 'success' ? '#2ecc71' : '#e74c3c'}`,
-            boxShadow: `0 0 10px ${saveMessage === 'success' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(231, 76, 60, 0.3)'}`,
-            transition: 'all 0.3s ease',
-            animation: 'fadeIn 0.3s'
+            fontSize: '12px',
+            fontWeight: '500',
+            padding: '4px 10px',
+            borderRadius: '8px',
+            background: 'rgba(128, 128, 128, 0.15)',
+            color: '#999',
+            border: '1px solid rgba(128, 128, 128, 0.2)',
+            transition: 'all 0.3s ease'
           }}>
-            {saveMessage === 'success' ? 'Saved' : 'Save Failed'}
+            저장: {timeSinceLastSave}
           </span>
         )}
       </div>

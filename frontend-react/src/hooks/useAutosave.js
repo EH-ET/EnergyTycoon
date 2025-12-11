@@ -16,6 +16,11 @@ export function useAutosave() {
     if (!currentUser) return;
 
     const save = async () => {
+      if (useStore.getState().isAutosaveLocked) {
+        // console.log("Autosave is locked, skipping.");
+        return;
+      }
+
       try {
         const energyPayload = toEnergyServerPayload();
         const moneyPayload = toMoneyServerPayload();

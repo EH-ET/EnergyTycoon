@@ -139,21 +139,51 @@ export default function GeneratorModal({ generator, onClose }) {
 
   const handleUpgrade = async (key) => {
     try {
+      // 1. 비용 계산
+      const cost = computeUpgradeCost(generator, key);
+      const { compareMoneyWith, subtractFromMoney } = useStore.getState();
+
+      // 2. 돈 체크
+      if (compareMoneyWith(cost) < 0) {
+        setAlertMessage('돈이 부족합니다.');
+        return;
+      }
+
+      // 3. 즉시 로컬 상태 업데이트
+      subtractFromMoney(cost);
+      const currentLevel = generator.upgrades?.[key] || 0;
+      const newUpgrades = {
+        ...(generator.upgrades || {}),
+        [key]: currentLevel + 1,
+      };
+
+      updateGeneratorEntry((prev) => ({
+        ...prev,
+        upgrades: newUpgrades,
+      }));
+
+      // 4. 서버에 업그레이드 요청
       const token = getAuthToken();
       const res = await upgradeGenerator(generator.generator_id, key, 1, token);
 
+      // 5. 서버 응답으로 최종 상태 동기화 (에너지 보존)
       if (res.user) {
-        syncUserState(res.user);
+        const currentEnergy = useStore.getState().getEnergyValue();
+        syncUserState({
+          ...res.user,
+          energy_data: currentEnergy.data,
+          energy_high: currentEnergy.high,
+        });
       }
 
       if (res.generator) {
-        const upgrades = res.generator.upgrades || generator.upgrades || {};
+        const serverUpgrades = res.generator.upgrades || newUpgrades;
         updateGeneratorEntry((prev) => ({
           ...prev,
-          upgrades,
+          upgrades: serverUpgrades,
         }));
       }
-      
+
       // Tutorial: Detect generator upgrade
       const currentUser = useStore.getState().currentUser;
       if (currentUser?.tutorial === 10) {
@@ -161,6 +191,8 @@ export default function GeneratorModal({ generator, onClose }) {
       }
     } catch (err) {
       setAlertMessage(err.message || '업그레이드 실패');
+      // 실패 시 서버에서 올바른 상태를 받아오도록 페이지 새로고침 권장
+      // 또는 여기서 상태 롤백 로직 추가 가능
     }
   };
 

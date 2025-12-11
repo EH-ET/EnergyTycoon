@@ -73,7 +73,20 @@ export default function RebirthTab() {
     try {
       setPerforming(true);
 
-      // 환생 전 즉시 저장
+      // 환생 중 주기적 autosave 방지
+      const { lockAutosave } = useStore.getState();
+      lockAutosave();
+
+      // 환생 수행 (1회)
+      const result = await performRebirth(1);
+
+      // 사용자 상태 업데이트 및 발전기 초기화
+      if (result.user) {
+        syncUserState(result.user);
+      }
+      setPlacedGenerators([]);
+
+      // 환생 후 올바른 상태를 저장
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
@@ -90,22 +103,14 @@ export default function RebirthTab() {
 
       setSaveStatus('success'); // 저장 성공 알림
 
-      // 환생 수행 (1회)
-      const result = await performRebirth(1);
-
-      // 사용자 상태 업데이트 및 발전기 초기화
-      if (result.user) {
-        syncUserState(result.user);
-      }
-      setPlacedGenerators([]);
-
-      setSaveStatus('success'); // 환생 후 저장 성공 알림
-
       alert(result.message || '환생 성공!');
     } catch (err) {
       setSaveStatus('error'); // 저장 실패 알림
       alert(err.message || '환생에 실패했습니다');
     } finally {
+      // autosave 잠금 해제
+      const { unlockAutosave } = useStore.getState();
+      unlockAutosave();
       setPerforming(false);
     }
   };

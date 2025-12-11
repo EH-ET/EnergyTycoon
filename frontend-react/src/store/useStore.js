@@ -36,8 +36,11 @@ export const useStore = create((set, get) => ({
   saveStatus: null, // { status: 'success' | 'error', timestamp: number }
   isGlobalLoading: false, // Global loading state for token refresh / server wake-up
   globalLoadingMessage: '', // Message to show during loading
+  isAutosaveLocked: false, // Autosave lock
 
   // Actions
+  lockAutosave: () => set({ isAutosaveLocked: true }),
+  unlockAutosave: () => set({ isAutosaveLocked: false }),
   setSaveStatus: (status) => set({ saveStatus: { status, timestamp: Date.now() } }),
   setContentMode: (mode) => set({ contentMode: mode }),
   setGlobalLoading: (isLoading, message = '') => set({ isGlobalLoading: isLoading, globalLoadingMessage: message }),
