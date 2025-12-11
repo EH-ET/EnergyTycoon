@@ -17,7 +17,7 @@ export function useAutosave() {
 
     const save = async () => {
       if (useStore.getState().isAutosaveLocked) {
-        // console.log("Autosave is locked, skipping.");
+        console.log("Autosave is locked, skipping.");
         return;
       }
 
@@ -54,12 +54,15 @@ export function useAutosave() {
         // Skip if data hasn't changed (compare with last saved)
         const payloadStr = JSON.stringify(payload);
         if (lastSavedRef.current === payloadStr) {
+          console.log("Autosave skipped: no changes detected");
           return; // No changes, skip save
         }
 
+        console.log("Autosave executing...", { energy: energyPayload, money: moneyPayload });
         await autosaveProgress(payload);
         lastSavedRef.current = payloadStr;
         useStore.getState().setSaveStatus('success');
+        console.log("Autosave successful");
       } catch (e) {
         console.error('Autosave failed:', e);
         useStore.getState().setSaveStatus('error');
