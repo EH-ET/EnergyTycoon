@@ -1,11 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { upgrades, rebirthUpgrades } from '../../utils/data';
-import { postBulkUpgrades, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
-import { readStoredPlayTime } from '../../utils/playTime';
 import AlertModal from '../AlertModal';
 
 export default function UpgradeTab() {
@@ -13,79 +11,7 @@ export default function UpgradeTab() {
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
-
-  // Queue를 위한 ref들
-  const pendingUpgrades = useRef([]);
-  const isSyncing = useRef(false);
-  const hasChanges = useRef(false);
-
-  // 1분마다 변경사항 체크 및 동기화
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (hasChanges.current && pendingUpgrades.current.length > 0) {
-        syncPendingUpgrades();
-      }
-    }, 60 * 1000); // 1분
-
-    return () => {
-      clearInterval(intervalId);
-      // 컴포넌트 언마운트 시 남은 업그레이드 동기화
-      if (hasChanges.current && pendingUpgrades.current.length > 0) {
-        syncPendingUpgrades();
-      }
-    };
-  }, []);
-
-  // 대기 중인 업그레이드를 서버에 동기화
-  const syncPendingUpgrades = useCallback(async () => {
-    if (isSyncing.current || pendingUpgrades.current.length === 0) {
-      return;
-    }
-
-    isSyncing.current = true;
-    hasChanges.current = false;
-    const upgradesToSync = [...pendingUpgrades.current];
-    pendingUpgrades.current = [];
-
-    try {
-      // 1. 모든 대기 중인 업그레이드를 한 번의 API 요청으로 전송
-      const upgradesPayload = upgradesToSync.map(({ upgrade, amount }) => ({
-        endpoint: upgrade.endpoint,
-        amount: Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1
-      }));
-
-      const result = await postBulkUpgrades(upgradesPayload);
-
-      if (result.user) {
-        syncUserState(result.user);
-      }
-
-      // 2. 업그레이드 처리 후 올바른 상태를 autosave로 동기화
-      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
-      const energyPayload = toEnergyServerPayload();
-      const moneyPayload = toMoneyServerPayload();
-      const playTimeMs = readStoredPlayTime();
-
-      await autosaveProgress({
-        energy_data: energyPayload.data,
-        energy_high: energyPayload.high,
-        money_data: moneyPayload.data,
-        money_high: moneyPayload.high,
-        play_time_ms: playTimeMs,
-        supercoin: currentUser?.supercoin || 0,
-      });
-
-      // Tutorial 이벤트
-      if (currentUser?.tutorial === 8) {
-        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
-      }
-    } catch (e) {
-      console.error('Sync failed:', e);
-      setAlertMessage(e.message || '업그레이드 동기화 실패');
-    } finally {
-      isSyncing.current = false;
-    }
-  }, [currentUser, syncUserState]);
+  const addGlobalUpgradeToQueue = useStore(state => state.addGlobalUpgradeToQueue);
 
   const getUpgradeBatchLimit = (user) => {
     const level = Number(user?.upgrade_batch_upgrade) || 0;
@@ -168,8 +94,7 @@ export default function UpgradeTab() {
     }
 
     // 1. Queue에 업그레이드 추가
-    pendingUpgrades.current.push({ upgrade, amount: actualAmount });
-    hasChanges.current = true;
+    addGlobalUpgradeToQueue({ upgrade, amount: actualAmount });
 
     // 2. 즉시 로컬 상태 업데이트 (프론트엔드에서 실시간 반영)
     if ((upgrade.currency || 'money') === 'money') {

@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
   sessionTs: "et_ss",
   trap: "et_tp",
   exchangeRate: "et_er",
+  genUpgradeQueue: "et_gen_q",
+  globalUpgradeQueue: "et_global_q",
 };
 
 const TRAP_COOKIE_NAME = "abtkn";
@@ -37,6 +39,8 @@ export const useStore = create((set, get) => ({
   isGlobalLoading: false, // Global loading state for token refresh / server wake-up
   globalLoadingMessage: '', // Message to show during loading
   isAutosaveLocked: false, // Autosave lock
+  upgradeQueue: [], // For batching generator upgrades
+  globalUpgradeQueue: [], // For batching global upgrades
 
   // Actions
   lockAutosave: () => set({ isAutosaveLocked: true }),
@@ -44,6 +48,34 @@ export const useStore = create((set, get) => ({
   setSaveStatus: (status) => set({ saveStatus: { status, timestamp: Date.now() } }),
   setContentMode: (mode) => set({ contentMode: mode }),
   setGlobalLoading: (isLoading, message = '') => set({ isGlobalLoading: isLoading, globalLoadingMessage: message }),
+  
+  hydrateQueues: () => {
+    const genQueue = loadQueueFromStorage(STORAGE_KEYS.genUpgradeQueue);
+    const globalQueue = loadQueueFromStorage(STORAGE_KEYS.globalUpgradeQueue);
+    set({ upgradeQueue: genQueue, globalUpgradeQueue: globalQueue });
+  },
+
+  addGeneratorUpgradeToQueue: (upgrade) => set((state) => {
+    const newQueue = [...state.upgradeQueue, upgrade];
+    saveQueueToStorage(STORAGE_KEYS.genUpgradeQueue, newQueue);
+    return { upgradeQueue: newQueue };
+  }),
+
+  clearUpgradeQueue: () => {
+    saveQueueToStorage(STORAGE_KEYS.genUpgradeQueue, []);
+    set({ upgradeQueue: [] });
+  },
+
+  addGlobalUpgradeToQueue: (upgrade) => set((state) => {
+    const newQueue = [...state.globalUpgradeQueue, upgrade];
+    saveQueueToStorage(STORAGE_KEYS.globalUpgradeQueue, newQueue);
+    return { globalUpgradeQueue: newQueue };
+  }),
+
+  clearGlobalUpgradeQueue: () => {
+    saveQueueToStorage(STORAGE_KEYS.globalUpgradeQueue, []);
+    set({ globalUpgradeQueue: [] });
+  },
 
   logout: () => {
     clearClientSession();
@@ -266,6 +298,27 @@ function loadExchangeRate() {
     return Number.isFinite(num) ? num : null;
   } catch (e) {
     return null;
+  }
+}
+
+function saveQueueToStorage(key, queue) {
+  try {
+    if (!Array.isArray(queue)) return;
+    localStorage.setItem(key, JSON.stringify(queue));
+  } catch (e) {
+    console.error(`Failed to save queue ${key} to localStorage`, e);
+  }
+}
+
+function loadQueueFromStorage(key) {
+  try {
+    const stored = localStorage.getItem(key);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error(`Failed to load queue ${key} from localStorage`, e);
+    return [];
   }
 }
 

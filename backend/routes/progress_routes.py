@@ -25,7 +25,14 @@ from ..bigvalue import (
     _max_bv,
 )
 from ..init_db import get_build_time_by_name
-from ..schemas import ProgressAutoSaveIn, ProgressSaveIn, UserOut, GeneratorStateUpdate, GeneratorUpgradeRequest
+from ..schemas import (
+    ProgressAutoSaveIn,
+    ProgressSaveIn,
+    UserOut,
+    GeneratorStateUpdate,
+    GeneratorUpgradeRequest,
+    BulkGeneratorUpgradeRequest,
+)
 
 router = APIRouter()
 
@@ -624,4 +631,101 @@ async def skip_build(generator_id: str, auth=Depends(get_user_and_db)):
         "skip_cost_data": cost_payload["data"],
         "skip_cost_high": cost_payload["high"],
         "remaining_seconds": remaining,
+    }
+
+
+@router.post("/generators/bulk-upgrade")
+async def bulk_upgrade_generators(payload: BulkGeneratorUpgradeRequest, auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    if not payload.upgrades:
+        return {"user": UserOut.model_validate(user), "generators": []}
+
+    # Lock user row to prevent race conditions with money
+    user = db.query(User).filter_by(user_id=user.user_id).with_for_update().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    money_value = get_user_money_value(user)
+    
+    # Pre-fetch all necessary data to avoid queries in a loop
+    generator_ids = {item.generator_id for item in payload.upgrades}
+    
+    map_progresses = db.query(MapProgress).filter(
+        MapProgress.user_id == user.user_id,
+        MapProgress.generator_id.in_(generator_ids)
+    ).all()
+    map_progress_dict = {mp.generator_id: mp for mp in map_progresses}
+    
+    generators = db.query(Generator).filter(
+        Generator.generator_id.in_(generator_ids),
+        Generator.owner_id == user.user_id
+    ).all()
+    generator_dict = {g.generator_id: g for g in generators}
+
+    generator_type_ids = {g.generator_type_id for g in generators}
+    generator_types = db.query(GeneratorType).filter(
+        GeneratorType.generator_type_id.in_(generator_type_ids)
+    ).all()
+    generator_type_dict = {gt.generator_type_id: gt for gt in generator_types}
+
+    updated_gens = set()
+
+    for upgrade_item in payload.upgrades:
+        gen_id = upgrade_item.generator_id
+        key = upgrade_item.key
+        amount = upgrade_item.amount
+
+        mp = map_progress_dict.get(gen_id)
+        gen = generator_dict.get(gen_id)
+        if not mp or not gen:
+            continue  # Skip if generator or progress not found for this user
+
+        gt = generator_type_dict.get(gen.generator_type_id)
+        if not gt:
+            continue
+
+        try:
+            cost_val = _calc_generator_upgrade_cost(gt, mp, key, amount)
+            if compare(money_value, cost_val) < 0:
+                # Not enough money, stop processing further upgrades
+                break
+            
+            meta = _gen_upgrade_meta(key)
+            
+            # Apply changes
+            current_level = getattr(mp, meta["field"], 0) or 0
+            setattr(mp, meta["field"], current_level + amount)
+            money_value = subtract_values(money_value, cost_val)
+            updated_gens.add(gen_id)
+
+        except HTTPException:
+            # This could happen if 'key' is invalid.
+            # In a bulk operation, we prefer to skip the invalid item.
+            continue
+
+    # Update user's money once after all successful upgrades
+    set_user_money_value(user, money_value)
+    db.commit()
+
+    # Refresh user and generator objects to get the latest state
+    db.refresh(user)
+    
+    # Serialize only the generators that were actually updated
+    updated_generator_data = []
+    if updated_gens:
+        final_gens = db.query(Generator, MapProgress).join(
+            MapProgress, MapProgress.generator_id == Generator.generator_id
+        ).filter(
+            Generator.generator_id.in_(updated_gens)
+        ).all()
+
+        for g, mp in final_gens:
+            gt = generator_type_dict.get(g.generator_type_id)
+            updated_generator_data.append(
+                _serialize_generator(g, getattr(gt, "name", None), getattr(gt, "cost_data", 0), getattr(gt, "cost_high", 0), mp)
+            )
+
+    return {
+        "user": UserOut.model_validate(user),
+        "generators": updated_generator_data
     }
