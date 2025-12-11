@@ -6,6 +6,8 @@ import { useAutosave } from './hooks/useAutosave';
 import { useViewport } from './hooks/useViewport';
 import { useRankUpdate } from './hooks/useRank';
 import { usePlayTime } from './hooks/usePlayTime';
+import { useGeneratorUpgradeQueue } from './hooks/useGeneratorUpgradeQueue';
+import { useGlobalUpgradeQueue } from './hooks/useGlobalUpgradeQueue';
 import { normalizeServerGenerators } from './utils/generatorHelpers';
 import Header from './components/Header';
 import Main from './components/Main';
@@ -81,9 +83,14 @@ function App() {
   useViewport();
   useRankUpdate();
   usePlayTime();
+  useGeneratorUpgradeQueue();
+  useGlobalUpgradeQueue();
 
   useEffect(() => {
     const init = async () => {
+      // 큐 복원
+      useStore.getState().hydrateQueues();
+      
       // 트랩 가드 초기화
       installTrapFetchGuard();
       initTrapGuard();

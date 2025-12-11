@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
-import { demolishGenerator, skipGeneratorBuild, updateGeneratorState, upgradeGenerator } from '../utils/apiClient';
+import { demolishGenerator, skipGeneratorBuild, updateGeneratorState } from '../utils/apiClient';
 import { computeSkipCost } from '../utils/generatorHelpers';
 import { formatResourceValue, fromPlainValue, valueFromServer, toPlainValue, multiplyByFloat } from '../utils/bigValue';
 import { generators } from '../utils/data';
@@ -33,6 +33,8 @@ export default function GeneratorModal({ generator, onClose }) {
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
   const generatorTypesById = useStore(state => state.generatorTypesById);
   const updatePlacedGenerator = useStore(state => state.updatePlacedGenerator);
+  const addGeneratorUpgradeToQueue = useStore(state => state.addGeneratorUpgradeToQueue);
+
 
   const updateGeneratorEntry = (patcher) => {
     if (!generator?.generator_id) return;
@@ -119,28 +121,13 @@ export default function GeneratorModal({ generator, onClose }) {
     }
 
     const nextRunning = generator.running === false;
-    try {
-      const token = getAuthToken();
-      const res = await updateGeneratorState(
-        id,
-        { running: nextRunning, heat: generator.heat },
-        token
-      );
-
-      const serverRunning = res.generator ? res.generator.running !== false : nextRunning;
-      const serverHeat = typeof res.generator?.heat === 'number' ? res.generator.heat : generator.heat;
-      updateGeneratorEntry((prev) => ({
-        ...prev,
-        running: serverRunning,
-        heat: typeof serverHeat === 'number' ? serverHeat : prev?.heat,
-      }));
-
-      if (res.user) {
-        syncUserState(res.user);
-      }
-    } catch (err) {
-      setAlertMessage(err.message || '상태 변경 실패');
-    }
+    
+    // 즉시 로컬 상태 업데이트 (서버 호출 없이)
+    // useAutosave가 2분마다 자동으로 서버에 저장합니다
+    updateGeneratorEntry((prev) => ({
+      ...prev,
+      running: nextRunning,
+    }));
   };
 
   const handleUpgrade = async (key) => {
@@ -155,7 +142,7 @@ export default function GeneratorModal({ generator, onClose }) {
         return;
       }
 
-      // 3. 즉시 로컬 상태 업데이트
+      // 3. 즉시 로컬 상태 업데이트 (Optimistic Update)
       subtractFromMoney(cost);
       const currentLevel = generator.upgrades?.[key] || 0;
       const newUpgrades = {
@@ -168,27 +155,13 @@ export default function GeneratorModal({ generator, onClose }) {
         upgrades: newUpgrades,
       }));
 
-      // 4. 서버에 업그레이드 요청
-      const token = getAuthToken();
-      const res = await upgradeGenerator(generator.generator_id, key, 1, token);
+      // 4. 업그레이드 큐에 추가
+      addGeneratorUpgradeToQueue({
+        generator_id: generator.generator_id,
+        key,
+        amount: 1,
+      });
 
-      // 5. 서버 응답으로 최종 상태 동기화 (에너지 보존)
-      if (res.user) {
-        const currentEnergy = useStore.getState().getEnergyValue();
-        syncUserState({
-          ...res.user,
-          energy_data: currentEnergy.data,
-          energy_high: currentEnergy.high,
-        });
-      }
-
-      if (res.generator) {
-        const serverUpgrades = res.generator.upgrades || newUpgrades;
-        updateGeneratorEntry((prev) => ({
-          ...prev,
-          upgrades: serverUpgrades,
-        }));
-      }
 
       // Tutorial: Detect generator upgrade
       const currentUser = useStore.getState().currentUser;

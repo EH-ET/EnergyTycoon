@@ -98,6 +98,16 @@ class GeneratorUpgradeRequest(BaseModel):
     amount: int = Field(1, ge=1)
 
 
+class BulkGeneratorUpgradeItem(BaseModel):
+    generator_id: str
+    key: str  # 'production', 'heat_reduction', 'tolerance'
+    amount: int = Field(1, ge=1)
+
+
+class BulkGeneratorUpgradeRequest(BaseModel):
+    upgrades: List[BulkGeneratorUpgradeItem]
+
+
 class DeleteAccountIn(BaseModel):
     password: str
 

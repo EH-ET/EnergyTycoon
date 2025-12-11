@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { API_BASE } from '../../utils/data';
 import { autosaveProgress } from '../../utils/apiClient';
+import { powerOfPlain, formatResourceValue } from '../../utils/bigValue';
 import { readStoredPlayTime } from '../../utils/playTime';
 import AlertModal from '../AlertModal';
 
@@ -23,7 +24,7 @@ const specialUpgrades = [
     endpoint: 'energy_mult',
     field: 'energy_multiplier',
     maxLevel: null, // No max level
-    getBonus: (level) => `${Math.pow(2, level)}배`,
+    getBonus: (level) => `${formatResourceValue(powerOfPlain(2, level))}배`,
   },
   {
     이름: '환율 배수',
@@ -31,7 +32,7 @@ const specialUpgrades = [
     endpoint: 'exchange_mult',
     field: 'exchange_rate_multiplier',
     maxLevel: null, // No max level
-    getBonus: (level) => `${Math.pow(2, level)}배`,
+    getBonus: (level) => `${formatResourceValue(powerOfPlain(2, level))}배`,
   },
 ];
 

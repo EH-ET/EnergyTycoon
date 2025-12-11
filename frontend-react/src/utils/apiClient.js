@@ -315,6 +315,11 @@ export async function upgradeGenerator(generatorId, upgrade, amount = 1) {
     return response.data;
 }
 
+export async function bulkUpgradeGenerators(upgrades) {
+    const response = await apiClient.post('/generators/bulk-upgrade', { upgrades });
+    return response.data;
+}
+
 export async function fetchRebirthInfo() {
     const response = await apiClient.get('/rebirth/info');
     return response.data;

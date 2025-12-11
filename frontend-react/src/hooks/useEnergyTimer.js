@@ -36,7 +36,8 @@ function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
 function applyHeatReduction(heatRate, upgrades = {}) {
   const lvl = upgrades.heat_reduction || 0;
   if (!lvl) return heatRate;
-  const factor = Math.max(0.1, 1 - 0.1 * lvl);
+  // 발열 감소: 10% 감소 per level (곱연산 적용: 0.9^level)
+  const factor = Math.pow(0.9, lvl);
   return heatRate * factor;
 }
 
@@ -170,11 +171,13 @@ export function useEnergyTimer() {
         const producedThisTick = multiplyByFloat(producedBV, deltaSeconds);
         energyGainBV = addValues(energyGainBV, producedThisTick);
 
-        let heatRate = typeof next.heatRate === "number" ? next.heatRate : (meta ? Number(meta["발열"]) || 0 : 0);
+        const baseHeatRate = typeof next.heatRate === "number" ? next.heatRate : (meta ? Number(meta["발열"]) || 0 : 0);
+        const productionHeat = (upgrades.production || 0) * 0.5;
+        let heatRate = baseHeatRate + productionHeat;
+
         heatRate = applyHeatReduction(heatRate, upgrades);
         const userHeatMultiplier = Math.max(0.1, 1 - 0.1 * userHeatReduction);
         heatRate *= userHeatMultiplier;
-        heatRate += (upgrades.production || 0) * 0.5;
         next.heat = Math.max(0, (next.heat || 0) + heatRate * deltaSeconds);
 
         const baseTolerance = typeof next.baseTolerance === "number"
