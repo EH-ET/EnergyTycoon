@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
-import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
+import { exchangeEnergy, fetchExchangeRate } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues, subtractValues } from '../../utils/bigValue';
 import AlertModal from '../AlertModal';
-import { readStoredPlayTime } from '../../utils/playTime';
 
 export default function TradeTab() {
   const [percentage, setPercentage] = useState(10); // 1-100%
@@ -58,27 +57,6 @@ export default function TradeTab() {
       setIsLoading(true);
       await loadRate();
 
-      // 교환 전 상태 동기화 (autosave는 여전히 plain value 필요)
-      const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
-      const currentEnergyPlain = toPlainValue(currentEnergyValue);
-      const currentMoney = toPlainValue(getMoneyValue());
-      const energyPayload = toEnergyServerPayload();
-      const moneyPayload = toMoneyServerPayload();
-      const playTimeMs = readStoredPlayTime();
-
-      const saveResult = await autosaveProgress({
-        energy_data: energyPayload.data,
-        energy_high: energyPayload.high,
-        money_data: moneyPayload.data,
-        money_high: moneyPayload.high,
-        play_time_ms: playTimeMs,
-        supercoin: currentUser?.supercoin || 0
-      });
-
-      if (saveResult.user) {
-        syncUserState(saveResult.user);
-      }
-
       const beforeMoney = getMoneyValue();
       const data = await exchangeEnergy(currentUser.user_id, exchangeAmountBigValue);
 
@@ -88,7 +66,7 @@ export default function TradeTab() {
 
       const afterMoney = getMoneyValue();
       const gainedBigValue = subtractValues(afterMoney, beforeMoney);
-      
+
       const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
       setExchangeRate(toPlainValue(rateBV));
 
