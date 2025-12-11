@@ -125,35 +125,3 @@ async def bulk_upgrade(payload: BulkUpgradeRequest, auth=Depends(get_user_and_db
     if failed:
         response["failed"] = failed
     return response
-    try:
-        for idx, upgrade_item in enumerate(payload.upgrades):
-            endpoint = upgrade_item.endpoint
-            amount = upgrade_item.amount
-
-            if endpoint not in UPGRADE_TYPE_MAP:
-                raise HTTPException(status_code=400, detail=f"Invalid upgrade endpoint: {endpoint}")
-
-            upgrade_type, upgrade_name = UPGRADE_TYPE_MAP[endpoint]
-
-            try:
-                if upgrade_type == "upgrade":
-                    user = apply_upgrade(user, db, upgrade_name, amount, commit=False)
-                elif upgrade_type == "rebirth":
-                    user = apply_rebirth_upgrade(user, db, upgrade_name, amount, commit=False)
-            except HTTPException as e:
-                db.rollback()
-                raise HTTPException(
-                    status_code=e.status_code,
-                    detail=f"[{idx}] {endpoint} x{amount}: {e.detail}"
-                )
-
-        db.commit()
-        db.refresh(user)
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception:
-        db.rollback()
-        raise
-
-    return {"user": UserOut.model_validate(user)}

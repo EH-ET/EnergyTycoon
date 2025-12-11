@@ -48,7 +48,19 @@ export default function UpgradeTab() {
     pendingUpgrades.current = [];
 
     try {
-      // 1. 먼저 현재 money/energy 상태를 autosave로 동기화
+      // 1. 모든 대기 중인 업그레이드를 한 번의 API 요청으로 전송
+      const upgradesPayload = upgradesToSync.map(({ upgrade, amount }) => ({
+        endpoint: upgrade.endpoint,
+        amount: Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1
+      }));
+
+      const result = await postBulkUpgrades(upgradesPayload);
+
+      if (result.user) {
+        syncUserState(result.user);
+      }
+
+      // 2. 업그레이드 처리 후 올바른 상태를 autosave로 동기화
       const { toEnergyServerPayload, toMoneyServerPayload } = useStore.getState();
       const energyPayload = toEnergyServerPayload();
       const moneyPayload = toMoneyServerPayload();
@@ -62,18 +74,6 @@ export default function UpgradeTab() {
         play_time_ms: playTimeMs,
         supercoin: currentUser?.supercoin || 0,
       });
-
-      // 2. 모든 대기 중인 업그레이드를 한 번의 API 요청으로 전송
-      const upgradesPayload = upgradesToSync.map(({ upgrade, amount }) => ({
-        endpoint: upgrade.endpoint,
-        amount: Number.isFinite(amount) && amount > 0 ? Math.floor(amount) : 1
-      }));
-
-      const result = await postBulkUpgrades(upgradesPayload);
-
-      if (result.user) {
-        syncUserState(result.user);
-      }
 
       // Tutorial 이벤트
       if (currentUser?.tutorial === 8) {
