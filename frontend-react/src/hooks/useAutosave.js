@@ -40,7 +40,7 @@ export function useAutosave() {
           .filter(g => g && (g.generator_id || g.id))
           .map(g => ({
             generator_id: g.generator_id || g.id,
-            heat: typeof g.heat === 'number' ? g.heat : 0,
+            heat: typeof g.heat === 'number' ? Math.floor(g.heat) : 0,
             running: g.running !== false,
           }));
 
