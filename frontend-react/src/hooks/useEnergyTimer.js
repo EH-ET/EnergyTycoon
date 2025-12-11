@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
 import { valueFromServer, addValues, multiplyByFloat, normalizeValue } from '../utils/bigValue';
-import { loadProgress } from '../utils/apiClient';
+import { loadProgress, awardSupercoin } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
 
@@ -204,18 +204,19 @@ export function useEnergyTimer() {
         if (runningCount > 0) {
           const chance = runningCount / 1_000_000;
           if (Math.random() < chance) {
-            // Award 1 supercoin via server API
-            const { default: { awardSupercoin } } = await import('../utils/apiClient');
-            try {
-              const result = await awardSupercoin();
-              const { syncUserState } = useStore.getState();
-              syncUserState({ supercoin: result.supercoin });
-              
-              // Show notification
-              console.log(`🪙 Supercoin acquired! Total: ${result.supercoin}`);
-            } catch (err) {
-              console.error('Failed to award supercoin:', err);
-            }
+            // Award 1 supercoin via server API (async IIFE)
+            (async () => {
+              try {
+                const result = await awardSupercoin();
+                const { syncUserState } = useStore.getState();
+                syncUserState({ supercoin: result.supercoin });
+                
+                // Show notification
+                console.log(`🪙 Supercoin acquired! Total: ${result.supercoin}`);
+              } catch (err) {
+                console.error('Failed to award supercoin:', err);
+              }
+            })();
           }
         }
 
