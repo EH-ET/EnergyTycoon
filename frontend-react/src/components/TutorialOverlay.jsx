@@ -10,6 +10,7 @@ export default function TutorialOverlay() {
   const syncUserState = useStore(state => state.syncUserState);
   const [currentStep, setCurrentStep] = useState(null);
   const [highlightedElement, setHighlightedElement] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -36,6 +37,29 @@ export default function TutorialOverlay() {
       }
     }
   }, [currentUser?.tutorial]);
+
+  // Listen for drag events on highlighted element
+  useEffect(() => {
+    if (!highlightedElement) return;
+
+    const handleDragStart = () => {
+      setIsDragging(true);
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
+
+    highlightedElement.addEventListener('dragstart', handleDragStart);
+    highlightedElement.addEventListener('dragend', handleDragEnd);
+    document.addEventListener('drop', handleDragEnd);
+
+    return () => {
+      highlightedElement.removeEventListener('dragstart', handleDragStart);
+      highlightedElement.removeEventListener('dragend', handleDragEnd);
+      document.removeEventListener('drop', handleDragEnd);
+    };
+  }, [highlightedElement]);
 
   // Listen for required actions
   useEffect(() => {
@@ -159,7 +183,7 @@ export default function TutorialOverlay() {
       </div>
       
       {/* Split overlay into 4 parts to create a cutout */}
-      {highlightedElement ? (
+      {highlightedElement && !isDragging ? (
         <>
           {/* Top overlay */}
           <div 
