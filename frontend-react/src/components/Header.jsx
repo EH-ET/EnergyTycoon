@@ -40,7 +40,7 @@ export default function Header() {
     setShowProfileModal(!showProfileModal);
     
     // Tutorial: Detect profile click
-    if (currentUser?.tutorial === 6) {
+    if (currentUser?.tutorial === 7) {
       dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_PROFILE);
     }
   };
@@ -296,7 +296,7 @@ export default function Header() {
               setShowMoneyModal(true);
               ensureExchangeRate();
               // Tutorial: Detect money hover
-              if (currentUser?.tutorial === 5) {
+              if (currentUser?.tutorial === 6) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_MONEY);
               }
             }}
@@ -324,7 +324,7 @@ export default function Header() {
             onMouseEnter={() => {
               setShowEnergyModal(true);
               // Tutorial: Detect energy hover
-              if (currentUser?.tutorial === 4) {
+              if (currentUser?.tutorial === 5) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_ENERGY);
               }
             }}

@@ -66,7 +66,11 @@ export default function TutorialOverlay() {
 
           // Z-index를 올려야 하는 요소들에만 실제로 스타일 적용
           elementsToBoostZIndex.forEach(el => {
-            el.style.position = 'relative';
+            // Only change position if it's static (not positioned)
+            const currentPosition = window.getComputedStyle(el).position;
+            if (currentPosition === 'static') {
+              el.style.position = 'relative';
+            }
             el.style.zIndex = '10000';
             // Also boost z-index for all children
             const children = el.querySelectorAll('*');
@@ -78,11 +82,13 @@ export default function TutorialOverlay() {
       }
     }
     
-    // Cleanup: reset z-index when step changes
+    // Cleanup: reset z-index and position when step changes
     return () => {
       document.querySelectorAll('[style*="z-index: 10000"]').forEach(el => {
         el.style.zIndex = '';
-        if (el.style.position === 'relative' && !el.className.includes('positioned')) {
+        // Only clear position if it was set to relative by us
+        // (elements with absolute/fixed/sticky should keep their position)
+        if (el.style.position === 'relative') {
           el.style.position = '';
         }
       });

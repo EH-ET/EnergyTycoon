@@ -98,7 +98,7 @@ export const TUTORIAL_STEPS = {
     id: 12,
     title: "🔍 발전기 관리",
     content: "설치된 발전기를 클릭하세요.",
-    highlightSelector: ".placed-generator:first-child",
+    highlightSelector: ".main-content .placed-generator:first-of-type",
     position: "top",
     requiredAction: "click-generator"
   },
@@ -106,17 +106,16 @@ export const TUTORIAL_STEPS = {
     id: 13,
     title: "⬆️ 발전기 업그레이드",
     content: "발전기의 '생산량 증가' 업그레이드를 클릭하세요!",
-    highlightSelector: ".upgrade-card-btn",
-    position: "center",
+    highlightSelector: ".generator-upgrade-production",
+    position: "bottom",
     requiredAction: "upgrade-generator-production"
   },
   14: {
     id: 14,
     title: "📈 정보 탭",
-    content: "하단의 'Info' 탭을 클릭하세요.",
-    highlightSelector: ".build-bar .bbtn:nth-child(4)",
-    position: "top",
-    requiredAction: "click-info-tab"
+    content: "하단의 'Info' 탭을 확인하세요.",
+    highlightSelector: ".info-btn",
+    position: "top"
   },
   15: {
     id: 15,
@@ -129,7 +128,7 @@ export const TUTORIAL_STEPS = {
     id: 16,
     title: "✨ 특수 업그레이드",
     content: "'특수' 탭을 클릭하세요.",
-    highlightSelector: ".build-bar .bbtn:nth-child(5)",
+    highlightSelector: ".special-btn",
     position: "top",
     requiredAction: "click-special-tab"
   },
