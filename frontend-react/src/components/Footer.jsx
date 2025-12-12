@@ -1,10 +1,42 @@
 import { useStore } from '../store/useStore';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
+import { useEffect } from 'react';
 
 export default function Footer({ children }) {
   const contentMode = useStore(state => state.contentMode);
   const setContentMode = useStore(state => state.setContentMode);
+  const currentUser = useStore(state => state.currentUser);
 
+  // 🚨 튜토리얼 단계에 따라 contentMode를 강제 설정하는 훅 추가
+  useEffect(() => {
+    const tutorialStep = currentUser?.tutorial;
+
+    // Step 8 & 9: 교환소(Trade) 탭이 열려 있어야 합니다.
+    if (tutorialStep === 8 || tutorialStep === 9) {
+      if (contentMode !== 'trade') {
+        setContentMode('trade');
+      }
+    } 
+    // Step 10, 11, 12: 업그레이드(Upgrade) 탭이 열려 있어야 합니다.
+    else if (tutorialStep >= 10 && tutorialStep <= 12) {
+      if (contentMode !== 'upgrade') {
+        setContentMode('upgrade');
+      }
+    }
+    // Step 14, 15: 정보(Info) 탭이 열려 있어야 합니다.
+    else if (tutorialStep >= 14 && tutorialStep <= 15) {
+      if (contentMode !== 'info') {
+        setContentMode('info');
+      }
+    }
+    // Step 16, 17: 특수(Special) 탭이 열려 있어야 합니다.
+    else if (tutorialStep >= 16 && tutorialStep <= 17) {
+      if (contentMode !== 'special') {
+        setContentMode('special');
+      }
+    }
+  }, [currentUser?.tutorial, contentMode, setContentMode]); // 튜토리얼 단계 및 contentMode 변경 시 실행
+  
   return (
     <footer>
       <div className="build-bar">
