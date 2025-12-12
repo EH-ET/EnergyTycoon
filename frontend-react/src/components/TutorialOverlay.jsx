@@ -407,16 +407,7 @@ export default function TutorialOverlay() {
               </div>
               <h3 className="tutorial-title">{tooltip.title}</h3>
               <p className="tutorial-content">{tooltip.content}</p>
-              {index === 0 && (
-                <div className="tutorial-actions">
-                  <button 
-                    className="tutorial-btn tutorial-btn-skip"
-                    onClick={handleSkip}
-                  >
-                    건너뛰기
-                  </button>
-                </div>
-              )}
+
             </div>
           );
         })
@@ -432,12 +423,7 @@ export default function TutorialOverlay() {
           <h3 className="tutorial-title">{currentStep.title}</h3>
           <p className="tutorial-content">{currentStep.content}</p>
           <div className="tutorial-actions">
-            <button 
-              className="tutorial-btn tutorial-btn-skip"
-              onClick={handleSkip}
-            >
-              건너뛰기
-            </button>
+
             {!currentStep.requiredAction && (
               <button 
                 className="tutorial-btn tutorial-btn-next"
