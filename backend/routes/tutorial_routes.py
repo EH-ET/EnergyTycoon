@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
+from .. import schemas
 from ..dependencies import get_user_and_db
 from ..models import User
 
@@ -41,7 +42,11 @@ def update_tutorial_progress(
     db.commit()
     db.refresh(current_user)
     
-    return {"tutorial": current_user.tutorial, "message": "Tutorial progress updated"}
+    return {
+        "tutorial": current_user.tutorial,
+        "user": schemas.UserOut.model_validate(current_user),
+        "message": "Tutorial progress updated"
+    }
 
 
 @router.post("/skip", include_in_schema=False)
