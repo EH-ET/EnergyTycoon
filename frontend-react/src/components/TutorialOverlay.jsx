@@ -39,10 +39,15 @@ export default function TutorialOverlay() {
               .map(selector => document.querySelector(selector))
               .filter(el => el !== null);
             
-            // Boost z-index of highlighted elements
+            // Boost z-index of highlighted elements and their children
             elements.forEach(el => {
               el.style.position = 'relative';
               el.style.zIndex = '10000';
+              // Also boost z-index for all children
+              const children = el.querySelectorAll('*');
+              children.forEach(child => {
+                child.style.zIndex = '10000';
+              });
             });
             
             setHighlightedElements(elements);
@@ -53,6 +58,11 @@ export default function TutorialOverlay() {
             if (element) {
               element.style.position = 'relative';
               element.style.zIndex = '10000';
+              // Also boost z-index for all children
+              const children = element.querySelectorAll('*');
+              children.forEach(child => {
+                child.style.zIndex = '10000';
+              });
             }
             setHighlightedElement(element);
             setHighlightedElements(element ? [element] : []);
@@ -260,33 +270,93 @@ export default function TutorialOverlay() {
         </>
       )}
       
-      {/* Tutorial tooltip */}
-      <div 
-        className="tutorial-tooltip"
-        style={getTooltipPosition()}
-      >
-        <div className="tutorial-step-number">
-          Step {currentStep.id} / 20
-        </div>
-        <h3 className="tutorial-title">{currentStep.title}</h3>
-        <p className="tutorial-content">{currentStep.content}</p>
-        <div className="tutorial-actions">
-          <button 
-            className="tutorial-btn tutorial-btn-skip"
-            onClick={handleSkip}
-          >
-            건너뛰기
-          </button>
-          {!currentStep.requiredAction && (
-            <button 
-              className="tutorial-btn tutorial-btn-next"
-              onClick={handleNext}
+      {/* Tutorial tooltips */}
+      {currentStep.tooltips && currentStep.tooltips.length > 0 ? (
+        // Multiple tooltips for steps with multiple highlights
+        currentStep.tooltips.map((tooltip, index) => {
+          const targetElement = highlightedElements[tooltip.highlightIndex];
+          if (!targetElement) return null;
+          
+          const rect = targetElement.getBoundingClientRect();
+          const position = tooltip.position || 'bottom';
+          
+          let style = {};
+          switch (position) {
+            case 'right':
+              style = {
+                top: `${rect.top + rect.height / 2}px`,
+                left: `${rect.right + 15}px`,
+                transform: 'translate(0, -50%)'
+              };
+              break;
+            case 'center':
+              style = {
+                top: `${rect.top + rect.height / 2}px`,
+                left: `${rect.left + rect.width / 2}px`,
+                transform: 'translate(-50%, -50%)'
+              };
+              break;
+            default:
+              style = {
+                top: `${rect.bottom + 15}px`,
+                left: `${rect.left + rect.width / 2}px`,
+                transform: 'translate(-50%, 0)'
+              };
+          }
+          
+          return (
+            <div 
+              key={index}
+              className="tutorial-tooltip"
+              style={style}
             >
-              {currentStep.id === 20 ? '완료' : '다음으로'}
+              <div className="tutorial-step-number">
+                Step {currentStep.id} / 20
+              </div>
+              <h3 className="tutorial-title">{tooltip.title}</h3>
+              <p className="tutorial-content">{tooltip.content}</p>
+              {index === 0 && (
+                <div className="tutorial-actions">
+                  <button 
+                    className="tutorial-btn tutorial-btn-skip"
+                    onClick={handleSkip}
+                  >
+                    건너뛰기
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })
+      ) : (
+        // Single tooltip for regular steps
+        <div 
+          className="tutorial-tooltip"
+          style={getTooltipPosition()}
+        >
+          <div className="tutorial-step-number">
+            Step {currentStep.id} / 20
+          </div>
+          <h3 className="tutorial-title">{currentStep.title}</h3>
+          <p className="tutorial-content">{currentStep.content}</p>
+          <div className="tutorial-actions">
+            <button 
+              className="tutorial-btn tutorial-btn-skip"
+              onClick={handleSkip}
+            >
+              건너뛰기
             </button>
-          )}
+            {!currentStep.requiredAction && (
+              <button 
+                className="tutorial-btn tutorial-btn-next"
+                onClick={handleNext}
+              >
+                {currentStep.id === 20 ? '완료' : '다음으로'}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
