@@ -480,6 +480,7 @@ export default function GeneratorModal({ generator, onClose }) {
                   <div style={{ marginTop: '4px', fontSize: '13px' }}>레벨: {level}</div>
                   <div style={{ color: '#f1c40f', fontSize: '13px' }}>비용: {formatResourceValue(fromPlainValue(cost))}</div>
                   <button
+                    className={`generator-upgrade-btn generator-upgrade-${key}`}
                     onClick={() => handleUpgrade(key)}
                     style={{
                       marginTop: '6px',
