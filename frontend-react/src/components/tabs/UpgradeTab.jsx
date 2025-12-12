@@ -118,9 +118,9 @@ export default function UpgradeTab() {
     // 로컬 상태 업데이트 (persist: false로 서버 동기화는 나중에)
     syncUserState(updatedUser, { persist: false });
 
-    // Tutorial 이벤트
-    if (currentUser?.tutorial === 8) {
-      dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_UPGRADE);
+    // Tutorial 이벤트 - 전체 생산량 증가 구매 시
+    if (upgrade.field === 'production_bonus') {
+      dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_PRODUCTION_UPGRADE);
     }
   };
 

@@ -188,9 +188,9 @@ export default function Main() {
 
       addPlacedGenerator(entry);
       
-      // Tutorial: Detect generator purchase
-      if (currentUser?.tutorial === 2) {
-        dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_GENERATOR);
+      // Tutorial: Detect generator placement
+      if (currentUser?.tutorial === 3) {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.PLACE_GENERATOR);
       }
     } catch (err) {
       setAlertMessage('설치 실패: ' + (err.message || err));
@@ -385,7 +385,7 @@ export default function Main() {
                     if (id != null) {
                       setSelectedGeneratorId(id);
                       // Tutorial: Detect generator click
-                      if (currentUser?.tutorial === 9) {
+                      if (currentUser?.tutorial === 12) {
                         dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_GENERATOR);
                       }
                     }

@@ -1,4 +1,5 @@
 import { useStore } from '../store/useStore';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 
 export default function Footer({ children }) {
   const contentMode = useStore(state => state.contentMode);
@@ -16,31 +17,46 @@ export default function Footer({ children }) {
           </button>
           <button
             className={`trade-btn bbtn ${contentMode === 'trade' ? 'active' : ''}`}
-            onClick={() => setContentMode('trade')}
+            onClick={() => {
+              setContentMode('trade');
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_EXCHANGE);
+            }}
           >
             교환소
           </button>
           <button
             className={`upgrade-btn bbtn ${contentMode === 'upgrade' ? 'active' : ''}`}
-            onClick={() => setContentMode('upgrade')}
+            onClick={() => {
+              setContentMode('upgrade');
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_UPGRADE_TAB);
+            }}
           >
             업그레이드
           </button>
           <button
             className={`special-btn bbtn ${contentMode === 'special' ? 'active' : ''}`}
-            onClick={() => setContentMode('special')}
+            onClick={() => {
+              setContentMode('special');
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_SPECIAL_TAB);
+            }}
           >
             특수
           </button>
           <button
             className={`info-btn bbtn ${contentMode === 'info' ? 'active' : ''}`}
-            onClick={() => setContentMode('info')}
+            onClick={() => {
+              setContentMode('info');
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_INFO_TAB);
+            }}
           >
             정보
           </button>
           <button
             className={`inquiry-btn bbtn ${contentMode === 'inquiry' ? 'active' : ''}`}
-            onClick={() => setContentMode('inquiry')}
+            onClick={() => {
+              setContentMode('inquiry');
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_INQUIRY_TAB);
+            }}
           >
             문의하기
           </button>

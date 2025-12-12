@@ -17,7 +17,7 @@ export default function TutorialOverlay() {
     const tutorialStep = currentUser.tutorial;
 
     // Tutorial not started, completed, or skipped
-    if (!tutorialStep || tutorialStep === 0 || tutorialStep > 11) {
+    if (!tutorialStep || tutorialStep === 0 || tutorialStep > 20) {
       setCurrentStep(null);
       setHighlightedElement(null);
       return;
@@ -58,7 +58,7 @@ export default function TutorialOverlay() {
 
     try {
       const nextStep = currentStep.id + 1;
-      const data = await updateTutorialProgress(nextStep > 11 ? 0 : nextStep);
+      const data = await updateTutorialProgress(nextStep > 20 ? 0 : nextStep);
 
       // Update user state
       syncUserState({ ...currentUser, tutorial: data.tutorial });
@@ -155,7 +155,7 @@ export default function TutorialOverlay() {
     <>
       {/* Progress Indicator at top center */}
       <div className="tutorial-progress-indicator">
-        튜토리얼 진행 중: {currentStep.id} / 11
+        튜토리얼 진행 중: {currentStep.id} / 20
       </div>
       
       {/* Dark overlay */}
@@ -184,7 +184,7 @@ export default function TutorialOverlay() {
         style={getTooltipPosition()}
       >
         <div className="tutorial-step-number">
-          Step {currentStep.id} / 11
+          Step {currentStep.id} / 20
         </div>
         <h3 className="tutorial-title">{currentStep.title}</h3>
         <p className="tutorial-content">{currentStep.content}</p>
@@ -195,12 +195,14 @@ export default function TutorialOverlay() {
           >
             건너뛰기
           </button>
-          <button 
-            className="tutorial-btn tutorial-btn-next"
-            onClick={handleNext}
-          >
-            {currentStep.id === 11 ? '완료' : '다음'}
-          </button>
+          {!currentStep.requiredAction && (
+            <button 
+              className="tutorial-btn tutorial-btn-next"
+              onClick={handleNext}
+            >
+              {currentStep.id === 20 ? '완료' : '다음으로'}
+            </button>
+          )}
         </div>
       </div>
     </>

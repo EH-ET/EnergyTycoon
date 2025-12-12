@@ -1,93 +1,162 @@
 /**
  * Tutorial step definitions
- * Each step has: id, title, content, targetSelector, position, action
+ * Each step has: id, title, content, targetSelector, position, requiredAction
  */
 
 export const TUTORIAL_STEPS = {
   1: {
     id: 1,
     title: "🎮 게임 시작하기",
-    content: "환영합니다! 이 화면은 좌우로 스크롤할 수 있습니다. 발전기를 설치할 공간이 많아요!",
+    content: "환영합니다! 이 화면은 좌우로 스크롤할 수 있습니다. 발전기를 설치할 공간이 많아요! 좌우로 스크롤해보세요.",
     highlightSelector: ".main",
     position: "center",
-    nextAction: "scroll" // 스크롤하면 자동으로 다음 단계
+    requiredAction: "scroll"
   },
   2: {
     id: 2,
-    title: "⚡ 첫 발전기 구매하기",
-    content: "하단의 '발전기' 탭에서 첫 번째 발전기를 구매해보세요. 발전기를 드래그하여 메인 화면에 설치할 수 있습니다.",
+    title: "⚡ 첫 발전기",
+    content: "하단의 '발전기' 탭에서 첫 번째 발전기를 확인하세요.",
     highlightSelector: ".generator-grid .generator-item:first-child",
-    position: "top",
-    requiredAction: "buy-generator" // 발전기 구매 시 다음 단계
+    position: "top"
   },
   3: {
     id: 3,
-    title: "📊 상단 정보 확인",
-    content: "상단 헤더에서 보유 자원과 환율을 확인할 수 있습니다.",
-    highlightSelector: ".header",
-    position: "bottom"
+    title: "🏗️ 발전기 설치",
+    content: "발전기를 드래그하여 메인 화면에 설치해보세요!",
+    highlightSelector: ".main",
+    position: "center",
+    requiredAction: "place-generator"
   },
   4: {
     id: 4,
-    title: "⚡ 초당 생산량 확인",
-    content: "에너지 아이콘에 마우스를 올리면 초당 생산량을 확인할 수 있습니다.",
+    title: "📊 상단 정보",
+    content: "상단 헤더에서 보유 자원을 확인할 수 있습니다.",
+    highlightSelector: ".header",
+    position: "bottom"
+  },
+  5: {
+    id: 5,
+    title: "⚡ 초당 생산량",
+    content: "에너지 아이콘에 마우스를 올려보세요.",
     highlightSelector: ".energy-icon",
     position: "bottom",
     requiredAction: "hover-energy"
   },
-  5: {
-    id: 5,
+  6: {
+    id: 6,
     title: "💱 환율 확인",
-    content: "돈 아이콘에 마우스를 올리면 현재 환율을 확인할 수 있습니다.",
+    content: "돈 아이콘에 마우스를 올려 환율을 확인하세요.",
     highlightSelector: ".money-icon",
     position: "bottom",
     requiredAction: "hover-money"
   },
-  6: {
-    id: 6,
-    title: "⚙️ 설정 메뉴",
-    content: "프로필 버튼을 클릭하면 설정과 계정 관리를 할 수 있습니다.",
+  7: {
+    id: 7,
+    title: "⚙️ 프로필",
+    content: "프로필 버튼을 클릭해보세요.",
     highlightSelector: ".profile-trigger",
     position: "bottom",
     requiredAction: "click-profile"
   },
-  7: {
-    id: 7,
-    title: "💰 거래소 이용하기",
-    content: "하단의 '거래' 탭에서 에너지를 돈으로 교환할 수 있습니다. 주의: 많이 팔면 에너지 가치가 떨어지므로 수요를 증가시켜야 합니다!",
-    highlightSelector: ".build-bar .bbtn:nth-child(2)",
-    position: "top"
-  },
   8: {
     id: 8,
-    title: "🔧 전역 업그레이드",
-    content: "돈을 모아서 '업그레이드' 탭에서 전체 생산량을 증가시키세요!",
-    highlightSelector: ".build-bar .bbtn:nth-child(3)",
+    title: "💰 교환소",
+    content: "하단의 '거래' 탭을 클릭하세요.",
+    highlightSelector: ".build-bar .bbtn:nth-child(2)",
     position: "top",
-    requiredAction: "buy-upgrade"
+    requiredAction: "click-exchange"
   },
   9: {
     id: 9,
+    title: "💵 판매하기",
+    content: "에너지를 돈으로 교환하려면 '판매' 버튼을 클릭하세요.",
+    highlightSelector: ".exchange-sell-btn",
+    position: "top",
+    requiredAction: "click-sell"
+  },
+  10: {
+    id: 10,
+    title: "🔧 업그레이드",
+    content: "'업그레이드' 탭을 클릭하세요.",
+    highlightSelector: ".build-bar .bbtn:nth-child(3)",
+    position: "top",
+    requiredAction: "click-upgrade-tab"
+  },
+  11: {
+    id: 11,
+    title: "📈 전체 생산량 증가",
+    content: "'전체 생산량 증가' 업그레이드를 구매해보세요!",
+    highlightSelector: ".upgrade-grid .upgrade-card:first-child",
+    position: "top",
+    requiredAction: "buy-production-upgrade"
+  },
+  12: {
+    id: 12,
     title: "🔍 발전기 관리",
-    content: "설치된 발전기를 클릭하면 상세 정보와 업그레이드 옵션을 볼 수 있습니다.",
+    content: "설치된 발전기를 클릭하세요.",
     highlightSelector: ".placed-generator:first-child",
     position: "top",
     requiredAction: "click-generator"
   },
-  10: {
-    id: 10,
+  13: {
+    id: 13,
     title: "⬆️ 발전기 업그레이드",
-    content: "에너지를 모아 돈으로 교환한 후, 발전기를 업그레이드하세요!",
-    highlightSelector: ".generator-modal",
+    content: "발전기의 '생산량 증가' 업그레이드를 클릭하세요!",
+    highlightSelector: ".upgrade-card-btn",
     position: "center",
-    requiredAction: "upgrade-generator"
+    requiredAction: "upgrade-generator-production"
   },
-  11: {
-    id: 11,
-    title: "📈 정보 확인",
-    content: "하단의 'Info' 탭에서 플레이 시간, 통계, 랭킹을 확인할 수 있습니다. 튜토리얼 완료!",
+  14: {
+    id: 14,
+    title: "📈 정보 탭",
+    content: "하단의 'Info' 탭을 클릭하세요.",
     highlightSelector: ".build-bar .bbtn:nth-child(4)",
-    position: "top"
+    position: "top",
+    requiredAction: "click-info-tab"
+  },
+  15: {
+    id: 15,
+    title: "🏆 랭킹 시스템",
+    content: "랭킹 기준에 따라 다른 플레이어들과 순위를 비교할 수 있습니다!",
+    highlightSelector: ".info-tab",
+    position: "center"
+  },
+  16: {
+    id: 16,
+    title: "✨ 특수 업그레이드",
+    content: "'특수' 탭을 클릭하세요.",
+    highlightSelector: ".build-bar .bbtn:nth-child(5)",
+    position: "top",
+    requiredAction: "click-special-tab"
+  },
+  17: {
+    id: 17,
+    title: "🪙 슈퍼코인",
+    content: "슈퍼코인으로 강력한 특수 업그레이드를 구매할 수 있습니다!",
+    highlightSelector: ".special-tab",
+    position: "center"
+  },
+  18: {
+    id: 18,
+    title: "🔮 환생",
+    content: "환생을 하면 모든 진행도가 초기화되지만, 생산량이 2배씩 증가합니다!",
+    highlightSelector: ".rebirth-trigger",
+    position: "bottom"
+  },
+  19: {
+    id: 19,
+    title: "📝 문의",
+    content: "하단의 '문의' 탭을 클릭하세요.",
+    highlightSelector: ".build-bar .bbtn:nth-child(6)",
+    position: "top",
+    requiredAction: "click-inquiry-tab"
+  },
+  20: {
+    id: 20,
+    title: "🎉 튜토리얼 완료!",
+    content: "문의 탭에서 버그 리포트나 건의사항을 보낼 수 있습니다. 튜토리얼을 완료했습니다!",
+    highlightSelector: ".inquiry-tab",
+    position: "center"
   }
 };
 
@@ -96,9 +165,9 @@ export const getTutorialStep = (stepNumber) => {
 };
 
 export const isTutorialComplete = (stepNumber) => {
-  return stepNumber === 0 || stepNumber > 11;
+  return stepNumber === 0 || stepNumber > 20;
 };
 
 export const shouldShowTutorial = (stepNumber) => {
-  return stepNumber >= 1 && stepNumber <= 11;
+  return stepNumber >= 1 && stepNumber <= 20;
 };

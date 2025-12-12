@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, autosaveProgress } from '../../utils/apiClient';
 import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues, subtractValues } from '../../utils/bigValue';
+import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 
 export default function TradeTab() {
@@ -217,7 +218,10 @@ export default function TradeTab() {
 
           <button
             type="button"
-            onClick={handleExchange}
+            onClick={() => {
+              handleExchange();
+              dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_SELL);
+            }}
             disabled={isLoading || !canTrade}
             style={{
               padding: '14px',
