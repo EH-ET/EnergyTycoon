@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { getTutorialStep } from '../utils/tutorialSteps';
 import { updateTutorialProgress, skipTutorial } from '../utils/apiClient';
-import { getRequiredAction, onTutorialEvent } from '../utils/tutorialEvents';
+import { getRequiredAction, onTutorialEvent, dispatchTutorialEvent } from '../utils/tutorialEvents';
 import './TutorialOverlay.css';
 
 export default function TutorialOverlay() {
@@ -30,43 +30,50 @@ export default function TutorialOverlay() {
     if (step) {
       setCurrentStep(step);
 
+      // --- Z-INDEX 부스트 로직 수정 시작 ---
+      const elementsToBoostZIndex = []; // Z-index를 10000으로 올릴 요소 목록
+
       // Find and highlight element(s)
       if (step.highlightSelector) {
         setTimeout(() => {
           if (Array.isArray(step.highlightSelector)) {
-            // Multiple selectors
             const elements = step.highlightSelector
               .map(selector => document.querySelector(selector))
               .filter(el => el !== null);
             
-            // Boost z-index of highlighted elements and their children
-            elements.forEach(el => {
-              el.style.position = 'relative';
-              el.style.zIndex = '10000';
-              // Also boost z-index for all children
-              const children = el.querySelectorAll('*');
-              children.forEach(child => {
-                child.style.zIndex = '10000';
-              });
-            });
+            // Step 3 (발전기 설치)에 대한 예외 처리: 첫 번째 요소만 Z-index 부스트
+            if (step.id === 3 && elements.length > 0) {
+              const generatorItem = elements[0];
+              if (generatorItem) {
+                elementsToBoostZIndex.push(generatorItem);
+              }
+            } else {
+              // 그 외 다중 선택자는 모두 부스트 (ex: Step 4의 .header 등)
+              elementsToBoostZIndex.push(...elements);
+            }
             
             setHighlightedElements(elements);
             setHighlightedElement(elements[0] || null);
           } else {
-            // Single selector
+            // Single selector (Step 5, 6 포함)
             const element = document.querySelector(step.highlightSelector);
             if (element) {
-              element.style.position = 'relative';
-              element.style.zIndex = '10000';
-              // Also boost z-index for all children
-              const children = element.querySelectorAll('*');
-              children.forEach(child => {
-                child.style.zIndex = '10000';
-              });
+              elementsToBoostZIndex.push(element);
             }
             setHighlightedElement(element);
             setHighlightedElements(element ? [element] : []);
           }
+
+          // Z-index를 올려야 하는 요소들에만 실제로 스타일 적용
+          elementsToBoostZIndex.forEach(el => {
+            el.style.position = 'relative';
+            el.style.zIndex = '10000';
+            // Also boost z-index for all children
+            const children = el.querySelectorAll('*');
+            children.forEach(child => {
+              child.style.zIndex = '10000';
+            });
+          });
         }, 100);
       }
     }
@@ -108,6 +115,36 @@ export default function TutorialOverlay() {
       document.removeEventListener('drop', handleDragEnd);
     };
   }, [highlightedElements]);
+
+  useEffect(() => {
+    if (!currentStep || highlightedElements.length === 0) return;
+
+    // 5단계(hover-energy) 또는 6단계(hover-money)인지 확인
+    const isHoverStep = currentStep.id === 5 || currentStep.id === 6;
+    if (!isHoverStep) return;
+
+    const targetElement = highlightedElements[0];
+    if (!targetElement) return;
+
+    // 필요한 이벤트 이름 결정
+    const requiredAction = getRequiredAction(currentStep.id);
+    const eventName = requiredAction === 'hover-energy' ? 'tutorial:hover-energy' : 'tutorial:hover-money';
+
+    // mouseover 이벤트가 발생하면 required action을 디스패치
+    const handleMouseOver = () => {
+      // 이벤트 디스패치 (이것이 requiredAction의 handleActionComplete를 트리거함)
+      dispatchTutorialEvent(eventName);
+      
+      // 마우스를 떼는 순간을 기다릴 필요 없이 즉시 이벤트 처리 후 리스너 제거 가능
+      targetElement.removeEventListener('mouseover', handleMouseOver);
+    };
+
+    targetElement.addEventListener('mouseover', handleMouseOver);
+
+    return () => {
+      targetElement.removeEventListener('mouseover', handleMouseOver);
+    };
+  }, [currentStep, highlightedElements]);
 
   // Listen for required actions
   useEffect(() => {
@@ -231,43 +268,92 @@ export default function TutorialOverlay() {
       </div>
       
       {/* Overlay with cutouts for highlighted elements */}
-      {!isDragging && (
+      {!isDragging && highlightedElements.length > 0 && (
         <>
-          {/* Full overlay */}
-          <div className="tutorial-overlay" />
-          
-          {/* Transparent cutouts over highlighted elements */}
-          {highlightedElements.map((el, index) => {
-            const rect = el.getBoundingClientRect();
+          {/* Create overlay parts that avoid highlighted areas */}
+          {(() => {
+            const rects = highlightedElements.map(el => el.getBoundingClientRect());
+            const screenHeight = window.innerHeight;
+            const screenWidth = window.innerWidth;
+            
+            // Sort rects by top position
+            const sortedRects = [...rects].sort((a, b) => a.top - b.top);
+            
             return (
-              <React.Fragment key={index}>
-                {/* Transparent area to allow interaction */}
-                <div
-                  style={{
-                    position: 'fixed',
-                    top: `${rect.top}px`,
-                    left: `${rect.left}px`,
-                    width: `${rect.width}px`,
-                    height: `${rect.height}px`,
-                    zIndex: 9999,
-                    background: 'transparent',
-                    pointerEvents: 'none'
-                  }}
-                />
-                {/* Highlight border */}
-                <div 
-                  className="tutorial-highlight"
-                  style={{
-                    top: `${rect.top - 4}px`,
-                    left: `${rect.left - 4}px`,
-                    width: `${rect.width + 8}px`,
-                    height: `${rect.height + 8}px`,
-                  }}
-                />
-              </React.Fragment>
+              <>
+                {/* Top overlay - from screen top to first element */}
+                {sortedRects.length > 0 && sortedRects[0].top > 0 && (
+                  <div 
+                    className="tutorial-overlay"
+                    style={{
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: `${sortedRects[0].top}px`
+                    }}
+                  />
+                )}
+                
+                {/* Bottom overlay - from last element to screen bottom */}
+                {sortedRects.length > 0 && sortedRects[sortedRects.length - 1].bottom < screenHeight && (
+                  <div 
+                    className="tutorial-overlay"
+                    style={{
+                      top: `${sortedRects[sortedRects.length - 1].bottom}px`,
+                      left: 0,
+                      right: 0,
+                      bottom: 0
+                    }}
+                  />
+                )}
+                
+                {/* Left and right overlays for each element */}
+                {rects.map((rect, index) => (
+                  <React.Fragment key={`sides-${index}`}>
+                    {/* Left overlay */}
+                    <div 
+                      className="tutorial-overlay"
+                      style={{
+                        top: `${rect.top}px`,
+                        left: 0,
+                        width: `${rect.left}px`,
+                        height: `${rect.height}px`
+                      }}
+                    />
+                    {/* Right overlay */}
+                    <div 
+                      className="tutorial-overlay"
+                      style={{
+                        top: `${rect.top}px`,
+                        left: `${rect.right}px`,
+                        right: 0,
+                        height: `${rect.height}px`
+                      }}
+                    />
+                  </React.Fragment>
+                ))}
+                
+                {/* Highlight borders */}
+                {rects.map((rect, index) => (
+                  <div 
+                    key={`highlight-${index}`}
+                    className="tutorial-highlight"
+                    style={{
+                      top: `${rect.top - 4}px`,
+                      left: `${rect.left - 4}px`,
+                      width: `${rect.width + 8}px`,
+                      height: `${rect.height + 8}px`,
+                    }}
+                  />
+                ))}
+              </>
             );
-          })}
+          })()}
         </>
+      )}
+      
+      {!isDragging && highlightedElements.length === 0 && (
+        <div className="tutorial-overlay" />
       )}
       
       {/* Tutorial tooltips */}
