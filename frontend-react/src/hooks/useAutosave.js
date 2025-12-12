@@ -21,12 +21,10 @@ export function useAutosave() {
       } = useStore.getState();
 
       if (!currentUser) {
-        console.log("Autosave skipped: no user logged in");
         return;
       }
 
       if (isAutosaveLocked) {
-        console.log("Autosave is locked, skipping.");
         return;
       }
 
@@ -37,12 +35,21 @@ export function useAutosave() {
 
         // Collect generator states (only valid ones with IDs)
         const generators = placedGenerators
-          .filter(g => g && (g.generator_id || g.id))
-          .map(g => ({
-            generator_id: g.generator_id || g.id,
-            heat: typeof g.heat === 'number' ? Math.floor(g.heat) : 0,
-            running: g.running !== false,
-          }));
+          .filter(g => {
+            if (!g) return false;
+            const id = g.generator_id || g.id;
+            return typeof id === 'string' && id.length > 0;
+          })
+          .map(g => {
+            const heat = typeof g.heat === 'number' && isFinite(g.heat) 
+              ? Math.floor(Math.max(0, g.heat)) 
+              : 0;
+            return {
+              generator_id: g.generator_id || g.id,
+              heat,
+              running: g.running !== false,
+            };
+          });
 
         // Compute total production per second on client for validation
         const productionBV = computeEnergyPerSecond(placedGenerators, currentUser, 1);
@@ -63,28 +70,22 @@ export function useAutosave() {
         // Skip if data hasn't changed (compare with last saved)
         const payloadStr = JSON.stringify(payload);
         if (lastSavedRef.current === payloadStr) {
-          console.log("Autosave skipped: no changes detected");
           return; // No changes, skip save
         }
 
-        console.log("Autosave executing...", { energy: energyPayload, money: moneyPayload });
         await autosaveProgress(payload);
         lastSavedRef.current = payloadStr;
         setSaveStatus('success');
-        console.log("Autosave successful");
       } catch (e) {
         console.error('Autosave failed:', e);
         useStore.getState().setSaveStatus('error');
       }
     };
 
-    console.log("Autosave timer initialized - will save every 2 minutes");
-
     // 2분마다 자동 저장 (트래픽 75% 감소)
     const timer = setInterval(save, 120000);
 
     return () => {
-      console.log("Autosave timer cleared");
       clearInterval(timer);
     };
   }, []); // Empty dependency array - only run once on mount
