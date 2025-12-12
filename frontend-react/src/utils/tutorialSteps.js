@@ -98,7 +98,7 @@ export const TUTORIAL_STEPS = {
     id: 12,
     title: "🔍 발전기 관리",
     content: "설치된 발전기를 클릭하세요.",
-    highlightSelector: ".placed-generator:first-child",
+    highlightSelector: ".main-content .placed-generator:first-of-type",
     position: "top",
     requiredAction: "click-generator"
   },
@@ -106,7 +106,7 @@ export const TUTORIAL_STEPS = {
     id: 13,
     title: "⬆️ 발전기 업그레이드",
     content: "발전기의 '생산량 증가' 업그레이드를 클릭하세요!",
-    highlightSelector: ".placed-generator:first-child",
+    highlightSelector: ".main-content .placed-generator:first-of-type",
     position: "top",
     requiredAction: "upgrade-generator-production"
   },
