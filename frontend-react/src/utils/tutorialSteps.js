@@ -106,8 +106,8 @@ export const TUTORIAL_STEPS = {
     id: 13,
     title: "⬆️ 발전기 업그레이드",
     content: "발전기의 '생산량 증가' 업그레이드를 클릭하세요!",
-    highlightSelector: ".upgrade-card-btn",
-    position: "center",
+    highlightSelector: ".placed-generator:first-child",
+    position: "top",
     requiredAction: "upgrade-generator-production"
   },
   14: {
