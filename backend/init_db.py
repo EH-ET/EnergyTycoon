@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from .database import engine
-from .models import User, GeneratorType
+from .models import GeneratorType
 
 
 # 기본 발전기 목록 (프론트엔드 generators 배열과 동일한 순서)
