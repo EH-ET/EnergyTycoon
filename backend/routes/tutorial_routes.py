@@ -33,10 +33,10 @@ def update_tutorial_progress(
     # Auto-grant money for specific tutorial steps
     if data.step == 11:
         # Step 11: Grant 18 money for production upgrade
-        current_user.money_data += 18
+        current_user.money_data += 18000
     elif data.step == 13:
         # Step 13: Grant 30 money for generator upgrade
-        current_user.money_data += 30
+        current_user.money_data += 30000
     
     current_user.tutorial = data.step
     db.commit()
