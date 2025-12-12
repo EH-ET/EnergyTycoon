@@ -10,6 +10,7 @@ export default function TutorialOverlay() {
   const syncUserState = useStore(state => state.syncUserState);
   const [currentStep, setCurrentStep] = useState(null);
   const [highlightedElement, setHighlightedElement] = useState(null);
+  const [highlightedElements, setHighlightedElements] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function TutorialOverlay() {
     if (!tutorialStep || tutorialStep === 0 || tutorialStep > 20) {
       setCurrentStep(null);
       setHighlightedElement(null);
+      setHighlightedElements([]);
       return;
     }
 
@@ -28,19 +30,51 @@ export default function TutorialOverlay() {
     if (step) {
       setCurrentStep(step);
 
-      // Find and highlight element
+      // Find and highlight element(s)
       if (step.highlightSelector) {
         setTimeout(() => {
-          const element = document.querySelector(step.highlightSelector);
-          setHighlightedElement(element);
+          if (Array.isArray(step.highlightSelector)) {
+            // Multiple selectors
+            const elements = step.highlightSelector
+              .map(selector => document.querySelector(selector))
+              .filter(el => el !== null);
+            
+            // Boost z-index of highlighted elements
+            elements.forEach(el => {
+              el.style.position = 'relative';
+              el.style.zIndex = '10000';
+            });
+            
+            setHighlightedElements(elements);
+            setHighlightedElement(elements[0] || null);
+          } else {
+            // Single selector
+            const element = document.querySelector(step.highlightSelector);
+            if (element) {
+              element.style.position = 'relative';
+              element.style.zIndex = '10000';
+            }
+            setHighlightedElement(element);
+            setHighlightedElements(element ? [element] : []);
+          }
         }, 100);
       }
     }
+    
+    // Cleanup: reset z-index when step changes
+    return () => {
+      document.querySelectorAll('[style*="z-index: 10000"]').forEach(el => {
+        el.style.zIndex = '';
+        if (el.style.position === 'relative' && !el.className.includes('positioned')) {
+          el.style.position = '';
+        }
+      });
+    };
   }, [currentUser?.tutorial]);
 
-  // Listen for drag events on highlighted element
+  // Listen for drag events on highlighted elements
   useEffect(() => {
-    if (!highlightedElement) return;
+    if (highlightedElements.length === 0) return;
 
     const handleDragStart = () => {
       setIsDragging(true);
@@ -50,16 +84,20 @@ export default function TutorialOverlay() {
       setIsDragging(false);
     };
 
-    highlightedElement.addEventListener('dragstart', handleDragStart);
-    highlightedElement.addEventListener('dragend', handleDragEnd);
+    highlightedElements.forEach(element => {
+      element.addEventListener('dragstart', handleDragStart);
+      element.addEventListener('dragend', handleDragEnd);
+    });
     document.addEventListener('drop', handleDragEnd);
 
     return () => {
-      highlightedElement.removeEventListener('dragstart', handleDragStart);
-      highlightedElement.removeEventListener('dragend', handleDragEnd);
+      highlightedElements.forEach(element => {
+        element.removeEventListener('dragstart', handleDragStart);
+        element.removeEventListener('dragend', handleDragEnd);
+      });
       document.removeEventListener('drop', handleDragEnd);
     };
-  }, [highlightedElement]);
+  }, [highlightedElements]);
 
   // Listen for required actions
   useEffect(() => {
@@ -182,62 +220,44 @@ export default function TutorialOverlay() {
         튜토리얼 진행 중: {currentStep.id} / 20
       </div>
       
-      {/* Split overlay into 4 parts to create a cutout */}
-      {highlightedElement && !isDragging ? (
+      {/* Overlay with cutouts for highlighted elements */}
+      {!isDragging && (
         <>
-          {/* Top overlay */}
-          <div 
-            className="tutorial-overlay" 
-            style={{
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().top}px)`,
-            }}
-          />
-          {/* Bottom overlay */}
-          <div 
-            className="tutorial-overlay" 
-            style={{
-              top: `${highlightedElement.getBoundingClientRect().bottom}px`,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-          />
-          {/* Left overlay */}
-          <div 
-            className="tutorial-overlay" 
-            style={{
-              top: `${highlightedElement.getBoundingClientRect().top}px`,
-              left: 0,
-              right: `calc(100% - ${highlightedElement.getBoundingClientRect().left}px)`,
-              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().bottom}px)`,
-            }}
-          />
-          {/* Right overlay */}
-          <div 
-            className="tutorial-overlay" 
-            style={{
-              top: `${highlightedElement.getBoundingClientRect().top}px`,
-              left: `${highlightedElement.getBoundingClientRect().right}px`,
-              right: 0,
-              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().bottom}px)`,
-            }}
-          />
-          {/* Highlight border */}
-          <div 
-            className="tutorial-highlight"
-            style={{
-              top: `${highlightedElement.getBoundingClientRect().top - 4}px`,
-              left: `${highlightedElement.getBoundingClientRect().left - 4}px`,
-              width: `${highlightedElement.getBoundingClientRect().width + 8}px`,
-              height: `${highlightedElement.getBoundingClientRect().height + 8}px`,
-            }}
-          />
+          {/* Full overlay */}
+          <div className="tutorial-overlay" />
+          
+          {/* Transparent cutouts over highlighted elements */}
+          {highlightedElements.map((el, index) => {
+            const rect = el.getBoundingClientRect();
+            return (
+              <React.Fragment key={index}>
+                {/* Transparent area to allow interaction */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: `${rect.top}px`,
+                    left: `${rect.left}px`,
+                    width: `${rect.width}px`,
+                    height: `${rect.height}px`,
+                    zIndex: 9999,
+                    background: 'transparent',
+                    pointerEvents: 'none'
+                  }}
+                />
+                {/* Highlight border */}
+                <div 
+                  className="tutorial-highlight"
+                  style={{
+                    top: `${rect.top - 4}px`,
+                    left: `${rect.left - 4}px`,
+                    width: `${rect.width + 8}px`,
+                    height: `${rect.height + 8}px`,
+                  }}
+                />
+              </React.Fragment>
+            );
+          })}
         </>
-      ) : (
-        <div className="tutorial-overlay" />
       )}
       
       {/* Tutorial tooltip */}

@@ -23,7 +23,7 @@ export const TUTORIAL_STEPS = {
     id: 3,
     title: "🏗️ 발전기 설치",
     content: "발전기를 드래그하여 메인 화면에 설치해보세요!",
-    highlightSelector: ".main",
+    highlightSelector: [".generator-grid", ".main"],
     position: "center",
     requiredAction: "place-generator"
   },
