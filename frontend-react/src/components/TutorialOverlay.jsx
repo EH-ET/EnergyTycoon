@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { getTutorialStep } from '../utils/tutorialSteps';
 import { updateTutorialProgress, skipTutorial } from '../utils/apiClient';
