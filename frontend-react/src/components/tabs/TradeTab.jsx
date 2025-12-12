@@ -234,6 +234,7 @@ export default function TradeTab() {
               cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer',
               marginTop: 'auto'
             }}
+            className="exchange-sell-btn"
           >
             {isLoading ? '교환 중...' : '교환'}
           </button>
