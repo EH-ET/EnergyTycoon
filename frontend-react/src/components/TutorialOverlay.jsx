@@ -175,8 +175,12 @@ export default function TutorialOverlay() {
       const nextStep = currentStep.id + 1;
       const data = await updateTutorialProgress(nextStep > 20 ? 0 : nextStep);
 
-      // Update user state
-      syncUserState({ ...currentUser, tutorial: data.tutorial });
+      // Update user state - use full user data from backend if available
+      if (data.user) {
+        syncUserState(data.user);
+      } else {
+        syncUserState({ ...currentUser, tutorial: data.tutorial });
+      }
     } catch (error) {
       console.error('Failed to update tutorial:', error);
     }
