@@ -53,6 +53,7 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 
     # 점진적 환율 적용하여 실제 획득량 계산 (BigValue 반환)
     gained_bv, avg_rate = calculate_progressive_exchange(user, amount_bv)
+    # avg_rate is float, convert to BigValue (multiply by 1000 for DATA_SCALE)
     rate_bv = normalize_value(BigValue(int(max(avg_rate, 0) * 1000), 0))
     rate_payload = to_payload(rate_bv)
 
@@ -89,6 +90,7 @@ async def energy2money(payload: ExchangeIn, auth=Depends(get_user_and_db)):
 async def get_exchange_rate(auth=Depends(get_user_and_db)):
     user, _, _ = auth
     rate = current_market_rate(user)
+    # rate is float, convert to BigValue (multiply by 1000 for DATA_SCALE)
     rate_bv = normalize_value(BigValue(int(max(rate, 0) * 1000), 0))
     rate_payload = to_payload(rate_bv)
     return {"rate": rate, "rate_data": rate_payload["data"], "rate_high": rate_payload["high"]}
