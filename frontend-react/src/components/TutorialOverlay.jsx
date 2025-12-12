@@ -13,22 +13,6 @@ export default function TutorialOverlay() {
   const [highlightedElements, setHighlightedElements] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  // 🚨 Z-Index 및 스타일 초기화 함수 정의
-  const resetStyles = (elements) => {
-    elements.forEach(el => {
-      if (el) {
-        el.style.position = ''; // position 초기화
-        el.style.zIndex = '';
-        
-        // 모든 자식 요소의 Z-Index도 초기화 (이것이 잔상 제거의 핵심)
-        const children = el.querySelectorAll('*');
-        children.forEach(child => {
-          child.style.zIndex = '';
-        });
-      }
-    });
-  };
-
   useEffect(() => {
     if (!currentUser) return;
 
@@ -36,7 +20,6 @@ export default function TutorialOverlay() {
 
     // Tutorial not started, completed, or skipped
     if (!tutorialStep || tutorialStep === 0 || tutorialStep > 20) {
-      // 🚨 튜토리얼 종료 시에도 마지막으로 하이라이트된 요소 초기화
       setCurrentStep(null);
       setHighlightedElement(null);
       setHighlightedElements([]);
@@ -45,56 +28,56 @@ export default function TutorialOverlay() {
 
     const step = getTutorialStep(tutorialStep);
     if (step) {
+      setCurrentStep(step);
+
+      // --- Z-INDEX 부스트 로직 수정 시작 ---
+      const elementsToBoostZIndex = []; // Z-index를 10000으로 올릴 요소 목록
+
       // Find and highlight element(s)
       if (step.highlightSelector) {
-        // 렌더링 지연에 대비하기 위해 200ms의 시간을 줍니다.
-        setTimeout(() => { 
+        setTimeout(() => {
           if (Array.isArray(step.highlightSelector)) {
-            // Multiple selectors
             const elements = step.highlightSelector
               .map(selector => document.querySelector(selector))
               .filter(el => el !== null);
             
-            // 🚨 Step 3 (발전기 설치)에 대한 Z-index 예외 처리
-            const elementsToBoostZIndex = [];
+            // Step 3 (발전기 설치)에 대한 예외 처리: 첫 번째 요소만 Z-index 부스트
             if (step.id === 3 && elements.length > 0) {
-              // Step 3일 경우, 첫 번째 요소 (.generator-item)만 Z-index를 올립니다.
-              elementsToBoostZIndex.push(elements[0]);
+              const generatorItem = elements[0];
+              if (generatorItem) {
+                elementsToBoostZIndex.push(generatorItem);
+              }
             } else {
-              // 그 외 다중 선택자는 모두 올립니다.
+              // 그 외 다중 선택자는 모두 부스트 (ex: Step 4의 .header 등)
               elementsToBoostZIndex.push(...elements);
             }
-
-            // Boost z-index of selected elements
-            elementsToBoostZIndex.forEach(el => {
-              el.style.position = 'relative';
-              el.style.zIndex = '10000';
-              // Also boost z-index for all children
-              const children = el.querySelectorAll('*');
-              children.forEach(child => {
-                child.style.zIndex = '10000';
-              });
-            });
             
             setHighlightedElements(elements);
             setHighlightedElement(elements[0] || null);
           } else {
-            // Single selector
+            // Single selector (Step 5, 6 포함)
             const element = document.querySelector(step.highlightSelector);
             if (element) {
-              element.style.position = 'relative';
-              element.style.zIndex = '10000';
-              const children = element.querySelectorAll('*');
-              children.forEach(child => {
-                child.style.zIndex = '10000';
-              });
+              elementsToBoostZIndex.push(element);
             }
             setHighlightedElement(element);
             setHighlightedElements(element ? [element] : []);
           }
-        }, 200);
+
+          // Z-index를 올려야 하는 요소들에만 실제로 스타일 적용
+          elementsToBoostZIndex.forEach(el => {
+            el.style.position = 'relative';
+            el.style.zIndex = '10000';
+            // Also boost z-index for all children
+            const children = el.querySelectorAll('*');
+            children.forEach(child => {
+              child.style.zIndex = '10000';
+            });
+          });
+        }, 100);
       }
     }
+    
     // Cleanup: reset z-index when step changes
     return () => {
       document.querySelectorAll('[style*="z-index: 10000"]').forEach(el => {
@@ -104,7 +87,7 @@ export default function TutorialOverlay() {
         }
       });
     };
-  }, [currentUser?.tutorial]); // 튜토리얼 단계가 변경될 때마다 실행
+  }, [currentUser?.tutorial]);
 
   // Listen for drag events on highlighted elements
   useEffect(() => {
