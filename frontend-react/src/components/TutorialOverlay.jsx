@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { getTutorialStep } from '../utils/tutorialSteps';
 import { updateTutorialProgress, skipTutorial } from '../utils/apiClient';
-import { getRequiredAction, onTutorialEvent } from '../utils/tutorialEvents';
+import { getRequiredAction, onTutorialEvent, dispatchTutorialEvent } from '../utils/tutorialEvents';
 import './TutorialOverlay.css';
 
 export default function TutorialOverlay() {
@@ -29,36 +29,33 @@ export default function TutorialOverlay() {
     const step = getTutorialStep(tutorialStep);
     if (step) {
       setCurrentStep(step);
-      
+
+      // --- Z-INDEX 부스트 로직 수정 시작 ---
       const elementsToBoostZIndex = []; // Z-index를 10000으로 올릴 요소 목록
 
       // Find and highlight element(s)
       if (step.highlightSelector) {
         setTimeout(() => {
           if (Array.isArray(step.highlightSelector)) {
-            // Multiple selectors
             const elements = step.highlightSelector
               .map(selector => document.querySelector(selector))
               .filter(el => el !== null);
             
-            // --- 🚨 수정된 Step 3 로직 시작 🚨 ---
+            // Step 3 (발전기 설치)에 대한 예외 처리: 첫 번째 요소만 Z-index 부스트
             if (step.id === 3 && elements.length > 0) {
-              // Step 3 (발전기 설치): 첫 번째 요소 (발전기)만 Z-index를 올립니다.
               const generatorItem = elements[0];
               if (generatorItem) {
                 elementsToBoostZIndex.push(generatorItem);
               }
-              // 두 번째 요소 (메인 화면)는 Z-index를 올리지 않아 오버레이 밑에 깔립니다.
             } else {
-              // 그 외 다중 선택자의 경우, 모든 요소를 올립니다.
+              // 그 외 다중 선택자는 모두 부스트 (ex: Step 4의 .header 등)
               elementsToBoostZIndex.push(...elements);
             }
-            // --- 🚨 수정된 Step 3 로직 끝 🚨 ---
             
-            setHighlightedElements(elements); // 하이라이트 보더 및 툴팁 위치 계산을 위해 모든 요소 저장
+            setHighlightedElements(elements);
             setHighlightedElement(elements[0] || null);
           } else {
-            // Single selector
+            // Single selector (Step 5, 6 포함)
             const element = document.querySelector(step.highlightSelector);
             if (element) {
               elementsToBoostZIndex.push(element);
@@ -77,7 +74,6 @@ export default function TutorialOverlay() {
               child.style.zIndex = '10000';
             });
           });
-          
         }, 100);
       }
     }
@@ -119,6 +115,36 @@ export default function TutorialOverlay() {
       document.removeEventListener('drop', handleDragEnd);
     };
   }, [highlightedElements]);
+
+  useEffect(() => {
+    if (!currentStep || highlightedElements.length === 0) return;
+
+    // 5단계(hover-energy) 또는 6단계(hover-money)인지 확인
+    const isHoverStep = currentStep.id === 5 || currentStep.id === 6;
+    if (!isHoverStep) return;
+
+    const targetElement = highlightedElements[0];
+    if (!targetElement) return;
+
+    // 필요한 이벤트 이름 결정
+    const requiredAction = getRequiredAction(currentStep.id);
+    const eventName = requiredAction === 'hover-energy' ? 'tutorial:hover-energy' : 'tutorial:hover-money';
+
+    // mouseover 이벤트가 발생하면 required action을 디스패치
+    const handleMouseOver = () => {
+      // 이벤트 디스패치 (이것이 requiredAction의 handleActionComplete를 트리거함)
+      dispatchTutorialEvent(eventName);
+      
+      // 마우스를 떼는 순간을 기다릴 필요 없이 즉시 이벤트 처리 후 리스너 제거 가능
+      targetElement.removeEventListener('mouseover', handleMouseOver);
+    };
+
+    targetElement.addEventListener('mouseover', handleMouseOver);
+
+    return () => {
+      targetElement.removeEventListener('mouseover', handleMouseOver);
+    };
+  }, [currentStep, highlightedElements]);
 
   // Listen for required actions
   useEffect(() => {
