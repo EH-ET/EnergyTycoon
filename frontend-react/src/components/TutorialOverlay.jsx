@@ -167,15 +167,40 @@ export default function TutorialOverlay() {
       
       {/* Highlighted element cutout */}
       {highlightedElement && (
-        <div 
-          className="tutorial-highlight"
-          style={{
-            top: `${highlightedElement.getBoundingClientRect().top - 4}px`,
-            left: `${highlightedElement.getBoundingClientRect().left - 4}px`,
-            width: `${highlightedElement.getBoundingClientRect().width + 8}px`,
-            height: `${highlightedElement.getBoundingClientRect().height + 8}px`,
-          }}
-        />
+        <>
+          <div 
+            className="tutorial-highlight"
+            style={{
+              top: `${highlightedElement.getBoundingClientRect().top - 4}px`,
+              left: `${highlightedElement.getBoundingClientRect().left - 4}px`,
+              width: `${highlightedElement.getBoundingClientRect().width + 8}px`,
+              height: `${highlightedElement.getBoundingClientRect().height + 8}px`,
+            }}
+          />
+          <div 
+            className="tutorial-cutout"
+            style={{
+              top: `${highlightedElement.getBoundingClientRect().top}px`,
+              left: `${highlightedElement.getBoundingClientRect().left}px`,
+              width: `${highlightedElement.getBoundingClientRect().width}px`,
+              height: `${highlightedElement.getBoundingClientRect().height}px`,
+              pointerEvents: 'auto',
+            }}
+            onMouseEnter={(e) => {
+              // Forward hover events to the actual element
+              const event = new MouseEvent('mouseenter', { bubbles: true });
+              highlightedElement.dispatchEvent(event);
+            }}
+            onMouseLeave={(e) => {
+              const event = new MouseEvent('mouseleave', { bubbles: true });
+              highlightedElement.dispatchEvent(event);
+            }}
+            onClick={(e) => {
+              // Forward click events to the actual element
+              highlightedElement.click();
+            }}
+          />
+        </>
       )}
       
       {/* Tutorial tooltip */}
