@@ -158,16 +158,50 @@ export default function TutorialOverlay() {
         튜토리얼 진행 중: {currentStep.id} / 20
       </div>
       
-      {/* Dark overlay */}
-      <div className="tutorial-overlay" onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          // Clicked on overlay, do nothing
-        }
-      }} />
-      
-      {/* Highlighted element cutout */}
-      {highlightedElement && (
+      {/* Split overlay into 4 parts to create a cutout */}
+      {highlightedElement ? (
         <>
+          {/* Top overlay */}
+          <div 
+            className="tutorial-overlay" 
+            style={{
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().top}px)`,
+            }}
+          />
+          {/* Bottom overlay */}
+          <div 
+            className="tutorial-overlay" 
+            style={{
+              top: `${highlightedElement.getBoundingClientRect().bottom}px`,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
+          {/* Left overlay */}
+          <div 
+            className="tutorial-overlay" 
+            style={{
+              top: `${highlightedElement.getBoundingClientRect().top}px`,
+              left: 0,
+              right: `calc(100% - ${highlightedElement.getBoundingClientRect().left}px)`,
+              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().bottom}px)`,
+            }}
+          />
+          {/* Right overlay */}
+          <div 
+            className="tutorial-overlay" 
+            style={{
+              top: `${highlightedElement.getBoundingClientRect().top}px`,
+              left: `${highlightedElement.getBoundingClientRect().right}px`,
+              right: 0,
+              bottom: `calc(100% - ${highlightedElement.getBoundingClientRect().bottom}px)`,
+            }}
+          />
+          {/* Highlight border */}
           <div 
             className="tutorial-highlight"
             style={{
@@ -177,30 +211,9 @@ export default function TutorialOverlay() {
               height: `${highlightedElement.getBoundingClientRect().height + 8}px`,
             }}
           />
-          <div 
-            className="tutorial-cutout"
-            style={{
-              top: `${highlightedElement.getBoundingClientRect().top}px`,
-              left: `${highlightedElement.getBoundingClientRect().left}px`,
-              width: `${highlightedElement.getBoundingClientRect().width}px`,
-              height: `${highlightedElement.getBoundingClientRect().height}px`,
-              pointerEvents: 'auto',
-            }}
-            onMouseEnter={(e) => {
-              // Forward hover events to the actual element
-              const event = new MouseEvent('mouseenter', { bubbles: true });
-              highlightedElement.dispatchEvent(event);
-            }}
-            onMouseLeave={(e) => {
-              const event = new MouseEvent('mouseleave', { bubbles: true });
-              highlightedElement.dispatchEvent(event);
-            }}
-            onClick={(e) => {
-              // Forward click events to the actual element
-              highlightedElement.click();
-            }}
-          />
         </>
+      ) : (
+        <div className="tutorial-overlay" />
       )}
       
       {/* Tutorial tooltip */}

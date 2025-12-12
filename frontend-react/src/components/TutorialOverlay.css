@@ -52,13 +52,6 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-.tutorial-cutout {
-  position: fixed;
-  z-index: 9999;
-  pointer-events: none;
-  background: transparent;
-}
-
 @keyframes pulse {
   0%, 100% {
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3),
