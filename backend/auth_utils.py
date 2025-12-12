@@ -54,11 +54,10 @@ if _cookie_samesite_env is None and _is_cross_site_default(_frontend_origins_env
 else:
     COOKIE_SAMESITE = (_cookie_samesite_env or "lax").lower()
 # Default JWT secret (override with JWT_SECRET/SECRET_KEY env vars in production)
-DEFAULT_JWT_SECRET = "8ecc6d679526d53054fa5ddbba41b2c1dc050c10c360312f255c4de979ce8699a019694ac648aa91b02049a538779a088f9e3327db6020d9e2d66ecd6e7c9b61f54fcc1178417c87ac74bb83d488e3fdedd1973f584737ff4125748d93ead864fc06d95880eabfc5e13317a878496156cfc2e73e982d5573c3cdcf927e5d9721fd7c86e4ae107ddcbf4b7deb6465cdc8040a7deb75c7be2602c06bbea150871abc89ee396cffb5bed5344d2c4665bc406f87517c293bf3a97b79a2861faf9c90889d45020bad9143787a0c9064d4734cafce6d6be99af849845e8688272f383272efd567bee33f7f1983443818e95aa64077c327a492fed38354e35abde5a412bf7dbac410f9db90cfef07491141c2c29ff7e214e368e577c4bb0f663733ce52975eea73cae2cab24674bc9c718ac3b85ce95dc5024c2673819a025fdf056bdafad32b15d79b268854c222578da91cda0034cb544435a3d26a9494d92ba432f1c7988e9566a597f0390d1b10725da535c911f76e9a5d59125c5ac723e0e605efcbba94d7b66e6380373f08f06f7fee463ae5aff7c8ce009179d5aac368dbf5be023bafb39df76335e0e94e12233dad0e29b397dfb4303fbac2568f5cdb498cf3493c9bf62283588c8d158b1147cdd5d1eaa471de8d5a0907b855a5a568b79faafcbc9829fef6239dfcd303c18cf9e26e8d0a124da3efc4fbb4debc9a31a4cbc8"
-JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", DEFAULT_JWT_SECRET))
+JWT_SECRET = os.getenv("JWT_SECRET", os.getenv("SECRET_KEY", "NULL"))
 
 # Security check: warn if using default secret
-if JWT_SECRET == DEFAULT_JWT_SECRET:
+if JWT_SECRET == "NULL":
     import warnings
     warnings.warn(
         "Using default JWT_SECRET! This is insecure for production. "

@@ -182,24 +182,10 @@ export default function TutorialOverlay() {
     }
   };
 
-  const handleSkip = async () => {
-    if (!currentUser) return;
-
-    if (!window.confirm('튜토리얼을 건너뛰시겠습니까?')) return;
-
-    try {
-      const data = await skipTutorial();
-      syncUserState({ ...currentUser, tutorial: data.tutorial });
-    } catch (error) {
-      console.error('Failed to skip tutorial:', error);
-    }
-  };
-
   if (!currentStep || !currentUser || currentUser.tutorial === 0) {
     return null;
   }
 
-  // Calculate position for tooltip
   // Calculate position for tooltip
   const getTooltipPosition = () => {
     if (!highlightedElement) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
