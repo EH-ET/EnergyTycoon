@@ -114,7 +114,7 @@ export const TUTORIAL_STEPS = {
     id: 14,
     title: "📈 정보 탭",
     content: "하단의 'Info' 탭을 확인하세요.",
-    highlightSelector: ".build-bar .bbtn:nth-child(4)",
+    highlightSelector: ".info-btn",
     position: "top"
   },
   15: {
@@ -128,7 +128,7 @@ export const TUTORIAL_STEPS = {
     id: 16,
     title: "✨ 특수 업그레이드",
     content: "'특수' 탭을 클릭하세요.",
-    highlightSelector: ".build-bar .bbtn:nth-child(5)",
+    highlightSelector: ".special-btn",
     position: "top",
     requiredAction: "click-special-tab"
   },
