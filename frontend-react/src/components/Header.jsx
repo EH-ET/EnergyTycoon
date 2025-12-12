@@ -40,7 +40,7 @@ export default function Header() {
     setShowProfileModal(!showProfileModal);
     
     // Tutorial: Detect profile click
-    if (currentUser?.tutorial === 6) {
+    if (currentUser?.tutorial === 7) {
       dispatchTutorialEvent(TUTORIAL_EVENTS.CLICK_PROFILE);
     }
   };
