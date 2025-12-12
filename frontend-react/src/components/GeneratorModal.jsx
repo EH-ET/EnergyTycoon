@@ -163,10 +163,9 @@ export default function GeneratorModal({ generator, onClose }) {
       });
 
 
-      // Tutorial: Detect generator upgrade
-      const currentUser = useStore.getState().currentUser;
-      if (currentUser?.tutorial === 10) {
-        dispatchTutorialEvent(TUTORIAL_EVENTS.UPGRADE_GENERATOR);
+      // Tutorial: Detect generator production upgrade
+      if (key === 'production') {
+        dispatchTutorialEvent(TUTORIAL_EVENTS.UPGRADE_GENERATOR_PRODUCTION);
       }
     } catch (err) {
       setAlertMessage(err.message || '업그레이드 실패');

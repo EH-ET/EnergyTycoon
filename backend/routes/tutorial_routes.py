@@ -23,10 +23,10 @@ def update_tutorial_progress(
     """Update tutorial progress for the current user."""
     current_user, db, _ = user_and_db
     
-    if not 0 <= data.step <= 11:
+    if not 0 <= data.step <= 20:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tutorial step must be between 0 and 11"
+            detail="Tutorial step must be between 0 and 20"
         )
     
     current_user.tutorial = data.step
