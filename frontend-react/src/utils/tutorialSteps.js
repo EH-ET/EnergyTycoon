@@ -113,10 +113,9 @@ export const TUTORIAL_STEPS = {
   14: {
     id: 14,
     title: "📈 정보 탭",
-    content: "하단의 'Info' 탭을 클릭하세요.",
+    content: "하단의 'Info' 탭을 확인하세요.",
     highlightSelector: ".build-bar .bbtn:nth-child(4)",
-    position: "top",
-    requiredAction: "click-info-tab"
+    position: "top"
   },
   15: {
     id: 15,
