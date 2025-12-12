@@ -172,6 +172,11 @@ export default function GeneratorModal({ generator, onClose }) {
       // 실패 시 서버에서 올바른 상태를 받아오도록 페이지 새로고침 권장
       // 또는 여기서 상태 롤백 로직 추가 가능
     }
+
+    // 🚨 튜토리얼 이벤트 발송 로직: Step 13에서 생산량 업그레이드(production)를 클릭해야 합니다.
+    if (currentUser?.tutorial === 13 && key === 'production') {
+      dispatchTutorialEvent(TUTORIAL_EVENTS.UPGRADE_GENERATOR_PRODUCTION);
+    }
   };
 
   const typeInfo = generatorTypesById[generator.generator_type_id] || {};
@@ -464,6 +469,12 @@ export default function GeneratorModal({ generator, onClose }) {
               const level = generator.upgrades?.[key] || 0;
               const cost = computeUpgradeCost(generator, key);
 
+              // 🚨 Step 13 타겟 (생산량 업그레이드) 클래스 추가
+              const isProductionUpgrade = key === 'production';
+              const tutorialHighlightClass = (currentUser?.tutorial === 13 && isProductionUpgrade) 
+                ? 'tutorial-upgrade-production' 
+                : '';
+
               return (
                 <div
                   key={key}
@@ -491,6 +502,7 @@ export default function GeneratorModal({ generator, onClose }) {
                       borderRadius: '8px',
                       cursor: 'pointer',
                     }}
+                    className={`upgrade-button ${tutorialHighlightClass}`}
                   >
                     업그레이드
                   </button>

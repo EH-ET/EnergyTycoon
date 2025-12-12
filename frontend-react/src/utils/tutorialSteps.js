@@ -104,11 +104,15 @@ export const TUTORIAL_STEPS = {
   },
   13: {
     id: 13,
-    title: "⬆️ 발전기 업그레이드",
-    content: "발전기의 '생산량 증가' 업그레이드를 클릭하세요!",
-    highlightSelector: ".upgrade-card-btn",
-    position: "center",
-    requiredAction: "upgrade-generator-production"
+    title: "📈 생산량 업그레이드",
+    content: "발전기 업그레이드를 구매하여 생산량을 늘리세요! (이것은 현재 발전기 전용 업그레이드입니다)",
+    // 🚨 수정: GeneratorModal 내의 생산량 업그레이드 버튼 클래스를 지정합니다.
+    highlightSelector: ".generator-modal .tutorial-upgrade-production .upgrade-button",
+    position: "bottom", // 모달 내부에 위치하므로 툴팁 위치 조정
+    requiredAction: "upgrade-generator-production",
+    tooltips: [
+      { title: "업그레이드", content: "생산량 업그레이드를 구매하세요", highlightIndex: 0, position: "bottom" }
+    ]
   },
   14: {
     id: 14,
