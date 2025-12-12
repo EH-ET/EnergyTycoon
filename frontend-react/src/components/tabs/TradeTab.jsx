@@ -9,6 +9,7 @@ export default function TradeTab() {
   const [message, setMessage] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showRateModal, setShowRateModal] = useState(false);
 
   const currentUser = useStore(state => state.currentUser);
   const exchangeRate = useStore(state => state.exchangeRate);
@@ -145,6 +146,26 @@ export default function TradeTab() {
   const canTrade = Boolean(currentUser) && compareValues(exchangeAmountBigValue, {data: 0, high: 0}) > 0 && compareValues(expectedGainBigValue, {data: 0, high: 0}) >= 0;
 
   const rateText = typeof exchangeRate === 'number' ? formatResourceValue(fromPlainValue(exchangeRate)) : '-';
+  const graphPoints = useMemo(() => {
+    const rateSafe = exchangeRate || 50;
+    const demandY1 = 60 - Math.min(40, rateSafe * 0.3);
+    const demandY2 = 60 + Math.min(40, rateSafe * 0.2);
+    const supplyY2 = 50 + Math.min(40, rateSafe * 0.15);
+    return {
+      demand: `40,${demandY1} 120,${demandY2} 220,90`,
+      supply: `40,80 120,${supplyY2} 220,40`,
+    };
+  }, [exchangeRate]);
+  const scaleGraphPoints = useCallback((pointsStr) => {
+    // pointsStr: "x,y x,y x,y"
+    return pointsStr.split(' ').map(pair => {
+      const [x, y] = pair.split(',').map(Number);
+      const sx = x * 1.5; // widen
+      // scale y into modal height (20..200) keeping origin offsets similar
+      const sy = Math.max(20, Math.min(200, 20 + (y - 10) * 1.4));
+      return `${sx},${sy}`;
+    }).join(' ');
+  }, []);
 
   return (
     <div style={{
@@ -274,13 +295,20 @@ export default function TradeTab() {
         </div>
         
         <div style={{ flex: 1.2, height: '100%' }}>
-          <svg width="100%" height="100%" viewBox="0 0 240 140" preserveAspectRatio="xMidYMid meet" style={{ background: '#0d1117', borderRadius: '10px', padding: '8px' }}>
+          <svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 240 140"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ background: '#0d1117', borderRadius: '10px', padding: '8px', cursor: 'pointer' }}
+            onMouseEnter={() => setShowRateModal(true)}
+          >
             <line x1="30" y1="10" x2="30" y2="115" stroke="#243044" strokeWidth="1" />
             <line x1="30" y1="115" x2="230" y2="115" stroke="#243044" strokeWidth="1" />
             <text x="10" y="25" fill="#55627a" fontSize="10">가격</text>
             <text x="190" y="130" fill="#55627a" fontSize="10">수량</text>
-            <polyline points={`40,${60 - Math.min(40, (exchangeRate || 50) * 0.3)} 120,${60 + Math.min(40, (exchangeRate || 50) * 0.2)} 220,90`} stroke="#3b82f6" fill="none" strokeWidth="2.5" />
-            <polyline points={`40,80 120,${50 + Math.min(40, (exchangeRate || 50) * 0.15)} 220,40`} stroke="#fbbf24" fill="none" strokeWidth="2.5" />
+            <polyline points={graphPoints.demand} stroke="#3b82f6" fill="none" strokeWidth="2.5" />
+            <polyline points={graphPoints.supply} stroke="#fbbf24" fill="none" strokeWidth="2.5" />
           </svg>
         </div>
       </div>
@@ -289,6 +317,68 @@ export default function TradeTab() {
         message={alertMessage}
         onClose={() => setAlertMessage('')}
       />
+
+      {showRateModal && (
+        <div
+          onMouseLeave={() => setShowRateModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              background: '#0b1324',
+              border: '1px solid #1f2a3d',
+              borderRadius: '12px',
+              padding: '16px',
+              width: 'min(720px, 96vw)',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', color: '#e8edf5' }}>
+              <div>
+                <div style={{ fontSize: '13px', color: '#7c8aa6' }}>환율 그래프</div>
+                <div style={{ fontSize: '18px', fontWeight: 700 }}>수요 / 공급 상세</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRateModal(false)}
+                style={{
+                  background: '#1f2a3d',
+                  color: '#e8edf5',
+                  border: '1px solid #2f3c55',
+                  borderRadius: '8px',
+                  padding: '6px 10px',
+                  cursor: 'pointer'
+                }}
+              >
+                닫기
+              </button>
+            </div>
+            <svg
+              width="100%"
+              height="360"
+              viewBox="0 0 360 220"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ background: '#0d1117', borderRadius: '12px', padding: '12px' }}
+            >
+              <line x1="40" y1="20" x2="40" y2="200" stroke="#243044" strokeWidth="1" />
+              <line x1="40" y1="200" x2="340" y2="200" stroke="#243044" strokeWidth="1" />
+              <text x="12" y="36" fill="#55627a" fontSize="12">가격</text>
+              <text x="290" y="214" fill="#55627a" fontSize="12">수량</text>
+              <polyline points={scaleGraphPoints(graphPoints.demand)} stroke="#3b82f6" fill="none" strokeWidth="3" />
+              <polyline points={scaleGraphPoints(graphPoints.supply)} stroke="#fbbf24" fill="none" strokeWidth="3" />
+            </svg>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
