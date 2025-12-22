@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { formatResourceValue } from '../utils/bigValue';
-import { useEnergyRate } from '../hooks/useEnergyTimer';
+import { useEnergyRate, useSparkleRate } from '../hooks/useEnergyTimer';
 import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
@@ -17,6 +17,7 @@ export default function Header() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMoneyModal, setShowMoneyModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
+  const [showSparkleModal, setShowSparkleModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRebirthModal, setShowRebirthModal] = useState(false);
   const [isRankLoading, setIsRankLoading] = useState(false);
@@ -26,6 +27,7 @@ export default function Header() {
   const exchangeRate = useStore(state => state.exchangeRate);
   const setExchangeRate = useStore(state => state.setExchangeRate);
   const energyRate = useEnergyRate();
+  const sparkleRate = useSparkleRate();
   const syncUserState = useStore(state => state.syncUserState);
   const profileRef = useRef(null);
 
@@ -321,14 +323,24 @@ export default function Header() {
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon sparkle-icon" style={{
-            background: 'linear-gradient(135deg, #ffc107 0%, #ff8b5a 100%)',
-            fontSize: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff'
-          }}>
+          <div className="stat-icon sparkle-icon" 
+            style={{
+              background: 'linear-gradient(135deg, #ffc107 0%, #ff8b5a 100%)',
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}
+            onMouseEnter={() => setShowSparkleModal(true)}
+            onMouseLeave={() => setShowSparkleModal(false)}
+          >
+            <div className={`sparkle-modal modal ${showSparkleModal ? 'is-visible' : ''}`}>
+              <p><strong>초당 스파클 예상 획득량</strong></p>
+              <p><span className="sparkle-rate">
+                {sparkleRate ? formatResourceValue(sparkleRate) : '0'}
+              </span>/초</p>
+            </div>
             ⚡️
           </div>
           <div className="stat-info">
