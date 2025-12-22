@@ -1,3 +1,6 @@
+import { useState, useEffect, useRef } from 'react';
+import { useStore } from '../../store/useStore';
+import { formatResourceValue, fromPlainValue, compareValues, valueFromServer } from '../../utils/bigValue';
 import { fetchAllRanks, fetchMyRanks } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
 
