@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
-import { upgrades, rebirthUpgrades } from '../../utils/data';
-import { fromPlainValue, formatResourceValue, toPlainValue } from '../../utils/bigValue';
+import { upgrades, rebirthUpgrades, sparkleUpgrades } from '../../utils/data';
+import { fromPlainValue, formatResourceValue, toPlainValue, multiplyValues, powerOfPlain, addValues, compareValues } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 
@@ -11,6 +11,7 @@ export default function UpgradeTab() {
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
+  const compareElectronicSparkleWith = useStore(state => state.compareElectronicSparkleWith);
   const addGlobalUpgradeToQueue = useStore(state => state.addGlobalUpgradeToQueue);
 
   const getUpgradeBatchLimit = (user) => {
@@ -24,7 +25,49 @@ export default function UpgradeTab() {
     return base + offset;
   };
 
+  const powerOfBigValue = (base, exp) => {
+    let res = fromPlainValue(1);
+    for (let i = 0; i < exp; i++) {
+      res = multiplyValues(res, base);
+    }
+    return res;
+  };
+
+  const getPolynomialUpgradeCostForAmount = (user, upgrade, amount) => {
+    const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
+    const baseCost = typeof upgrade.baseCost_plain === 'object' 
+      ? upgrade.baseCost_plain 
+      : fromPlainValue(upgrade.baseCost_plain || 0);
+    const exponent = upgrade.costExponent || 1;
+    
+    let totalCost = fromPlainValue(0);
+
+    for (let i = 0; i < amount; i++) {
+      const levelToBuy = baseLevel + i + 1;
+      const levelToBuyBV = fromPlainValue(levelToBuy);
+      const levelPowered = powerOfBigValue(levelToBuyBV, exponent);
+      const costForLevel = multiplyValues(baseCost, levelPowered);
+      totalCost = addValues(totalCost, costForLevel);
+    }
+    return totalCost;
+  };
+
   const getUpgradeCostForAmount = (user, upgrade, amount) => {
+    if (upgrade.costModel === 'polynomial') {
+      if (upgrade.currency === 'rebirth') {
+        const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
+        const baseCost = upgrade.baseCost_plain || 0;
+        const exponent = upgrade.costExponent || 1;
+        let totalCost = 0;
+        for (let i = 0; i < amount; i++) {
+          const levelToBuy = baseLevel + i + 1;
+          totalCost += baseCost * Math.pow(levelToBuy, exponent);
+        }
+        return Math.round(totalCost);
+      }
+      return getPolynomialUpgradeCostForAmount(user, upgrade, amount);
+    }
+
     const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
     const costOffset = upgrade.costExponentOffset ?? 1;
     const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
@@ -43,7 +86,12 @@ export default function UpgradeTab() {
     if (currency === 'rebirth') {
       return `${cost.toLocaleString('ko-KR')} 환생`;
     }
-    return `${formatResourceValue(fromPlainValue(cost))} 💰`;
+    if (currency === 'sparkle') {
+      const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
+      return `${formatResourceValue(costBV)} ⚡️`;
+    }
+    const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
+    return `${formatResourceValue(costBV)} 💰`;
   };
 
   const getMaxAffordableAmount = (upgrade) => {
@@ -59,7 +107,15 @@ export default function UpgradeTab() {
         break;
       }
       const costValue = getUpgradeCostForAmount(currentUser, upgrade, mid);
-      if (compareMoneyWith(costValue) >= 0) {
+      
+      let canAfford = false;
+      if (upgrade.costModel === 'polynomial') {
+        canAfford = compareValues(useStore.getState().getMoneyValue(), costValue) >= 0;
+      } else {
+        canAfford = compareMoneyWith(costValue) >= 0;
+      }
+
+      if (canAfford) {
         maxAffordable = mid;
         low = mid + 1;
       } else {
@@ -84,13 +140,26 @@ export default function UpgradeTab() {
 
     const costValue = getUpgradeCostForAmount(currentUser, upgrade, actualAmount);
 
-    if ((upgrade.currency || 'money') === 'money' && compareMoneyWith(costValue) < 0) {
-      setAlertMessage('돈이 부족합니다.');
-      return;
-    }
-    if ((upgrade.currency || 'money') === 'rebirth' && (currentUser?.rebirth_count ?? 0) < costValue) {
-      setAlertMessage('환생이 부족합니다.');
-      return;
+    if ((upgrade.currency || 'money') === 'money') {
+      if (upgrade.costModel === 'polynomial') {
+        if (compareValues(useStore.getState().getMoneyValue(), costValue) < 0) {
+          setAlertMessage('돈이 부족합니다.');
+          return;
+        }
+      } else if (compareMoneyWith(costValue) < 0) {
+        setAlertMessage('돈이 부족합니다.');
+        return;
+      }
+    } else if (upgrade.currency === 'rebirth') {
+      if ((currentUser?.rebirth_count ?? 0) < costValue) {
+        setAlertMessage('환생이 부족합니다.');
+        return;
+      }
+    } else if (upgrade.currency === 'sparkle') {
+      if (compareValues(useStore.getState().getElectronicSparkleValue(), costValue) < 0) {
+        setAlertMessage('스파클이 부족합니다.');
+        return;
+      }
     }
 
     // 1. Queue에 업그레이드 추가
@@ -98,9 +167,18 @@ export default function UpgradeTab() {
 
     // 2. 즉시 로컬 상태 업데이트 (프론트엔드에서 실시간 반영)
     if ((upgrade.currency || 'money') === 'money') {
-      const { subtractFromMoney } = useStore.getState();
-      subtractFromMoney(costValue);
+      const { getMoneyValue, setMoneyValue } = useStore.getState();
+      if (upgrade.costModel === 'polynomial') {
+        setMoneyValue(subtractValues(getMoneyValue(), costValue));
+      } else {
+        const { subtractFromMoney } = useStore.getState();
+        subtractFromMoney(costValue);
+      }
+    } else if (upgrade.currency === 'sparkle') {
+        const { getElectronicSparkleValue, setElectronicSparkleValue } = useStore.getState();
+        setElectronicSparkleValue(subtractValues(getElectronicSparkleValue(), costValue));
     }
+
 
     // 최신 사용자 상태를 가져와서 안전하게 덮어쓰기
     const baseUser = useStore.getState().currentUser || currentUser || {};
@@ -203,6 +281,7 @@ export default function UpgradeTab() {
 
   const combined = [
     ...upgrades.map((u) => ({ ...u, pill: 'Upgrade' })),
+    ...sparkleUpgrades.map((u) => ({ ...u, pill: 'Sparkle' })),
     ...rebirthUpgrades.map((u) => ({ ...u, pill: 'Rebirth' })),
   ];
 

@@ -278,9 +278,8 @@ export async function demolishGenerator(generatorId) {
     return response.data;
 }
 
-export async function fetchMyRank(criteria = 'money') {
-    const validCriteria = criteria || 'money';
-    const response = await apiClient.get(`/rank?criteria=${validCriteria}`);
+export async function fetchMyRanks() {
+    const response = await apiClient.get('/rank/me');
     return response.data;
 }
 
@@ -289,9 +288,8 @@ export async function skipGeneratorBuild(generatorId) {
     return response.data;
 }
 
-export async function fetchRanks({ limit = 10, offset = 0, criteria = 'money' } = {}) {
-    const validCriteria = criteria || 'money';
-    const response = await apiClient.get(`/ranks?limit=${limit}&offset=${offset}&criteria=${validCriteria}`);
+export async function fetchAllRanks({ limit = 100, offset = 0 } = {}) {
+    const response = await apiClient.get(`/ranks/all?limit=${limit}&offset=${offset}`);
     return response.data;
 }
 

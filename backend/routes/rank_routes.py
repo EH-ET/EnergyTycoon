@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import User
-from ..bigvalue import get_user_money_value, get_user_energy_value, normalize
+from ..bigvalue import get_user_money_value, get_user_energy_value, get_user_electronic_sparkle_value, normalize
 
 router = APIRouter()
 
@@ -17,6 +17,13 @@ def _user_score(u: User, criteria: str = "money"):
     if criteria == "energy":
         bv = normalize(get_user_energy_value(u))
         # Return BigValue components for safe display
+        return {
+            "data": bv.data,
+            "high": bv.high,
+            "displayValue": f"{bv.data}e{bv.high}" if bv.high > 0 else str(bv.data)
+        }
+    elif criteria == "sparkle":
+        bv = normalize(get_user_electronic_sparkle_value(u))
         return {
             "data": bv.data,
             "high": bv.high,
@@ -42,6 +49,8 @@ def _get_order_by(criteria: str):
     """Get SQLAlchemy order_by clause based on criteria."""
     if criteria == "energy":
         return [User.energy_high.desc(), User.energy_data.desc(), User.user_id]
+    elif criteria == "sparkle":
+        return [User.electronic_sparkle_high.desc(), User.electronic_sparkle_data.desc(), User.user_id]
     elif criteria == "playtime":
         return [User.play_time_ms.desc(), User.user_id]
     elif criteria == "rebirth":
@@ -52,41 +61,62 @@ def _get_order_by(criteria: str):
         return [User.money_high.desc(), User.money_data.desc(), User.user_id]
 
 
-@router.get("/rank")
-async def rank(criteria: str = "money", auth=Depends(get_user_and_db)):
+CRITERIA = ["money", "sparkle", "energy", "rebirth", "supercoin", "playtime"]
+
+@router.get("/rank/me", summary="Get current user's rank for all criteria")
+async def get_my_total_rank(auth=Depends(get_user_and_db)):
     user, db, _ = auth
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Fetching rank for user {user.username} with criteria: {criteria}")
     
-    order_clause = _get_order_by(criteria)
-    logger.info(f"Order clause: {order_clause}")
+    my_ranks = {}
     
-    ordered = db.query(User).order_by(*order_clause).all()
-    for idx, u in enumerate(ordered):
-        if u.user_id == user.user_id:
-            score = _user_score(u, criteria)
-            logger.info(f"User {user.username} rank: {idx + 1}, score: {score}, criteria: {criteria}")
-            return {"username": u.username, "rank": idx + 1, "score": score, "criteria": criteria}
-    raise HTTPException(status_code=404, detail="User not found")
+    for criteria in CRITERIA:
+        order_clause = _get_order_by(criteria)
+        # This is inefficient, but matches original logic.
+        # A better implementation would use window functions.
+        ordered = db.query(User.user_id).order_by(*order_clause).all()
+        
+        found_rank = -1
+        for idx, u in enumerate(ordered):
+            if u.user_id == user.user_id:
+                found_rank = idx + 1
+                break
+        
+        if found_rank != -1:
+            my_ranks[criteria] = {
+                "rank": found_rank,
+                "score": _user_score(user, criteria)
+            }
+        else:
+            my_ranks[criteria] = {
+                "rank": -1, "score": _user_score(user, criteria)
+            }
+            
+    return my_ranks
 
 
-@router.get("/ranks")
-async def ranks(limit: int = 100, offset: int = 0, criteria: str = "money", auth=Depends(get_user_and_db)):
+@router.get("/ranks/all", summary="Get top ranks for all criteria")
+async def get_all_ranks(limit: int = 100, offset: int = 0, auth=Depends(get_user_and_db)):
     _, db, _ = auth
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"Fetching ranks with criteria: {criteria}, limit: {limit}, offset: {offset}")
     
     if limit <= 0 or offset < 0:
         raise HTTPException(status_code=422, detail="Invalid query parameters")
+        
+    all_ranks = {}
     
-    order_clause = _get_order_by(criteria)
-    logger.info(f"Order clause: {order_clause}")
-    
-    base_query = db.query(User).order_by(*order_clause)
-    total = base_query.count()
-    users = base_query.offset(offset).limit(limit).all()
-    out = [{"username": u.username, "rank": offset + i + 1, "score": _user_score(u, criteria)} for i, u in enumerate(users)]
-    logger.info(f"Returning {len(out)} ranks with criteria: {criteria}")
-    return {"total": total, "limit": limit, "offset": offset, "criteria": criteria, "ranks": out}
+    for criteria in CRITERIA:
+        order_clause = _get_order_by(criteria)
+        base_query = db.query(User).order_by(*order_clause)
+        total = base_query.count()
+        users = base_query.offset(offset).limit(limit).all()
+        
+        ranks_data = [{"username": u.username, "rank": offset + i + 1, "score": _user_score(u, criteria)} for i, u in enumerate(users)]
+        
+        all_ranks[criteria] = {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "ranks": ranks_data
+        }
+        
+    return all_ranks
+

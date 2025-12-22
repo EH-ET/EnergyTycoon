@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { getAuthToken } from '../../store/useStore';
 import { API_BASE } from '../../utils/data';
 import { autosaveProgress } from '../../utils/apiClient';
-import { powerOfPlain, formatResourceValue } from '../../utils/bigValue';
+import { powerOf, formatResourceValue } from '../../utils/bigValue';
 import { readStoredPlayTime } from '../../utils/playTime';
 import AlertModal from '../AlertModal';
 

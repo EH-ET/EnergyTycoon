@@ -1,13 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { useStore, getAuthToken, ensureSessionStart } from '../../store/useStore';
-import { formatResourceValue, fromPlainValue, compareValues, valueFromServer } from '../../utils/bigValue';
-import { fetchRanks } from '../../utils/apiClient';
-import { fetchMyRank } from '../../utils/apiClient';
+import { fetchAllRanks, fetchMyRanks } from '../../utils/apiClient';
 import { formatPlayTime, readStoredPlayTime, parseServerPlayTime, PLAY_TIME_EVENT } from '../../utils/playTime';
 
 // Persist ranking data across component unmounts so we don't refetch on every tab re-entry
 const rankCache = {
-  lastFetchTime: {},   // { criteria: timestamp }
+  lastFetchTime: 0,   // timestamp for the single fetch
   leaderboard: {},     // { criteria: [] }
   myRank: {},          // { criteria: {...} }
 };
@@ -23,13 +19,16 @@ export default function InfoTab() {
   const leaderboard = rankCache.leaderboard[rankCriteria] || [];
   const myRank = rankCache.myRank[rankCriteria] || null;
 
-  const setMyRankCache = (criteria, value) => {
-    rankCache.myRank = { ...rankCache.myRank, [criteria]: value };
+  const setMyRankCache = (allRanks) => {
+    rankCache.myRank = allRanks;
     forceRender(v => v + 1);
   };
 
-  const setLeaderboardCache = (criteria, value) => {
-    rankCache.leaderboard = { ...rankCache.leaderboard, [criteria]: value };
+  const setLeaderboardCache = (allLeaderboards) => {
+    rankCache.leaderboard = {};
+    for (const criteria in allLeaderboards) {
+      rankCache.leaderboard[criteria] = allLeaderboards[criteria].ranks || [];
+    }
     forceRender(v => v + 1);
   };
 
@@ -56,65 +55,54 @@ export default function InfoTab() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const loadRank = async () => {
-      try {
-        const data = await fetchMyRank(rankCriteria);
-        setMyRankCache(rankCriteria, data);
-      } catch (e) {
-        console.error('rank load failed', e);
+    const loadAllRankingData = async () => {
+      const now = Date.now();
+      const timeSinceLastFetch = now - rankCache.lastFetchTime;
+      const FIVE_MINUTES = 5 * 60 * 1000;
+
+      if (timeSinceLastFetch < FIVE_MINUTES && rankCache.lastFetchTime > 0) {
+        return;
       }
-    };
+      
+      setLeaderboardStatus('랭킹을 불러오는 중...');
+      rankCache.lastFetchTime = now;
 
-    const loadLeaderboard = async () => {
       try {
-        const data = await fetchRanks({ limit: 100, offset: 0, criteria: rankCriteria });
-        let ranks = data.ranks || [];
+        const [myRanksData, leaderboardData] = await Promise.all([
+          fetchMyRanks(),
+          fetchAllRanks({ limit: 100, offset: 0 })
+        ]);
+        
+        setMyRankCache(myRanksData);
+        setLeaderboardCache(leaderboardData);
 
-        if (rankCriteria === 'money' || rankCriteria === 'energy') {
-          ranks.sort((a, b) => {
-            const valA = a.score || { data: 0, high: 0 };
-            const valB = b.score || { data: 0, high: 0 };
-            return compareValues(valB, valA); // Descending sort
-          });
-        }
-
-        setLeaderboardCache(rankCriteria, ranks);
-        if (ranks.length) {
-          setLeaderboardStatus(`총 ${data.total}명 중 상위 ${ranks.length}명`);
+        const currentLeaderboard = leaderboardData[rankCriteria]?.ranks || [];
+        if (currentLeaderboard.length) {
+          setLeaderboardStatus(`총 ${leaderboardData[rankCriteria].total}명 중 상위 ${currentLeaderboard.length}명`);
         } else {
           setLeaderboardStatus('랭킹 데이터가 없습니다.');
         }
+
       } catch (e) {
-        console.error('leaderboard load failed', e);
+        console.error('ranking data load failed', e);
         setLeaderboardStatus('랭킹을 불러오지 못했습니다.');
       }
     };
 
-    const loadAllRankingData = () => {
-      const now = Date.now();
-      const lastFetchTime = rankCache.lastFetchTime[rankCriteria] || 0;
-      const timeSinceLastFetch = now - lastFetchTime;
-      const FIVE_MINUTES = 5 * 60 * 1000;
-
-      // 해당 기준으로 5분이 지나지 않았으면 API 호출하지 않음
-      if (timeSinceLastFetch < FIVE_MINUTES && lastFetchTime > 0) {
-        return;
-      }
-
-      // 현재 기준의 마지막 호출 시간 업데이트
-      rankCache.lastFetchTime[rankCriteria] = now;
-      loadRank();
-      loadLeaderboard();
-    };
-
-    // 초기 로드
     loadAllRankingData();
-
-    // 5분마다 랭킹 정보 갱신
     const intervalId = setInterval(loadAllRankingData, 5 * 60 * 1000);
-
     return () => clearInterval(intervalId);
-  }, [currentUser?.user_id, rankCriteria]);
+  }, [currentUser?.user_id]);
+  
+  useEffect(() => {
+    const currentLeaderboard = rankCache.leaderboard[rankCriteria] || [];
+    const total = rankCache.leaderboard[rankCriteria]?.total || 0;
+    if (currentLeaderboard.length) {
+      setLeaderboardStatus(`총 ${total}명 중 상위 ${currentLeaderboard.length}명`);
+    } else if (rankCache.lastFetchTime > 0) {
+      setLeaderboardStatus('랭킹 데이터가 없습니다.');
+    }
+  }, [rankCriteria]);
 
   if (!currentUser) {
     return (
@@ -132,23 +120,19 @@ export default function InfoTab() {
     ? formatResourceValue(currentUser.money_view)
     : currentUser.money ?? 0;
 
-  const rankText = typeof (myRank?.rank ?? currentUser.rank) === 'number'
-    ? `${myRank?.rank ?? currentUser.rank}위`
-    : '-';
+  const rankText = typeof (myRank?.rank) === 'number' ? `${myRank.rank}위` : '-';
 
   let scoreText = '-';
-  const rawScore = myRank?.score ?? currentUser.rank_score;
+  const rawScore = myRank?.score;
   
-  if (typeof rawScore === 'number') {
-    if (rankCriteria === 'playtime') {
-      scoreText = formatPlayTime(rawScore);
-    } else if (rankCriteria === 'rebirth') {
-      scoreText = `${rawScore}회`;
-    } else if (rankCriteria === 'supercoin') {
-      scoreText = `${rawScore}개`;
-    } else {
-      scoreText = formatResourceValue(fromPlainValue(rawScore));
-    }
+  if (rawScore) {
+      if (rankCriteria === 'playtime') {
+        scoreText = formatPlayTime(rawScore);
+      } else if (rankCriteria === 'rebirth' || rankCriteria === 'supercoin') {
+        scoreText = `${rawScore}개`;
+      } else { // money, energy, sparkle
+        scoreText = formatResourceValue(rawScore);
+      }
   }
 
   return (
@@ -183,7 +167,7 @@ export default function InfoTab() {
           <div><strong>환생 횟수:</strong> {currentUser.rebirth_count || 0}회</div>
           <div><strong>총 에너지:</strong> {formattedEnergy}</div>
           <div><strong>총 돈:</strong> {formattedMoney}</div>
-          <div><strong>등수:</strong> {rankText}</div>
+          <div><strong>등수 ({rankCriteria}):</strong> {rankText}</div>
           {scoreText !== '-' && <div><strong>점수:</strong> {scoreText}</div>}
         </div>
       </div>
@@ -201,13 +185,25 @@ export default function InfoTab() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <h4 style={{ margin: 0, fontSize: '16px', color: '#3b82f6', fontWeight: 700 }}>🏆 랭킹</h4>
           <div style={{ display: 'flex', gap: '4px' }}>
-            {[
-              { key: 'money', label: '💰' },
-              { key: 'energy', label: '⚡' },
-              { key: 'playtime', label: '⏱️' },
-              { key: 'rebirth', label: '🔮' },
-              { key: 'supercoin', label: '🪙' }
-            ].map(({ key, label }) => (
+            {[{
+              key: 'money',
+              label: '💰'
+            }, {
+              key: 'sparkle',
+              label: '⚡️'
+            }, {
+              key: 'energy',
+              label: '⚡'
+            }, {
+              key: 'playtime',
+              label: '⏱️'
+            }, {
+              key: 'rebirth',
+              label: '🔮'
+            }, {
+              key: 'supercoin',
+              label: '🪙'
+            }].map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => setRankCriteria(key)}
@@ -221,7 +217,7 @@ export default function InfoTab() {
                   cursor: 'pointer',
                   fontWeight: rankCriteria === key ? 700 : 400,
                 }}
-                title={key === 'money' ? '돈' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : key === 'rebirth' ? '환생' : '슈퍼코인'}
+                title={key === 'money' ? '돈' : key === 'sparkle' ? '스파클' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : key === 'rebirth' ? '환생' : '슈퍼코인'}
               >
                 {label}
               </button>
@@ -245,14 +241,11 @@ export default function InfoTab() {
                 if (rankCriteria === 'playtime') {
                   // Format playtime as time
                   score = formatPlayTime(entry.score || 0);
-                } else if (rankCriteria === 'rebirth') {
-                  // Show rebirth count as number
+                } else if (rankCriteria === 'rebirth' || rankCriteria === 'supercoin') {
+                  // Show rebirth/supercoin count as number
                   score = `${entry.score || 0}회`;
-                } else if (rankCriteria === 'supercoin') {
-                  // Show supercoin count
-                  score = `${entry.score || 0}개`;
                 } else {
-                  // Money or Energy - use BigValue formatting
+                  // Money, Energy, Sparkle - use BigValue formatting
                   score = entry.score ? formatResourceValue(entry.score) : '-';
                 }
                 return (

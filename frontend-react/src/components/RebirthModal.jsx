@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { performRebirth } from '../utils/apiClient';
-import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOfPlain, multiplyValues } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOf, multiplyValues } from '../utils/bigValue';
 
 // 환생 공식 (RebirthTab과 동일)
 const BASE_REBIRTH_COST = 15_000_000; // 15M

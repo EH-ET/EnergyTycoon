@@ -84,6 +84,11 @@ def ensure_user_upgrade_columns():
                 ("build_speed_reduction", "INTEGER NOT NULL DEFAULT 0"),
                 ("energy_multiplier", "INTEGER NOT NULL DEFAULT 0"),
                 ("exchange_rate_multiplier", "INTEGER NOT NULL DEFAULT 0"),
+                ("sparkle_chance_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("sparkle_amount_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("sparkle_energy_multiplier_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("rebirth_sparkle_bonus_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("money_sparkle_bonus_upgrade", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -205,6 +210,33 @@ def ensure_user_upgrade_columns():
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS exchange_rate_multiplier INTEGER NOT NULL DEFAULT 0"
                 )
                 existing.add("exchange_rate_multiplier")
+            
+            # Add electronic sparkle columns for postgres
+            if "electronic_sparkle_data" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS electronic_sparkle_data BIGINT NOT NULL DEFAULT 0"
+                )
+                existing.add("electronic_sparkle_data")
+            if "electronic_sparkle_high" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS electronic_sparkle_high BIGINT NOT NULL DEFAULT 0"
+                )
+                existing.add("electronic_sparkle_high")
+
+            # Add sparkle upgrade columns for postgres
+            sparkle_upgrades = [
+                "sparkle_chance_upgrade",
+                "sparkle_amount_upgrade",
+                "sparkle_energy_multiplier_upgrade",
+                "rebirth_sparkle_bonus_upgrade",
+                "money_sparkle_bonus_upgrade"
+            ]
+            for col in sparkle_upgrades:
+                if col not in existing:
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} INTEGER NOT NULL DEFAULT 0"
+                    )
+                    existing.add(col)
 
 
 def ensure_big_value_columns():
@@ -219,6 +251,8 @@ def ensure_big_value_columns():
         ("energy_high", "INTEGER NOT NULL DEFAULT 0"),
         ("sold_energy_data", "INTEGER NOT NULL DEFAULT 0"),
         ("sold_energy_high", "INTEGER NOT NULL DEFAULT 0"),
+        ("electronic_sparkle_data", "INTEGER NOT NULL DEFAULT 0"),
+        ("electronic_sparkle_high", "INTEGER NOT NULL DEFAULT 0"),
     ]
     with engine.begin() as conn:
         existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('users')")}

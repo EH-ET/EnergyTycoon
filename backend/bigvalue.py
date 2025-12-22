@@ -102,6 +102,38 @@ def add_values(left: BigValue, right: BigValue) -> BigValue:
   return normalize(BigValue(scaled_large_data + small.data, small.high))
 
 
+def multiply_values(a: BigValue, b: BigValue) -> BigValue:
+  norm_a = normalize(a)
+  norm_b = normalize(b)
+
+  if norm_a.data == 0 or norm_b.data == 0:
+    return BigValue(0, 0)
+
+  # data is scaled by DATA_SCALE, so we need to correct it
+  result_data = (norm_a.data * norm_b.data) // DATA_SCALE
+  result_high = norm_a.high + norm_b.high
+
+  return normalize(BigValue(result_data, result_high))
+
+
+def power_int(base: BigValue, exp: int) -> BigValue:
+    """Calculates base^exp for BigValue base and integer exponent."""
+    res = from_plain(1)
+    
+    # Ensure base is a BigValue
+    if isinstance(base, int):
+      base_bv = from_plain(base)
+    else:
+      base_bv = base
+
+    while exp > 0:
+        if exp % 2 == 1:
+            res = multiply_values(res, base_bv)
+        base_bv = multiply_values(base_bv, base_bv)
+        exp //= 2
+    return res
+
+
 def add_plain(value: BigValue, plain: int) -> BigValue:
   """Add a plain integer to BigValue"""
   plain = max(0, int(plain))
@@ -223,6 +255,10 @@ def get_user_energy_value(user) -> BigValue:
   return normalize(BigValue(getattr(user, "energy_data", 0) or 0, getattr(user, "energy_high", 0) or 0))
 
 
+def get_user_electronic_sparkle_value(user) -> BigValue:
+  return normalize(BigValue(getattr(user, "electronic_sparkle_data", 0) or 0, getattr(user, "electronic_sparkle_high", 0) or 0))
+
+
 def set_user_money_value(user, value: BigValue):
   normalized = normalize(value)
   user.money_data = normalized.data
@@ -233,6 +269,12 @@ def set_user_energy_value(user, value: BigValue):
   normalized = normalize(value)
   user.energy_data = normalized.data
   user.energy_high = normalized.high
+
+
+def set_user_electronic_sparkle_value(user, value: BigValue):
+  normalized = normalize(value)
+  user.electronic_sparkle_data = normalized.data
+  user.electronic_sparkle_high = normalized.high
 
 
 def get_user_sold_energy_value(user) -> BigValue:

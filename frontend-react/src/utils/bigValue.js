@@ -100,30 +100,21 @@ export function multiplyValues(a, b) {
   return normalizeValue({ data: resultData, high: resultHigh });
 }
 
-export function powerOfPlain(base, exponent) {
-  // base^exponent를 BigValue로 계산
+export function powerOf(base, exponent) {
+  // base (BigValue) ^ exponent (integer)
   if (exponent === 0) return fromPlainValue(1);
-  if (exponent === 1) return fromPlainValue(base);
-  if (base === 0) return normalizeValue({ data: 0, high: 0 });
-  if (base === 1) return fromPlainValue(1);
+  if (exponent === 1) return cloneValue(base);
+  
+  let res = fromPlainValue(1);
+  let b = cloneValue(base);
+  let e = exponent;
 
-  // 큰 지수를 효율적으로 처리
-  let result = fromPlainValue(1);
-  let currentBase = fromPlainValue(base);
-  let exp = exponent;
-
-  // 이진 거듭제곱 알고리즘
-  while (exp > 0) {
-    if (exp % 2 === 1) {
-      // exp가 홀수일 때 result에 currentBase 곱하기
-      result = multiplyByFloat(result, toPlainValue(currentBase));
-    }
-    // currentBase를 제곱
-    currentBase = multiplyByFloat(currentBase, toPlainValue(currentBase));
-    exp = Math.floor(exp / 2);
+  while (e > 0) {
+    if (e % 2 === 1) res = multiplyValues(res, b);
+    b = multiplyValues(b, b);
+    e = Math.floor(e / 2);
   }
-
-  return result;
+  return res;
 }
 
 export function divideBy2(value) {
