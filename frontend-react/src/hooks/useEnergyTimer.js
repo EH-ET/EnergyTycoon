@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
-import { valueFromServer, addValues, multiplyByFloat, normalizeValue } from '../utils/bigValue';
+import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlain } from '../utils/bigValue';
 import { loadProgress, awardSupercoin } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
@@ -109,6 +109,10 @@ export function useEnergyTimer() {
       const energyMultiplier = Number(userFromStore?.energy_multiplier) || 0;
       const userHeatReduction = Number(userFromStore?.heat_reduction) || 0;
       const userToleranceBonus = Number(userFromStore?.tolerance_bonus) || 0;
+      const sparkleChanceUpgrade = Number(userFromStore?.sparkle_chance_upgrade) || 0;
+      const sparkleAmountUpgrade = Number(userFromStore?.sparkle_amount_upgrade) || 0;
+      const rebirthSparkleBonus = Number(userFromStore?.rebirth_sparkle_bonus_upgrade) || 0;
+      const moneySparkleBonus = Number(userFromStore?.money_sparkle_bonus_upgrade) || 0;
       
       let multiplier = 1 + bonus * 0.1;
       
@@ -123,6 +127,7 @@ export function useEnergyTimer() {
       }
 
       let energyGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total energy gain
+      let sparkleGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total sparkle gain
       let buildCompleted = false;
       const updated = placedGenerators.map((pg) => {
         if (!pg) return pg;
@@ -154,6 +159,25 @@ export function useEnergyTimer() {
           }
         }
         if (!meta) return next;
+
+        // Sparkle Generation
+        const baseSparkleChance = 0.01;
+        const finalSparkleChance = baseSparkleChance + (sparkleChanceUpgrade * 0.001);
+        if (Math.random() < finalSparkleChance) {
+          let sparkleAmount = next.level || 1;
+
+          if (sparkleAmountUpgrade > 0) {
+            sparkleAmount = Math.pow(sparkleAmount, Math.pow(2, sparkleAmountUpgrade));
+          }
+          if (rebirthSparkleBonus > 0) {
+            sparkleAmount *= Math.pow(2, rebirthSparkleBonus);
+          }
+          if (moneySparkleBonus > 0) {
+            sparkleAmount *= Math.pow(1.5, moneySparkleBonus);
+          }
+          
+          sparkleGainBV = addValues(sparkleGainBV, fromPlain(sparkleAmount));
+        }
 
         const upgrades = next.upgrades || {};
         const productionValue = valueFromServer(
@@ -194,6 +218,13 @@ export function useEnergyTimer() {
       });
 
       setPlacedGenerators(updated);
+
+      if (sparkleGainBV.data > 0 || sparkleGainBV.high > 0) {
+        const { getElectronicSparkleValue, setElectronicSparkleValue } = useStore.getState();
+        const currentSparkles = getElectronicSparkleValue();
+        const newSparkles = addValues(currentSparkles, sparkleGainBV);
+        setElectronicSparkleValue(newSparkles);
+      }
 
       // Check if there's any energy gain (compare with zero)
       if (energyGainBV.data > 0 || energyGainBV.high > 0) {

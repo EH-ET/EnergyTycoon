@@ -87,13 +87,22 @@ const rawUpgrades = [
   {"이름": "발열 감소", "endpoint": "heat_reduction", "field": "heat_reduction", "설명": "발전기의 발열을 줄입니다.", "baseCost": 50, "priceGrowth": 1.5},
   {"이름": "내열한계 증가", "endpoint": "tolerance", "field": "tolerance_bonus", "설명": "발전기의 내열한계를 높입니다.", "baseCost": 60, "priceGrowth": 2.0},
   {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 300, "priceGrowth": 8},
-  {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 15, "priceGrowth": 2.0}
+  {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 15, "priceGrowth": 2.0},
+  {"이름": "스파크 증가", "endpoint": "money_sparkle_bonus", "field": "money_sparkle_bonus_upgrade", "설명": "스파크 획득량을 1.5배 늘립니다.", "currency": "money", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
 ];
 
 const rawRebirthUpgrades = [
   {"이름": "연속 환생 허용 횟수", "endpoint": "rebirth_chain", "field": "rebirth_chain_upgrade", "설명": "한 번에 여러 번 환생할 수 있는 최대 횟수를 늘립니다.", "baseCost": 1, "priceGrowth": 2.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"},
   {"이름": "전역 업그레이드 일괄 구매", "endpoint": "upgrade_batch", "field": "upgrade_batch_upgrade", "설명": "업그레이드 탭에서 한 번에 올릴 수 있는 최대 단계를 늘립니다.", "baseCost": 1, "priceGrowth": 2.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"},
-  {"이름": "환생 시작 자금 배수", "endpoint": "rebirth_start_money", "field": "rebirth_start_money_upgrade", "설명": "환생 직후 시작하는 기본 자금을 10배씩 늘립니다.", "baseCost": 3, "priceGrowth": 3.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"}
+  {"이름": "환생 시작 자금 배수", "endpoint": "rebirth_start_money", "field": "rebirth_start_money_upgrade", "설명": "환생 직후 시작하는 기본 자금을 10배씩 늘립니다.", "baseCost": 3, "priceGrowth": 3.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"},
+  {"이름": "스파크 증가", "endpoint": "rebirth_sparkle_bonus", "field": "rebirth_sparkle_bonus_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "rebirth", "costModel": "polynomial", "baseCost_plain": 5, "costExponent": 5},
+];
+
+const rawSparkleUpgrades = [
+    {"이름": "스파크 획득 확률 증가", "endpoint": "sparkle_chance", "field": "sparkle_chance_upgrade", "설명": "스파크 획득 확률을 0.1%p 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 10000, high: 0}, "costExponent": 12, "maxLevel": 1000}, // 10 sparkles -> {data: 10000, high: 0}
+    {"이름": "스파크 획득량 증가", "endpoint": "sparkle_amount", "field": "sparkle_amount_upgrade", "설명": "스파크 획득량을 제곱으로 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 5000, high: 0}, "costExponent": 8}, // 5 sparkles -> {data: 5000, high: 0}
+    {"이름": "에너지 획득량 배수", "endpoint": "sparkle_energy_multiplier", "field": "sparkle_energy_multiplier_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000000, high: 0}, "costExponent": 20}, // 1K sparkles -> {data: 1000000, high: 0}
+    {"이름": "환생 체인 증가", "endpoint": "sparkle_rebirth_chain", "field": "rebirth_chain_upgrade", "설명": "환생 체인 횟수를 1 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
 ];
 
 function withResourceFields(obj, key) {
@@ -113,11 +122,17 @@ export const generators = rawGenerators.map((g) => {
 });
 
 export const upgrades = rawUpgrades.map((u) => {
+  if (u.costModel === 'polynomial') {
+    return { ...u, costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 1, currency: u.currency || "money"};
+  }
   const v = fromPlainValue(u.baseCost);
   return { ...u, baseCost_plain: u.baseCost, baseCost_data: v.data, baseCost_high: v.high, currency: "money", costExponentOffset: 1, levelDisplayOffset: 1 };
 });
 
 export const rebirthUpgrades = rawRebirthUpgrades.map((u) => {
+  if (u.costModel === 'polynomial') {
+    return { ...u, costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 0, currency: "rebirth" };
+  }
   const v = fromPlainValue(u.baseCost);
   return {
     ...u,
@@ -128,4 +143,8 @@ export const rebirthUpgrades = rawRebirthUpgrades.map((u) => {
     costExponentOffset: u.costExponentOffset ?? 0,
     levelDisplayOffset: u.levelDisplayOffset ?? 0,
   };
+});
+
+export const sparkleUpgrades = rawSparkleUpgrades.map((u) => {
+  return { ...u, currency: "sparkle", costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 1 };
 });

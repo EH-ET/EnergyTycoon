@@ -1,7 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..dependencies import get_user_and_db
-from ..game_logic import apply_upgrade, apply_rebirth_upgrade
+from ..game_logic import (
+    apply_upgrade,
+    apply_rebirth_upgrade,
+    apply_poly_sparkle_upgrade,
+    apply_poly_money_upgrade,
+    apply_poly_rebirth_upgrade,
+)
 from ..schemas import UpgradeRequest, BulkUpgradeRequest, UserOut
 
 router = APIRouter()
@@ -77,6 +83,18 @@ UPGRADE_TYPE_MAP = {
     "rebirth_chain": ("rebirth", "rebirth_chain"),
     "upgrade_batch": ("rebirth", "upgrade_batch"),
     "rebirth_start_money": ("rebirth", "rebirth_start_money"),
+    
+    # Sparkle Upgrades (Polynomial cost)
+    "sparkle_chance": ("poly_sparkle", "sparkle_chance_upgrade"),
+    "sparkle_amount": ("poly_sparkle", "sparkle_amount_upgrade"),
+    "sparkle_energy_multiplier": ("poly_sparkle", "sparkle_energy_multiplier_upgrade"),
+    "sparkle_rebirth_chain": ("poly_sparkle", "rebirth_chain_upgrade"),
+
+    # New Rebirth Upgrade (Polynomial cost)
+    "rebirth_sparkle_bonus": ("poly_rebirth", "rebirth_sparkle_bonus_upgrade"),
+
+    # New Money Upgrade (Polynomial cost)
+    "money_sparkle_bonus": ("poly_money", "money_sparkle_bonus_upgrade"),
 }
 
 
@@ -106,6 +124,12 @@ async def bulk_upgrade(payload: BulkUpgradeRequest, auth=Depends(get_user_and_db
                 user = apply_upgrade(user, db, upgrade_name, amount, commit=True)
             elif upgrade_type == "rebirth":
                 user = apply_rebirth_upgrade(user, db, upgrade_name, amount, commit=True)
+            elif upgrade_type == "poly_sparkle":
+                user = apply_poly_sparkle_upgrade(user, db, upgrade_name, amount, commit=True)
+            elif upgrade_type == "poly_money":
+                user = apply_poly_money_upgrade(user, db, upgrade_name, amount, commit=True)
+            elif upgrade_type == "poly_rebirth":
+                user = apply_poly_rebirth_upgrade(user, db, upgrade_name, amount, commit=True)
             results.append({"index": idx, "endpoint": endpoint, "amount": amount, "status": "applied"})
         except HTTPException as e:
             failed = {"index": idx, "endpoint": endpoint, "amount": amount, "error": e.detail}

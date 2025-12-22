@@ -15,6 +15,8 @@ class UserOut(BaseModel):
     energy_high: int
     money_data: int
     money_high: int
+    electronic_sparkle_data: int
+    electronic_sparkle_high: int
     production_bonus: int
     heat_reduction: int
     tolerance_bonus: int
@@ -25,6 +27,11 @@ class UserOut(BaseModel):
     rebirth_chain_upgrade: int = 0
     upgrade_batch_upgrade: int = 0
     rebirth_start_money_upgrade: int = 0
+    sparkle_chance_upgrade: int = 0
+    sparkle_amount_upgrade: int = 0
+    sparkle_energy_multiplier_upgrade: int = 0
+    rebirth_sparkle_bonus_upgrade: int = 0
+    money_sparkle_bonus_upgrade: int = 0
     tutorial: int
     supercoin: int = 0
     build_speed_reduction: int = 0

@@ -319,6 +319,24 @@ export default function Header() {
           </div>
         </div>
         <div className="stat-card">
+          <div className="stat-icon sparkle-icon" style={{
+            background: 'linear-gradient(135deg, #ffc107 0%, #ff8b5a 100%)',
+            fontSize: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff'
+          }}>
+            ⚡️
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">전자 스파클</div>
+            <div className="stat-value sparkle-value">
+              {currentUser?.electronic_sparkle_view ? formatResourceValue(currentUser.electronic_sparkle_view) : '0'}
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
           <div
             className="stat-icon energy-icon"
             onMouseEnter={() => {

@@ -167,6 +167,15 @@ export const useStore = create((set, get) => ({
     return user.energy_value;
   },
 
+  getElectronicSparkleValue: () => {
+    const user = get().currentUser;
+    if (!user) return normalizeValue();
+    if (!user.electronic_sparkle_value) {
+      user.electronic_sparkle_value = valueFromServer(user.electronic_sparkle_data, user.electronic_sparkle_high);
+    }
+    return user.electronic_sparkle_value;
+  },
+
   compareMoneyWith: (amount) => {
     return comparePlainValue(get().getMoneyValue(), amount);
   },
@@ -178,6 +187,10 @@ export const useStore = create((set, get) => ({
 
   compareEnergyWith: (amount) => {
     return comparePlainValue(get().getEnergyValue(), amount);
+  },
+
+  compareElectronicSparkleWith: (amount) => {
+    return comparePlainValue(get().getElectronicSparkleValue(), amount);
   },
 
   setMoneyValue: (value) => {
@@ -210,12 +223,34 @@ export const useStore = create((set, get) => ({
     set({ currentUser: { ...user } });
   },
 
+  setElectronicSparkleValue: (value) => {
+    const user = get().currentUser;
+    if (!user) return;
+    const normalized = normalizeValue(value);
+    user.electronic_sparkle_value = normalized;
+    user.electronic_sparkle_data = normalized.data;
+    user.electronic_sparkle_high = normalized.high;
+    set({ currentUser: { ...user } });
+  },
+
+  subtractFromElectronicSparkle: (plainAmount) => {
+    const user = get().currentUser;
+    if (!user) return;
+    const currentSparkle = get().getElectronicSparkleValue();
+    const newSparkle = subtractPlainValue(currentSparkle, plainAmount);
+    get().setElectronicSparkleValue(newSparkle);
+  },
+
   toMoneyServerPayload: () => {
     return valueToServer(get().getMoneyValue());
   },
 
   toEnergyServerPayload: () => {
     return valueToServer(get().getEnergyValue());
+  },
+
+  toElectronicSparkleServerPayload: () => {
+    return valueToServer(get().getElectronicSparkleValue());
   },
 }));
 
@@ -254,6 +289,7 @@ function sanitizeUserForStorage(user) {
   delete clone.money_view;
   delete clone.energy_value;
   delete clone.money_value;
+  delete clone.electronic_sparkle_value;
   return clone;
 }
 
@@ -278,6 +314,12 @@ function applyResourceValues(user) {
   user.money_view = moneyValue;
   user.money_data = moneyValue.data;
   user.money_high = moneyValue.high;
+
+  const electronicSparkleValue = valueFromServer(user.electronic_sparkle_data, user.electronic_sparkle_high);
+  user.electronic_sparkle_value = electronicSparkleValue;
+  user.electronic_sparkle_view = electronicSparkleValue;
+  user.electronic_sparkle_data = electronicSparkleValue.data;
+  user.electronic_sparkle_high = electronicSparkleValue.high;
 }
 
 function persistExchangeRate(rate) {

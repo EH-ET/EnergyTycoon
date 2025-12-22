@@ -16,6 +16,12 @@ from .bigvalue import (
     from_plain,
     normalize,
     add_values,
+    get_user_electronic_sparkle_value,
+    set_user_electronic_sparkle_value,
+    power_int,
+    multiply_values,
+    compare,
+    subtract_values,
 )
 
 UPGRADE_CONFIG = {
@@ -32,6 +38,21 @@ REBIRTH_UPGRADE_CONFIG = {
     "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
     "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
     "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0, "cost_offset": 0},
+}
+
+SPARKLE_UPGRADE_CONFIG = {
+    "sparkle_chance_upgrade": {"field": "sparkle_chance_upgrade", "base_cost": BigValue(10000, 0), "exponent": 12, "max_level": 1000},
+    "sparkle_amount_upgrade": {"field": "sparkle_amount_upgrade", "base_cost": BigValue(5000, 0), "exponent": 8},
+    "sparkle_energy_multiplier_upgrade": {"field": "sparkle_energy_multiplier_upgrade", "base_cost": BigValue(1000000, 0), "exponent": 20},
+    "rebirth_chain_upgrade": {"field": "rebirth_chain_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20},
+}
+
+MONEY_UPGRADE_POLY_CONFIG = {
+    "money_sparkle_bonus_upgrade": {"field": "money_sparkle_bonus_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20}
+}
+
+REBIRTH_UPGRADE_POLY_CONFIG = {
+    "rebirth_sparkle_bonus_upgrade": {"field": "rebirth_sparkle_bonus_upgrade", "base_cost": 5, "exponent": 5}, # cost is int
 }
 
 # 누적 교환량 E에 따라 증가 단계 k = floor(log_3(E)), 증가율은 2k%
@@ -260,6 +281,107 @@ def apply_rebirth_upgrade(user: User, db: Session, key: str, amount: int, *, com
         raise HTTPException(status_code=400, detail="환생이 부족합니다.")
     setattr(user, "rebirth_count", rebirths - cost)
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
+    return user
+
+
+def calculate_polynomial_cost(user: User, config: dict, key: str, amount: int = 1) -> BigValue:
+    meta = config[key]
+    current_level = getattr(user, meta["field"], 0)
+    base_cost = meta["base_cost"]
+    exponent = meta["exponent"]
+    
+    total_cost = from_plain(0)
+    
+    for i in range(amount):
+        level_to_buy = current_level + i + 1
+        
+        level_pow_exp_plain = level_to_buy ** exponent
+        
+        level_pow_exp_bv = from_plain(level_pow_exp_plain)
+
+        cost_for_level = multiply_values(base_cost, level_pow_exp_bv)
+        total_cost = add_values(total_cost, cost_for_level)
+        
+    return total_cost
+
+def calculate_polynomial_cost_int(user: User, config: dict, key: str, amount: int = 1) -> int:
+    meta = config[key]
+    current_level = getattr(user, meta["field"], 0)
+    base_cost = meta["base_cost"]
+    exponent = meta["exponent"]
+
+    total_cost = 0
+
+    for i in range(amount):
+        level_to_buy = current_level + i + 1
+        cost_for_level = base_cost * (level_to_buy ** exponent)
+        total_cost += cost_for_level
+        
+    return int(total_cost)
+
+def apply_poly_sparkle_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
+    meta = SPARKLE_UPGRADE_CONFIG[key]
+    cost = calculate_polynomial_cost(user, SPARKLE_UPGRADE_CONFIG, key, amount)
+    sparkle_value = get_user_electronic_sparkle_value(user)
+
+    if compare(sparkle_value, cost) < 0:
+        raise HTTPException(status_code=400, detail="Not enough sparkles")
+
+    set_user_electronic_sparkle_value(user, subtract_values(sparkle_value, cost))
+    
+    current_level = getattr(user, meta["field"], 0)
+    
+    max_level = meta.get("max_level")
+    if max_level is not None and (current_level + amount > max_level):
+        raise HTTPException(status_code=400, detail="Max level reached")
+
+    setattr(user, meta["field"], current_level + amount)
+
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
+    return user
+
+def apply_poly_money_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
+    meta = MONEY_UPGRADE_POLY_CONFIG[key]
+    cost = calculate_polynomial_cost(user, MONEY_UPGRADE_POLY_CONFIG, key, amount)
+    money_value = get_user_money_value(user)
+
+    if compare(money_value, cost) < 0:
+        raise HTTPException(status_code=400, detail="Not enough money")
+
+    set_user_money_value(user, subtract_values(money_value, cost))
+
+    current_level = getattr(user, meta["field"], 0)
+    setattr(user, meta["field"], current_level + amount)
+
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
+    return user
+
+def apply_poly_rebirth_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
+    meta = REBIRTH_UPGRADE_POLY_CONFIG[key]
+    cost = calculate_polynomial_cost_int(user, REBIRTH_UPGRADE_POLY_CONFIG, key, amount)
+    rebirths = getattr(user, "rebirth_count", 0) or 0
+
+    if rebirths < cost:
+        raise HTTPException(status_code=400, detail="Not enough rebirth points")
+
+    setattr(user, "rebirth_count", rebirths - cost)
+
+    current_level = getattr(user, meta["field"], 0)
+    setattr(user, meta["field"], current_level + amount)
+
     if commit:
         db.commit()
         db.refresh(user)
