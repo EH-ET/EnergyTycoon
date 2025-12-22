@@ -5,14 +5,13 @@ import { readStoredPlayTime } from '../utils/playTime';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 
 export function useGlobalUpgradeQueue() {
-  const globalUpgradeQueue = useStore(state => state.globalUpgradeQueue);
   const clearGlobalUpgradeQueue = useStore(state => state.clearGlobalUpgradeQueue);
   const syncUserState = useStore(state => state.syncUserState);
   const isSyncing = useRef(false);
 
   useEffect(() => {
     const syncPendingUpgrades = async () => {
-      const { currentUser } = useStore.getState();
+      const { currentUser, globalUpgradeQueue } = useStore.getState();
       if (isSyncing.current || globalUpgradeQueue.length === 0 || !currentUser) {
         return;
       }
@@ -67,5 +66,5 @@ export function useGlobalUpgradeQueue() {
       window.removeEventListener('beforeunload', syncPendingUpgrades);
       syncPendingUpgrades();
     };
-  }, [globalUpgradeQueue, clearGlobalUpgradeQueue, syncUserState]);
+  }, [clearGlobalUpgradeQueue, syncUserState]);
 }
