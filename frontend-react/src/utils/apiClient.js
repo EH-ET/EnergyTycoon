@@ -376,3 +376,27 @@ export async function awardSupercoin() {
     const response = await apiClient.post('/special/award_supercoin');
     return response.data;
 }
+export async function fetchProtonRate() {
+  const response = await apiClient.get('/change/proton_rate');
+  return response.data;
+}
+
+export async function exchangeMoneyToProton(userId, amount) {
+  const { lockAutosave, unlockAutosave, syncUserState } = useStore.getState();
+  lockAutosave();
+  try {
+    const payload = {
+      user_id: userId,
+      amount_data: amount.data,
+      amount_high: amount.high,
+    };
+    const response = await apiClient.post('/change/money2proton', payload);
+    if (response.data.user) {
+      syncUserState(response.data.user);
+    }
+    // Return with rate as BigValue
+    return response.data;
+  } finally {
+    unlockAutosave();
+  }
+}

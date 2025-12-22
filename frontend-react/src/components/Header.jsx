@@ -18,6 +18,7 @@ export default function Header() {
   const [showMoneyModal, setShowMoneyModal] = useState(false);
   const [showEnergyModal, setShowEnergyModal] = useState(false);
   const [showSparkleModal, setShowSparkleModal] = useState(false);
+  const [showProtonModal, setShowProtonModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRebirthModal, setShowRebirthModal] = useState(false);
   const [isRankLoading, setIsRankLoading] = useState(false);

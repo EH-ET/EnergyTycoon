@@ -237,6 +237,36 @@ def ensure_user_upgrade_columns():
                         f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} INTEGER NOT NULL DEFAULT 0"
                     )
                     existing.add(col)
+            
+            # Add Proton resource columns
+            if "proton_data" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS proton_data BIGINT NOT NULL DEFAULT 0"
+                )
+                existing.add("proton_data")
+            if "proton_high" not in existing:
+                conn.exec_driver_sql(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS proton_high BIGINT NOT NULL DEFAULT 0"
+                )
+                existing.add("proton_high")
+            
+            # Add Proton upgrade columns
+            proton_upgrades = [
+                "proton_gain_money_upgrade",
+                "proton_gain_rebirth_upgrade",
+                "proton_demand_increase_upgrade",
+                "proton_energy_gain_upgrade",
+                "proton_sparkle_gain_upgrade",
+                "proton_gain_special_upgrade",
+                "sparkle_gain_special_upgrade"
+            ]
+            for col in proton_upgrades:
+                if col not in existing:
+                    conn.exec_driver_sql(
+                        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col} INTEGER NOT NULL DEFAULT 0"
+                    )
+                    existing.add(col)
+
 
 
 def ensure_big_value_columns():

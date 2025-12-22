@@ -39,6 +39,16 @@ class UserOut(BaseModel):
     exchange_rate_multiplier: int = 0
     sold_energy_data: int = 0
     sold_energy_high: int = 0
+    
+    proton_data: int = 0
+    proton_high: int = 0
+    proton_gain_money_upgrade: int = 0
+    proton_gain_rebirth_upgrade: int = 0
+    proton_demand_increase_upgrade: int = 0
+    proton_energy_gain_upgrade: int = 0
+    proton_sparkle_gain_upgrade: int = 0
+    proton_gain_special_upgrade: int = 0
+    sparkle_gain_special_upgrade: int = 0
 
     model_config = {"from_attributes": True}
 

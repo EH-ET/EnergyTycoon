@@ -45,6 +45,23 @@ class User(Base):
     build_speed_reduction = Column(Integer, default=0, server_default="0", nullable=False)
     energy_multiplier = Column(Integer, default=0, server_default="0", nullable=False)
     exchange_rate_multiplier = Column(Integer, default=0, server_default="0", nullable=False)
+    
+    # Proton resource
+    proton_data = Column(BigInteger, default=0, server_default="0", nullable=False)
+    proton_high = Column(BigInteger, default=0, server_default="0", nullable=False)
+    
+    # Proton related upgrades in other categories
+    proton_gain_money_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    proton_gain_rebirth_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    
+    # Proton Upgrades
+    proton_demand_increase_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    proton_energy_gain_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    proton_sparkle_gain_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    
+    # Special Upgrades
+    proton_gain_special_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    sparkle_gain_special_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
 
     generators = relationship("Generator", back_populates="owner", cascade=CASCADE_OPTION)
     map_progresses = relationship("MapProgress", back_populates="user", cascade=CASCADE_OPTION)

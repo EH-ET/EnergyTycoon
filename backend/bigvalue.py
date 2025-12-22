@@ -287,6 +287,16 @@ def set_user_sold_energy_value(user, value: BigValue):
   user.sold_energy_high = normalized.high
 
 
+def get_user_proton_value(user) -> BigValue:
+  return normalize(BigValue(getattr(user, "proton_data", 0) or 0, getattr(user, "proton_high", 0) or 0))
+
+
+def set_user_proton_value(user, value: BigValue):
+  normalized = normalize(value)
+  user.proton_data = normalized.data
+  user.proton_high = normalized.high
+
+
 def ensure_user_big_values(user, db=None):
   changed = False
   if getattr(user, "money_data", None) is None or getattr(user, "money_high", None) is None:
@@ -302,6 +312,11 @@ def ensure_user_big_values(user, db=None):
   if getattr(user, "sold_energy_data", None) is None or getattr(user, "sold_energy_high", None) is None:
     user.sold_energy_data = 0
     user.sold_energy_high = 0
+    changed = True
+  
+  if getattr(user, "proton_data", None) is None or getattr(user, "proton_high", None) is None:
+    user.proton_data = 0
+    user.proton_high = 0
     changed = True
     
   if changed and db is not None:

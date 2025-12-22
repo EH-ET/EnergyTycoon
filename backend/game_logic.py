@@ -22,6 +22,8 @@ from .bigvalue import (
     multiply_values,
     compare,
     subtract_values,
+    get_user_proton_value,
+    set_user_proton_value,
 )
 
 UPGRADE_CONFIG = {
@@ -48,11 +50,36 @@ SPARKLE_UPGRADE_CONFIG = {
 }
 
 MONEY_UPGRADE_POLY_CONFIG = {
-    "money_sparkle_bonus_upgrade": {"field": "money_sparkle_bonus_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20}
+    "money_sparkle_bonus_upgrade": {"field": "money_sparkle_bonus_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20},
+    "proton_gain_money_upgrade": {"field": "proton_gain_money_upgrade", "base_cost": from_plain(1_000_000), "exponent": 2},
 }
 
 REBIRTH_UPGRADE_POLY_CONFIG = {
     "rebirth_sparkle_bonus_upgrade": {"field": "rebirth_sparkle_bonus_upgrade", "base_cost": 5, "exponent": 5}, # cost is int
+    "proton_gain_rebirth_upgrade": {"field": "proton_gain_rebirth_upgrade", "base_cost": 3, "exponent": 2},
+}
+
+PROTON_UPGRADE_CONFIG = {
+    # cost = base_cost * (multiplier_base ^ level)
+    "proton_demand_increase": {
+        "field": "proton_demand_increase_upgrade",
+        "base_cost": from_plain(1_000_000),
+        "multiplier_base": from_plain(1_000_000),
+        "type": "exponential"
+    },
+    "proton_energy_gain": {
+        "field": "proton_energy_gain_upgrade",
+        "base_cost": from_plain(1_000_000),  # 1M proton
+        "multiplier_base": from_plain(1_000_000),  # * 1M per level
+        "exponent": 1,  # linear in level
+        "type": "linear_exponential"  # 1M * 1M * level
+    },
+    "proton_sparkle_gain": {
+        "field": "proton_sparkle_gain_upgrade",
+        "base_cost": from_plain(1_000_000_000),
+        "multiplier_base": from_plain(1_000_000_000),
+        "type": "exponential"
+    },
 }
 
 # 누적 교환량 E에 따라 증가 단계 k = floor(log_3(E)), 증가율은 2k%
@@ -388,3 +415,84 @@ def apply_poly_rebirth_upgrade(user: User, db: Session, key: str, amount: int, *
     else:
         db.flush()
     return user
+
+
+def calculate_proton_upgrade_cost(user: User, key: str, amount: int = 1) -> BigValue:
+    """Calculate cost for Proton upgrades (exponential or linear-exponential)"""
+    meta = PROTON_UPGRADE_CONFIG[key]
+    current_level = getattr(user, meta["field"], 0)
+    base_cost = meta["base_cost"]
+    multiplier_base = meta["multiplier_base"]
+    upgrade_type = meta.get("type", "exponential")
+    
+    total_cost = from_plain(0)
+    
+    for i in range(amount):
+        level_to_buy = current_level + i
+        
+        if upgrade_type == "linear_exponential":
+            # Cost = base_cost * multiplier_base * level
+            # For level 0: 1M * 1M * 0 = 0? That doesn't make sense.
+            # User said: 1M양성자*1M*lv
+            # I think they mean: cost at level L is base_cost * multiplier * L
+            # But level 0 would be free. Let's use (level + 1)
+            level_multiplier = from_plain(level_to_buy + 1)
+            cost_for_level = multiply_values(base_cost, multiply_values(multiplier_base, level_multiplier))
+        else:  # exponential
+            # Cost = base_cost * (multiplier_base ^ level)
+            multiplier = power_int(multiplier_base, level_to_buy)
+            cost_for_level = multiply_values(base_cost, multiplier)
+        
+        total_cost = add_values(total_cost, cost_for_level)
+    
+    return total_cost
+
+
+def apply_proton_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
+    """Apply Proton upgrade"""
+    meta = PROTON_UPGRADE_CONFIG[key]
+    cost = calculate_proton_upgrade_cost(user, key, amount)
+    proton_value = get_user_proton_value(user)
+    
+    if compare(proton_value, cost) < 0:
+        raise HTTPException(status_code=400, detail="양성자가 부족합니다.")
+    
+    set_user_proton_value(user, subtract_values(proton_value, cost))
+    
+    current_level = getattr(user, meta["field"], 0)
+    setattr(user, meta["field"], current_level + amount)
+    
+    if commit:
+        db.commit()
+        db.refresh(user)
+    else:
+        db.flush()
+    return user
+
+
+def calculate_money_to_proton_rate(user: User) -> BigValue:
+    """Calculate Money to Proton exchange rate (BigValue)"""
+    base_rate = from_plain(1)  # 1 Money = 1 Proton
+    
+    # Apply proton gain upgrades
+    money_upgrade_level = getattr(user, "proton_gain_money_upgrade", 0) or 0
+    rebirth_upgrade_level = getattr(user, "proton_gain_rebirth_upgrade", 0) or 0
+    special_upgrade_level = getattr(user, "proton_gain_special_upgrade", 0) or 0
+    
+    # Money upgrade: * 2 per level (2^level)
+    if money_upgrade_level > 0:
+        multiplier = power_int(from_plain(2), money_upgrade_level)
+        base_rate = multiply_values(base_rate, multiplier)
+    
+    # Rebirth upgrade: * 1000 per level (1000^level)
+    if rebirth_upgrade_level > 0:
+        multiplier = power_int(from_plain(1000), rebirth_upgrade_level)
+        base_rate = multiply_values(base_rate, multiplier)
+    
+    # Special upgrade: * 1000 per level (1000^level)
+    if special_upgrade_level > 0:
+        multiplier = power_int(from_plain(1000), special_upgrade_level)
+        base_rate = multiply_values(base_rate, multiplier)
+    
+    return base_rate
+

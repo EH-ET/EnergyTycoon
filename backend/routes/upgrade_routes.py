@@ -7,6 +7,7 @@ from ..game_logic import (
     apply_poly_sparkle_upgrade,
     apply_poly_money_upgrade,
     apply_poly_rebirth_upgrade,
+    apply_proton_upgrade,
 )
 from ..schemas import UpgradeRequest, BulkUpgradeRequest, UserOut
 
@@ -95,6 +96,15 @@ UPGRADE_TYPE_MAP = {
 
     # New Money Upgrade (Polynomial cost)
     "money_sparkle_bonus": ("poly_money", "money_sparkle_bonus_upgrade"),
+    "proton_gain_money": ("poly_money", "proton_gain_money_upgrade"),
+    
+    # New Rebirth Upgrades
+    "proton_gain_rebirth": ("poly_rebirth", "proton_gain_rebirth_upgrade"),
+    
+    # Proton Upgrades
+    "proton_demand_increase": ("proton", "proton_demand_increase"),
+    "proton_energy_gain": ("proton", "proton_energy_gain"),
+    "proton_sparkle_gain": ("proton", "proton_sparkle_gain"),
 }
 
 
@@ -130,6 +140,8 @@ async def bulk_upgrade(payload: BulkUpgradeRequest, auth=Depends(get_user_and_db
                 user = apply_poly_money_upgrade(user, db, upgrade_name, amount, commit=True)
             elif upgrade_type == "poly_rebirth":
                 user = apply_poly_rebirth_upgrade(user, db, upgrade_name, amount, commit=True)
+            elif upgrade_type == "proton":
+                user = apply_proton_upgrade(user, db, upgrade_name, amount, commit=True)
             results.append({"index": idx, "endpoint": endpoint, "amount": amount, "status": "applied"})
         except HTTPException as e:
             failed = {"index": idx, "endpoint": endpoint, "amount": amount, "error": e.detail}
