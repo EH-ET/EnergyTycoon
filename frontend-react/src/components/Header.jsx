@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { formatResourceValue } from '../utils/bigValue';
 import { useEnergyRate } from '../hooks/useEnergyTimer';
-import { fetchExchangeRate, fetchMyRank, updateTutorialProgress } from '../utils/apiClient';
+import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
@@ -80,12 +80,13 @@ export default function Header() {
     // Use cached rank if within TTL
     if (profileRankCache.data && now - profileRankCache.timestamp < FIVE_MINUTES) {
       const cached = profileRankCache.data;
+      const moneyRank = cached.money;
       const latestUser = useStore.getState().currentUser;
-      if (latestUser) {
+      if (latestUser && moneyRank) {
         syncUserState({
           ...latestUser,
-          rank: cached.rank,
-          rank_score: cached.score,
+          rank: moneyRank.rank,
+          rank_score: moneyRank.score,
         }, { persist: false });
       }
       return;
@@ -93,16 +94,17 @@ export default function Header() {
 
     setIsRankLoading(true);
     try {
-      const data = await fetchMyRank('money');
+      const data = await fetchMyRanks();
       profileRankCache.data = data;
       profileRankCache.timestamp = Date.now();
 
+      const moneyRank = data.money;
       const latestUser = useStore.getState().currentUser;
-      if (latestUser) {
+      if (latestUser && moneyRank) {
         syncUserState({
           ...latestUser,
-          rank: data.rank,
-          rank_score: data.score,
+          rank: moneyRank.rank,
+          rank_score: moneyRank.score,
         }, { persist: false });
       }
     } finally {

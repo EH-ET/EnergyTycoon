@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
-import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlain } from '../utils/bigValue';
+import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue } from '../utils/bigValue';
 import { loadProgress, awardSupercoin } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';

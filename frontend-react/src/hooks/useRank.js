@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
-import { fetchMyRank } from '../utils/apiClient';
+import { fetchMyRanks } from '../utils/apiClient';
 
 export function useRankUpdate() {
   const currentUser = useStore(state => state.currentUser);
@@ -11,11 +11,14 @@ export function useRankUpdate() {
 
     const updateRank = async () => {
       try {
-        const data = await fetchMyRank('money');
+        const data = await fetchMyRanks();
+        const moneyRank = data?.money;
+        if (!moneyRank) return;
+
         const nextUser = {
           ...currentUser,
-          rank: data.rank,
-          rank_score: data.score,
+          rank: moneyRank.rank,
+          rank_score: moneyRank.score,
         };
         syncUserState(nextUser, { persist: false });
       } catch (e) {
