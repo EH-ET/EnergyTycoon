@@ -193,7 +193,7 @@ export default function InfoTab() {
               label: '💰'
             }, {
               key: 'sparkle',
-              label: '⚡️'
+              label: '🔥'
             }, {
               key: 'energy',
               label: '⚡'
