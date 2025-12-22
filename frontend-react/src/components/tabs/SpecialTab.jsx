@@ -24,7 +24,7 @@ const specialUpgrades = [
     endpoint: 'energy_mult',
     field: 'energy_multiplier',
     maxLevel: null, // No max level
-    getBonus: (level) => `${formatResourceValue(powerOfPlain(2, level))}배`,
+    getBonus: (level) => `${formatResourceValue(powerOf(fromPlainValue(2), level))}배`,
   },
   {
     이름: '환율 배수',
@@ -32,7 +32,7 @@ const specialUpgrades = [
     endpoint: 'exchange_mult',
     field: 'exchange_rate_multiplier',
     maxLevel: null, // No max level
-    getBonus: (level) => `${formatResourceValue(powerOfPlain(2, level))}배`,
+    getBonus: (level) => `${formatResourceValue(powerOf(fromPlainValue(2), level))}배`,
   },
 ];
 
