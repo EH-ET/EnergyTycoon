@@ -336,7 +336,7 @@ export function computeSparklePerSecond(placedGenerators, currentUser) {
     let amountPerTickBV = multiplyByFloat(levelBV, multiplier);
     
     // Now, multiply by the chance
-    const expectedSparklesBV = multiplyByFloat(amountPerTickBV, finalChance);
+    const expectedSparklesBV = multiplyByFloat(amountPerTickBV, finalSparkleChance);
     
     totalSparkleRateBV = addValues(totalSparkleRateBV, expectedSparklesBV);
   });
