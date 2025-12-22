@@ -8,17 +8,17 @@ const BASE_REBIRTH_COST = 15_000_000; // 15M
 
 function calculateRebirthCost(rebirthCount) {
   const baseCost = fromPlainValue(BASE_REBIRTH_COST);
-  const multiplier = powerOfPlain(8, rebirthCount);
+  const multiplier = powerOf(fromPlainValue(8), rebirthCount);
   return multiplyValues(baseCost, multiplier); // BigValue 간 곱셈
 }
 
 function calculateRebirthMultiplier(rebirthCount) {
-  return powerOfPlain(2, rebirthCount);
+  return powerOf(fromPlainValue(2), rebirthCount);
 }
 
 function calculateRebirthStartMoney(level) {
   const base = fromPlainValue(10);
-  const multiplier = powerOfPlain(10, level);
+  const multiplier = powerOf(fromPlainValue(10), level);
   return multiplyValues(base, multiplier); // BigValue 간 곱셈
 }
 
