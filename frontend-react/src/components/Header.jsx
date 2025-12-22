@@ -342,12 +342,39 @@ export default function Header() {
                 {sparkleRate ? formatResourceValue(sparkleRate) : '0'}
               </span>/초</p>
             </div>
-            ⚡️
+            🔥
           </div>
           <div className="stat-info">
             <div className="stat-label">전자 스파클</div>
             <div className="stat-value sparkle-value">
               {currentUser?.electronic_sparkle_view ? formatResourceValue(currentUser.electronic_sparkle_view) : '0'}
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div 
+            className="stat-icon" 
+            style={{
+              background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}
+            onMouseEnter={() => setShowProtonModal(true)}
+            onMouseLeave={() => setShowProtonModal(false)}
+          >
+            <div className={`proton-modal modal ${showProtonModal ? 'is-visible' : ''}`}>
+              <p><strong>교환 비율</strong></p>
+              <p>돈 1 → 양성자 <span className="proton-rate">1</span></p>
+            </div>
+            ⚛️
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">양성자</div>
+            <div className="stat-value proton-value">
+              {currentUser?.proton_view ? formatResourceValue(currentUser.proton_view) : '0'}
             </div>
           </div>
         </div>

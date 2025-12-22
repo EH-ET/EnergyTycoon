@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
-import { upgrades, rebirthUpgrades, sparkleUpgrades } from '../../utils/data';
+import { upgrades, rebirthUpgrades, sparkleUpgrades, protonUpgrades } from '../../utils/data';
 import { fromPlainValue, formatResourceValue, toPlainValue, multiplyValues, powerOf, addValues, compareValues, subtractValues } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
@@ -283,6 +283,7 @@ export default function UpgradeTab() {
     ...upgrades.map((u) => ({ ...u, pill: 'Upgrade' })),
     ...sparkleUpgrades.map((u) => ({ ...u, pill: 'Sparkle' })),
     ...rebirthUpgrades.map((u) => ({ ...u, pill: 'Rebirth' })),
+    ...protonUpgrades.map((u) => ({ ...u, pill: 'Proton' })),
   ];
 
   return (

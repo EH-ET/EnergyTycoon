@@ -321,6 +321,12 @@ function applyResourceValues(user) {
   user.electronic_sparkle_view = electronicSparkleValue;
   user.electronic_sparkle_data = electronicSparkleValue.data;
   user.electronic_sparkle_high = electronicSparkleValue.high;
+
+  const protonValue = valueFromServer(user.proton_data, user.proton_high);
+  user.proton_value = protonValue;
+  user.proton_view = protonValue;
+  user.proton_data = protonValue.data;
+  user.proton_high = protonValue.high;
 }
 
 function persistExchangeRate(rate) {
