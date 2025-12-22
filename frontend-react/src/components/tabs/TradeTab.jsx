@@ -31,14 +31,12 @@ export default function TradeTab() {
     try {
       const data = await fetchExchangeRate();
       const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
-      // Backend stores rate*1000 in data, so divide by 1000 to get actual rate
-      const rateValue = rateBV.data / 1000;
-      setExchangeRate(rateValue);
+      setExchangeRate(rateBV);
     } catch (e) {
       console.error('Failed to load exchange rate:', e);
       // Set default rate on error
-      if (exchangeRate === null || exchangeRate === undefined) {
-        setExchangeRate(50);
+      if (!exchangeRate || typeof exchangeRate.data !== 'number') {
+        setExchangeRate({ data: 50000, high: 0 });
       }
     }
   };
@@ -95,8 +93,7 @@ export default function TradeTab() {
       const gainedBigValue = subtractValues(afterMoney, beforeMoney);
 
       const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
-      // Backend stores rate*1000 in data, so divide by 1000 to get actual rate
-      setExchangeRate(rateBV.data / 1000);
+      setExchangeRate(rateBV);
 
       const rateText = ` (rate ${formatResourceValue(rateBV)})`;
       setMessage(`성공: ${formatResourceValue(exchangeAmountBigValue)} 에너지 → ${formatResourceValue(gainedBigValue)} 돈${rateText}`);
@@ -153,11 +150,11 @@ export default function TradeTab() {
 
   const canTrade = Boolean(currentUser) && compareValues(exchangeAmountBigValue, {data: 0, high: 0}) > 0 && compareValues(expectedGainBigValue, {data: 0, high: 0}) >= 0;
 
-  const rateText = (exchangeRate !== null && exchangeRate !== undefined) 
-    ? formatResourceValue(fromPlainValue(exchangeRate)) 
+  const rateText = (exchangeRate && typeof exchangeRate.data === 'number') 
+    ? formatResourceValue(exchangeRate) 
     : '로딩 중...';
   const graphPoints = useMemo(() => {
-    const rateSafe = exchangeRate || 50;
+    const rateSafe = toPlainValue(exchangeRate) || 50;
     const demandY1 = 60 - Math.min(40, rateSafe * 0.3);
     const demandY2 = 60 + Math.min(40, rateSafe * 0.2);
     const supplyY2 = 50 + Math.min(40, rateSafe * 0.15);

@@ -115,11 +115,13 @@ export default function Header() {
   };
 
   const ensureExchangeRate = async () => {
-    if (typeof exchangeRate === 'number' && Number.isFinite(exchangeRate)) return;
+    if (exchangeRate && typeof exchangeRate.data === 'number') return;
     try {
       const data = await fetchExchangeRate(getAuthToken());
-      if (data?.rate != null) {
-        setExchangeRate(data.rate);
+      if (data?.rate_data != null) {
+        setExchangeRate({ data: data.rate_data, high: data.rate_high || 0 });
+      } else if (data?.rate != null) {
+        setExchangeRate({ data: data.rate * 1000, high: 0 });
       }
     } catch (e) {
       // Silent fail
@@ -309,9 +311,7 @@ export default function Header() {
             <div className={`money-modal modal ${showMoneyModal ? 'is-visible' : ''}`}>
               <p><strong>교환 비율</strong></p>
               <p>에너지 1 → 돈 <span className="money-rate">
-                {typeof exchangeRate === 'number' && Number.isFinite(exchangeRate)
-                  ? formatResourceValue({ data: (exchangeRate || 0) * 1000, high: 0 })
-                  : '0'}
+                {exchangeRate ? formatResourceValue(exchangeRate) : '0'}
               </span></p>
             </div>
           </div>

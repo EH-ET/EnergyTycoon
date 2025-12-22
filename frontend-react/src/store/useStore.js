@@ -34,7 +34,7 @@ export const useStore = create((set, get) => ({
   energyTimer: null,
   autosaveTimer: null,
   userOffsetX: 0,
-  exchangeRate: loadExchangeRate(),
+  exchangeRate: loadExchangeRate() || { data: 50000, high: 0 },
   saveStatus: null, // { status: 'success' | 'error', timestamp: number }
   isGlobalLoading: false, // Global loading state for token refresh / server wake-up
   globalLoadingMessage: '', // Message to show during loading
@@ -113,8 +113,9 @@ export const useStore = create((set, get) => ({
   })),
 
   setExchangeRate: (rate) => {
-    persistExchangeRate(rate);
-    set({ exchangeRate: rate });
+    const normalized = normalizeValue(rate);
+    persistExchangeRate(normalized);
+    set({ exchangeRate: normalized });
   },
 
   setUserOffsetX: (offset) => set({ userOffsetX: offset }),
@@ -324,8 +325,8 @@ function applyResourceValues(user) {
 
 function persistExchangeRate(rate) {
   try {
-    if (typeof rate === "number" && Number.isFinite(rate)) {
-      localStorage.setItem(STORAGE_KEYS.exchangeRate, String(rate));
+    if (rate && typeof rate.data === "number") {
+      localStorage.setItem(STORAGE_KEYS.exchangeRate, JSON.stringify(rate));
     }
   } catch (e) {
     // Silent fail
@@ -336,8 +337,8 @@ function loadExchangeRate() {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.exchangeRate);
     if (stored == null) return null;
-    const num = Number(stored);
-    return Number.isFinite(num) ? num : null;
+    const parsed = JSON.parse(stored);
+    return normalizeValue(parsed);
   } catch (e) {
     return null;
   }
