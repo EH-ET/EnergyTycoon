@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
-import { formatResourceValue } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue } from '../utils/bigValue';
 import { useEnergyRate, useSparkleRate } from '../hooks/useEnergyTimer';
-import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress } from '../utils/apiClient';
+import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress, fetchProtonRate } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
@@ -22,6 +22,9 @@ export default function Header() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRebirthModal, setShowRebirthModal] = useState(false);
   const [isRankLoading, setIsRankLoading] = useState(false);
+  
+  // Local state for proton rate
+  const [protonRate, setProtonRate] = useState(null);
 
   const currentUser = useStore(state => state.currentUser);
   const placedGenerators = useStore(state => state.placedGenerators);
@@ -126,6 +129,23 @@ export default function Header() {
       }
     } catch (e) {
       // Silent fail
+    }
+  };
+
+  const ensureProtonRate = async () => {
+    // Always fetch latest or check if stale? For now, fetch on hover to be accurate.
+    // If we want to cache, we can check protonRate != null. 
+    // But rate changes dynamically, so fetching on hover is better UX.
+    try {
+      const data = await fetchProtonRate();
+      if (data?.rate_data != null) {
+        setProtonRate({ data: data.rate_data, high: data.rate_high || 0 });
+      } else {
+        setProtonRate(fromPlainValue(data?.rate || 1));
+      }
+    } catch (e) {
+      // Fallback
+      if (!protonRate) setProtonRate(fromPlainValue(1));
     }
   };
 
@@ -362,12 +382,17 @@ export default function Header() {
               justifyContent: 'center',
               color: '#fff'
             }}
-            onMouseEnter={() => setShowProtonModal(true)}
+            onMouseEnter={() => {
+              setShowProtonModal(true);
+              ensureProtonRate();
+            }}
             onMouseLeave={() => setShowProtonModal(false)}
           >
             <div className={`proton-modal modal ${showProtonModal ? 'is-visible' : ''}`}>
               <p><strong>교환 비율</strong></p>
-              <p>돈 1 → 양성자 <span className="proton-rate">1</span></p>
+              <p>돈 1 → 양성자 <span className="proton-rate">
+                {protonRate ? formatResourceValue(protonRate) : '로딩 중...'}
+              </span></p>
             </div>
             ⚛️
           </div>
