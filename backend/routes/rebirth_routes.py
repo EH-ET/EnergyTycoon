@@ -12,6 +12,8 @@ from ..bigvalue import (
     compare,
     to_payload,
     BigValue,
+    set_user_electronic_sparkle_value,
+    set_user_proton_value,
 )
 
 router = APIRouter()
@@ -130,6 +132,24 @@ async def perform_rebirth(payload: RebirthRequest | None = None, auth=Depends(ge
         # Reset user's sold_energy (per-user market state)
         user.sold_energy_data = 0
         user.sold_energy_high = 0
+
+        # Reset Sparkle-related upgrades (Money/Sparkle category)
+        user.money_sparkle_bonus_upgrade = 0
+        user.sparkle_chance_upgrade = 0
+        user.sparkle_amount_upgrade = 0
+        user.sparkle_energy_multiplier_upgrade = 0
+
+        # Reset Proton-related upgrades (Money/Proton category)
+        user.proton_gain_money_upgrade = 0
+        user.proton_demand_increase_upgrade = 0
+        user.proton_energy_gain_upgrade = 0
+        user.proton_sparkle_gain_upgrade = 0
+
+        # Reset Sparkle resource
+        set_user_electronic_sparkle_value(user, from_plain(0))
+
+        # Reset Proton resource
+        set_user_proton_value(user, from_plain(0))
         
         db.commit()
         db.refresh(user)
