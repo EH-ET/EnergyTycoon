@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
-import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue } from '../utils/bigValue';
+import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue, powerOf } from '../utils/bigValue';
 import { loadProgress, awardSupercoin } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
 import { readStoredPlayTime } from '../utils/playTime';
@@ -164,19 +164,26 @@ export function useEnergyTimer() {
         const baseSparkleChance = 0.01;
         const finalSparkleChance = baseSparkleChance + (sparkleChanceUpgrade * 0.001);
         if (Math.random() < finalSparkleChance) {
-          let sparkleAmount = next.level || 1;
+          let sparkleAmountBV = fromPlainValue(next.level || 1);
 
           if (sparkleAmountUpgrade > 0) {
-            sparkleAmount = Math.pow(sparkleAmount, Math.pow(2, sparkleAmountUpgrade));
-          }
-          if (rebirthSparkleBonus > 0) {
-            sparkleAmount *= Math.pow(2, rebirthSparkleBonus);
-          }
-          if (moneySparkleBonus > 0) {
-            sparkleAmount *= Math.pow(1.5, moneySparkleBonus);
+            const power = Math.pow(2, sparkleAmountUpgrade);
+            sparkleAmountBV = powerOf(sparkleAmountBV, power);
           }
           
-          sparkleGainBV = addValues(sparkleGainBV, fromPlain(sparkleAmount));
+          let multiplier = 1.0;
+          if (rebirthSparkleBonus > 0) {
+            multiplier *= Math.pow(2, rebirthSparkleBonus);
+          }
+          if (moneySparkleBonus > 0) {
+            multiplier *= Math.pow(1.5, moneySparkleBonus);
+          }
+
+          if (multiplier > 1.0) {
+            sparkleAmountBV = multiplyByFloat(sparkleAmountBV, multiplier);
+          }
+          
+          sparkleGainBV = addValues(sparkleGainBV, sparkleAmountBV);
         }
 
         const upgrades = next.upgrades || {};
@@ -289,6 +296,58 @@ export function useEnergyRate() {
   const currentUser = useStore(state => state.currentUser);
   const placedGenerators = useStore(state => state.placedGenerators);
 
-  if (!currentUser) return 0;
+  if (!currentUser) return normalizeValue();
   return computeEnergyPerSecond(placedGenerators, currentUser);
+}
+
+export function computeSparklePerSecond(placedGenerators, currentUser) {
+  let totalSparkleRateBV = normalizeValue({ data: 0, high: 0 });
+
+  if (!currentUser) return totalSparkleRateBV;
+
+  const { 
+    sparkle_chance_upgrade = 0, 
+    sparkle_amount_upgrade = 0, 
+    rebirth_sparkle_bonus_upgrade = 0, 
+    money_sparkle_bonus_upgrade = 0 
+  } = currentUser;
+
+  const baseSparkleChance = 0.01;
+  const finalSparkleChance = baseSparkleChance + (sparkle_chance_upgrade * 0.001);
+
+  placedGenerators.forEach((pg) => {
+    if (!pg || pg.isDeveloping || pg.running === false) return;
+    
+    let levelBV = fromPlainValue(pg.level || 1);
+    
+    if (sparkle_amount_upgrade > 0) {
+      const power = Math.pow(2, sparkle_amount_upgrade); // This will always be an integer exponent
+      levelBV = powerOf(levelBV, power);
+    }
+    
+    let multiplier = 1.0;
+    if (rebirth_sparkle_bonus_upgrade > 0) {
+        multiplier *= Math.pow(2, rebirth_sparkle_bonus_upgrade);
+    }
+    if (money_sparkle_bonus_upgrade > 0) {
+        multiplier *= Math.pow(1.5, money_sparkle_bonus_upgrade);
+    }
+
+    let amountPerTickBV = multiplyByFloat(levelBV, multiplier);
+    
+    // Now, multiply by the chance
+    const expectedSparklesBV = multiplyByFloat(amountPerTickBV, finalChance);
+    
+    totalSparkleRateBV = addValues(totalSparkleRateBV, expectedSparklesBV);
+  });
+
+  return totalSparkleRateBV;
+}
+
+export function useSparkleRate() {
+  const currentUser = useStore(state => state.currentUser);
+  const placedGenerators = useStore(state => state.placedGenerators);
+
+  if (!currentUser) return normalizeValue();
+  return computeSparklePerSecond(placedGenerators, currentUser);
 }
