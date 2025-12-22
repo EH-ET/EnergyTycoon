@@ -13,7 +13,7 @@ def apply_special_upgrade(user, db, upgrade_type: str):
     Args:
         user: User instance
         db: Database session
-        upgrade_type: Type of special upgrade ('build_speed', 'energy_mult', 'exchange_mult')
+        upgrade_type: Type of special upgrade ('build_speed', 'energy_mult', 'exchange_mult', 'sparkle_gain', 'proton_gain')
     
     Returns:
         Updated user
@@ -33,6 +33,10 @@ def apply_special_upgrade(user, db, upgrade_type: str):
         user.energy_multiplier += 1
     elif upgrade_type == "exchange_mult":
         user.exchange_rate_multiplier += 1
+    elif upgrade_type == "sparkle_gain":
+        user.sparkle_gain_special_upgrade += 1
+    elif upgrade_type == "proton_gain":
+        user.proton_gain_special_upgrade += 1
     else:
         raise HTTPException(status_code=400, detail="잘못된 업그레이드 타입입니다.")
     
@@ -75,3 +79,17 @@ async def award_supercoin(auth=Depends(get_user_and_db)):
     db.commit()
     db.refresh(user)
     return {"supercoin": user.supercoin}
+
+
+@router.post("/special/sparkle_gain")
+async def upgrade_sparkle_gain(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_special_upgrade(user, db, "sparkle_gain")
+    return UserOut.model_validate(upgraded_user)
+
+
+@router.post("/special/proton_gain")
+async def upgrade_proton_gain(auth=Depends(get_user_and_db)):
+    user, db, _ = auth
+    upgraded_user = apply_special_upgrade(user, db, "proton_gain")
+    return UserOut.model_validate(upgraded_user)
