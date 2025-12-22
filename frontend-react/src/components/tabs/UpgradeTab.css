@@ -1,289 +1,253 @@
 .upgrade-tab-wrapper {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
-  overflow: auto;
-  padding: 0;
+  flex-direction: row;
+  gap: 0; /* Sidebar has padding */
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e16;
 }
 
-.upgrade-section {
+.upgrade-sidebar {
+  flex: 0 0 160px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
+  padding: 16px 12px;
+  background: #0f1729;
+  border-right: 1px solid #1f2a3d;
+  overflow-y: auto;
 }
 
-.upgrade-section-title {
-  margin: 0 12px;
-  font-size: 16px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
+.upgrade-category-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.upgrade-category-btn:hover {
+  background: rgba(30, 41, 59, 0.5);
+  color: #94a3b8;
+}
+
+.upgrade-category-btn.active {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.upgrade-category-icon {
+  font-size: 18px;
+}
+
+.upgrade-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0b0e16;
 }
 
 .upgrade-grid {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
   gap: 16px;
-  padding: 0;
-  overflow-x: auto;
-  overflow-y: visible;
-  scroll-behavior: smooth;
-  align-items: stretch;
   width: 100%;
-  box-sizing: border-box;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-.upgrade-amount {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.upgrade-amount input {
-  width: 80px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  font-weight: 700;
-}
-
-.upgrade-amount .amount-hint {
-  font-size: 12px;
-  color: #475569;
-}
-
+/* Card Styles - Adjusted for list view */
 .upgrade-card {
-  flex: 0 0 auto;
-  min-width: 320px;
-  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.12), transparent 45%), linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #dbeafe;
-  border-radius: 16px;
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  justify-content: space-between;
-  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.08);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  padding: 20px;
+  background: #131b2e;
+  border: 1px solid #1f2a3d;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
 }
 
-.upgrade-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(115deg, rgba(59, 130, 246, 0.08), rgba(248, 113, 113, 0.06));
-  opacity: 0.3;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
 .upgrade-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.14);
-  border-color: #bfdbfe;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: #3b82f6;
 }
 
-.upgrade-card:hover::before {
-  opacity: 0.5;
-}
+/* Category specific borders/accents */
+.upgrade-card[data-category="money"] { border-left: 4px solid #f59e0b; }
+.upgrade-card[data-category="sparkle"] { border-left: 4px solid #ef4444; }
+.upgrade-card[data-category="rebirth"] { border-left: 4px solid #8b5cf6; }
+.upgrade-card[data-category="proton"] { border-left: 4px solid #ec4899; }
 
 .upgrade-top {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  text-align: center;
-}
-
-.upgrade-pill {
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #1e3a8a;
-  background: #e0f2fe;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-}
-
-.upgrade-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.01em;
-}
-
-.upgrade-desc {
-  font-size: 13px;
-  color: #475569;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.upgrade-bottom {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  margin-bottom: 1vh;
-  border-radius: 12px;
-  background: rgba(226, 232, 240, 0.45);
-  border: 1px solid #e2e8f0;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.upgrade-stats {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
-
-.upgrade-info {
+.upgrade-header-left {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.upgrade-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-end;
+.upgrade-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 999px;
+  width: fit-content;
 }
 
-.upgrade-actions .upgrade-card-btn {
-  width: 100%;
-  min-width: 160px;
+.upgrade-pill.money { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.upgrade-pill.sparkle { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.upgrade-pill.rebirth { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.upgrade-pill.proton { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
+
+.upgrade-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.upgrade-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.upgrade-bottom {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #1f2a3d;
+}
+
+.upgrade-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.upgrade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .upgrade-info .label {
   font-size: 11px;
-  font-weight: 700;
-  color: #475569;
+  font-weight: 600;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .upgrade-info .value {
   font-size: 15px;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.upgrade-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .upgrade-card-btn {
-  background: linear-gradient(120deg, #2563eb, #7c3aed);
-  color: #fff;
-  font-weight: 800;
-  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 8px;
   border: none;
-  border-radius: 12px;
-  padding: 12px 18px;
-  min-width: 130px;
+  font-weight: 700;
+  font-size: 13px;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-}
-
-.upgrade-card-btn.secondary {
-  background: linear-gradient(120deg, #0ea5e9, #2563eb);
-  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.25);
+  background: #3b82f6;
+  color: white;
+  transition: all 0.2s;
 }
 
 .upgrade-card-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
-  filter: brightness(1.05);
+  background: #2563eb;
+  transform: translateY(-1px);
 }
 
-.upgrade-card-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.24);
+.upgrade-card-btn.secondary {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+}
+
+.upgrade-card-btn.secondary:hover {
+  background: #334155;
+  color: #fff;
 }
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
-  .upgrade-grid {
-    gap: 12px;
-    padding: 10px;
+  .upgrade-tab-wrapper {
+    flex-direction: column;
   }
 
-  .upgrade-card {
-    min-width: 280px;
-    padding: 16px;
-    gap: 14px;
+  .upgrade-sidebar {
+    flex: 0 0 auto;
+    flex-direction: row;
+    padding: 12px;
+    border-right: none;
+    border-bottom: 1px solid #1f2a3d;
+    overflow-x: auto;
+    white-space: nowrap;
   }
 
-  .upgrade-title {
-    font-size: 16px;
+  .upgrade-category-btn {
+    width: auto;
+    padding: 8px 16px;
+    justify-content: center;
   }
 
-  .upgrade-desc {
-    font-size: 12px;
+  .upgrade-content {
+    padding: 12px;
   }
 
   .upgrade-bottom {
     flex-direction: column;
+    align-items: stretch;
     gap: 12px;
-    padding: 10px 12px;
   }
-
+  
   .upgrade-stats {
     width: 100%;
-    justify-content: space-around;
+    justify-content: space-between;
   }
 
   .upgrade-actions {
-    width: 100%;
-    align-items: stretch;
+    flex-direction: column;
   }
 
   .upgrade-card-btn {
     width: 100%;
-    min-width: unset;
-    padding: 10px 16px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 480px) {
-  .upgrade-grid {
-    gap: 10px;
-    padding: 8px;
-  }
-
-  .upgrade-card {
-    min-width: 240px;
-    padding: 14px;
-    gap: 12px;
-  }
-
-  .upgrade-pill {
-    font-size: 10px;
-    padding: 3px 8px;
-  }
-
-  .upgrade-title {
-    font-size: 15px;
-  }
-
-  .upgrade-desc {
-    font-size: 11px;
-  }
-
-  .upgrade-info .label {
-    font-size: 10px;
-  }
-
-  .upgrade-info .value {
-    font-size: 14px;
-  }
-
-  .upgrade-card-btn {
-    padding: 9px 14px;
-    font-size: 12px;
   }
 }

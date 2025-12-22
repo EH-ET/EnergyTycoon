@@ -7,6 +7,7 @@ import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEven
 import AlertModal from '../AlertModal';
 
 export default function UpgradeTab() {
+  const [selectedCategory, setSelectedCategory] = useState('money');
   const [alertMessage, setAlertMessage] = useState('');
   const currentUser = useStore(state => state.currentUser);
   const syncUserState = useStore(state => state.syncUserState);
@@ -68,6 +69,53 @@ export default function UpgradeTab() {
       return getPolynomialUpgradeCostForAmount(user, upgrade, amount);
     }
 
+    if (upgrade.costModel === 'linear_exponential' || upgrade.costModel === 'exponential') {
+       // Proton/Complex logic - handled by server usually but here we approximate/calculate for display
+       // For simple exponential: base * (mult ^ level)
+       // For linear_exponential: base * (mult ^ level) * level? (Refer to backend)
+       // Let's implement basics or fallback.
+       // Actually backend has complex BigValue logic. For display we might need simplified or BigValue port.
+       // Current upgrades:
+       // Proton Demand: exponential (1M * 1M^lv)
+       // Proton Energy: linear_exponential (1M * 1M^lv * lv?) -> Check backend logic.
+       // Backend: cost = base * (multiplier ^ level). Linear_exp: cost * level?
+       
+       // Simplification: We assume 'polynomial' covers standard money upgrades.
+       // For Proton upgrades with 'exponential', let's use BigValue power.
+       
+       const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
+       let totalCost = fromPlainValue(0);
+       
+       // Fallback for exponential logic if needed, but 'data.js' defines them.
+       // If data.js defines 'costModel' as 'exponential', handle it.
+       if (upgrade.costModel === 'exponential') {
+         const base = upgrade.baseCost_plain;
+         const mult = upgrade.multiplier_base;
+         for (let i = 0; i < amount; i++) {
+            const lvl = baseLevel + i;
+            // cost = base * (mult ^ lvl)
+            const p = powerOf(mult, lvl);
+            const cost = multiplyValues(base, p);
+            totalCost = addValues(totalCost, cost);
+         }
+         return totalCost;
+       }
+       if (upgrade.costModel === 'linear_exponential') {
+         // cost = base * (mult ^ lvl) * lvl
+         const base = upgrade.baseCost_plain;
+         const mult = upgrade.multiplier_base;
+         for (let i = 0; i < amount; i++) {
+            const lvl = baseLevel + i;
+            if (lvl === 0) continue; // or 1-based?
+            const p = powerOf(mult, lvl);
+            const term = multiplyValues(base, p);
+            const final = multiplyValues(term, {data: lvl, high: 0});
+            totalCost = addValues(totalCost, final);
+         }
+         return totalCost;
+       }
+    }
+
     const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
     const costOffset = upgrade.costExponentOffset ?? 1;
     const baseCostPlain = upgrade.baseCost ?? toPlainValue(fromPlainValue(upgrade.baseCost_plain || 0));
@@ -84,18 +132,27 @@ export default function UpgradeTab() {
 
   const formatCost = (cost, currency) => {
     if (currency === 'rebirth') {
-      return `${cost.toLocaleString('ko-KR')} 환생`;
+      return `${cost.toLocaleString('ko-KR')} 🔮`;
     }
     if (currency === 'sparkle') {
       const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
       return `${formatResourceValue(costBV)} 🔥`;
+    }
+    if (currency === 'proton') {
+       const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
+       return `${formatResourceValue(costBV)} ⚛️`;
     }
     const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
     return `${formatResourceValue(costBV)} 💰`;
   };
 
   const getMaxAffordableAmount = (upgrade) => {
+    // Limited MAX logic - expensive to calculate for high amounts
+    // For now return 1 for complex types
+    if (upgrade.costModel === 'exponential' || upgrade.costModel === 'linear_exponential') return 1;
+
     if ((upgrade.currency || 'money') !== 'money') return 1;
+    
     const batchLimit = getUpgradeBatchLimit(currentUser);
     let low = 1;
     let high = batchLimit;
@@ -140,6 +197,7 @@ export default function UpgradeTab() {
 
     const costValue = getUpgradeCostForAmount(currentUser, upgrade, actualAmount);
 
+    // Resource check
     if ((upgrade.currency || 'money') === 'money') {
       if (upgrade.costModel === 'polynomial') {
         if (compareValues(useStore.getState().getMoneyValue(), costValue) < 0) {
@@ -152,33 +210,51 @@ export default function UpgradeTab() {
       }
     } else if (upgrade.currency === 'rebirth') {
       if ((currentUser?.rebirth_count ?? 0) < costValue) {
-        setAlertMessage('환생이 부족합니다.');
+        setAlertMessage('환생 포인트가 부족합니다.');
         return;
       }
     } else if (upgrade.currency === 'sparkle') {
       if (compareValues(useStore.getState().getElectronicSparkleValue(), costValue) < 0) {
-        setAlertMessage('스파클이 부족합니다.');
+        setAlertMessage('전자 스파클이 부족합니다.');
         return;
       }
+    } else if (upgrade.currency === 'proton') {
+       // Proton check
+       const { proton_value, proton_data, proton_high } = useStore.getState().currentUser || {};
+       const currentProton = proton_value || { data: proton_data || 0, high: proton_high || 0 };
+       if (compareValues(currentProton, costValue) < 0) {
+         setAlertMessage('양성자가 부족합니다.');
+         return;
+       }
     }
 
     // 1. Queue에 업그레이드 추가
     addGlobalUpgradeToQueue({ upgrade, amount: actualAmount });
 
-    // 2. 즉시 로컬 상태 업데이트 (프론트엔드에서 실시간 반영)
+    // 2. 즉시 로컬 상태 업데이트 (Simulated)
     if ((upgrade.currency || 'money') === 'money') {
-      const { getMoneyValue, setMoneyValue } = useStore.getState();
+      const { getMoneyValue, setMoneyValue, subtractFromMoney } = useStore.getState();
       if (upgrade.costModel === 'polynomial') {
         setMoneyValue(subtractValues(getMoneyValue(), costValue));
       } else {
-        const { subtractFromMoney } = useStore.getState();
         subtractFromMoney(costValue);
       }
     } else if (upgrade.currency === 'sparkle') {
         const { getElectronicSparkleValue, setElectronicSparkleValue } = useStore.getState();
         setElectronicSparkleValue(subtractValues(getElectronicSparkleValue(), costValue));
+    } else if (upgrade.currency === 'proton') {
+        // Proton deduct logic
+        // We assume we have setProtonValue logic or similar. useStore might not have setProtonValue exposed yet directly like setMoneyValue
+        // But we can manually update currentUser
+        const { currentUser } = useStore.getState();
+        const currentProton = currentUser.proton_value || { data: currentUser.proton_data, high: currentUser.proton_high };
+        const newProton = subtractValues(currentProton, costValue);
+        currentUser.proton_value = newProton;
+        currentUser.proton_view = newProton;
+        currentUser.proton_data = newProton.data;
+        currentUser.proton_high = newProton.high;
+        useStore.setState({ currentUser: { ...currentUser } });
     }
-
 
     // 최신 사용자 상태를 가져와서 안전하게 덮어쓰기
     const baseUser = useStore.getState().currentUser || currentUser || {};
@@ -196,7 +272,7 @@ export default function UpgradeTab() {
     // 로컬 상태 업데이트 (persist: false로 서버 동기화는 나중에)
     syncUserState(updatedUser, { persist: false });
 
-    // Tutorial 이벤트 - 전체 생산량 증가 구매 시
+    // Tutorial 이벤트
     if (upgrade.field === 'production_bonus') {
       dispatchTutorialEvent(TUTORIAL_EVENTS.BUY_PRODUCTION_UPGRADE);
     }
@@ -210,7 +286,16 @@ export default function UpgradeTab() {
     );
   }
 
-  const renderCard = (upgrade, index, pillLabel = 'Upgrade') => {
+  const combined = [
+    ...upgrades.map((u) => ({ ...u, pill: 'Upgrade', category: 'money' })),
+    ...sparkleUpgrades.map((u) => ({ ...u, pill: 'Sparkle', category: 'sparkle' })),
+    ...rebirthUpgrades.map((u) => ({ ...u, pill: 'Rebirth', category: 'rebirth' })),
+    ...protonUpgrades.map((u) => ({ ...u, pill: 'Proton', category: 'proton' })),
+  ];
+
+  const filteredUpgrades = combined.filter(u => u.category === selectedCategory);
+
+  const renderCard = (upgrade, index) => {
     const levelValue = getUpgradeLevel(currentUser, upgrade);
     const singleCost = getUpgradeCostForAmount(currentUser, upgrade, 1);
     const singleCostDisplay = formatCost(singleCost, upgrade.currency);
@@ -218,40 +303,37 @@ export default function UpgradeTab() {
     const isMoneyUpgrade = (upgrade.currency || 'money') === 'money';
     const batchLimit = isMoneyUpgrade ? getUpgradeBatchLimit(currentUser) : 1;
 
-    // Calculate max affordable amount for display purposes (similar to handleUpgrade)
+    // Calculate max affordable amount
     const maxAffordableAmountDisplay = isMoneyUpgrade ? getMaxAffordableAmount(upgrade) : 1;
     const maxCostForDisplay = getUpgradeCostForAmount(currentUser, upgrade, maxAffordableAmountDisplay);
     const maxCostDisplay = formatCost(maxCostForDisplay, upgrade.currency);
 
-
     return (
-      <div key={`${pillLabel}-${index}`} className="upgrade-card">
+      <div key={`${upgrade.category}-${index}`} className="upgrade-card" data-category={upgrade.category}>
         <div className="upgrade-top">
-          <div className="upgrade-pill">{pillLabel}</div>
-          <h3 className="upgrade-title">{upgrade.이름}</h3>
-          <p className="upgrade-desc">{upgrade.설명}</p>
+          <div className="upgrade-header-left">
+             <span className={`upgrade-pill ${upgrade.category}`}>{upgrade.pill}</span>
+             <h3 className="upgrade-title">{upgrade.이름}</h3>
+          </div>
         </div>
+        
+        <p className="upgrade-desc">{upgrade.설명}</p>
+
         <div className="upgrade-bottom">
           <div className="upgrade-stats">
             <div className="upgrade-info">
-              <span className="label">다음 비용</span>
+              <span className="label">비용</span>
               <span className="value">{singleCostDisplay}</span>
             </div>
             {maxAffordableAmountDisplay > 1 && (
               <div className="upgrade-info">
-                <span className="label">최대 구매 비용</span>
+                <span className="label">최대({maxAffordableAmountDisplay}회)</span>
                 <span className="value">{maxCostDisplay}</span>
               </div>
             )}
-            {isMoneyUpgrade && (
-              <div className="upgrade-info">
-                <span className="label">일괄 구매 한도</span>
-                <span className="value">{batchLimit}회</span>
-              </div>
-            )}
             <div className="upgrade-info">
-              <span className="label">현재 레벨</span>
-              <span className="value">Lv. {levelValue}</span>
+               <span className="label">현재 레벨</span>
+               <span className="value">Lv.{levelValue}</span>
             </div>
           </div>
           <div className="upgrade-actions">
@@ -260,18 +342,20 @@ export default function UpgradeTab() {
               className="upgrade-card-btn secondary"
               onClick={() => handleUpgrade(upgrade, 'single')}
             >
-              1회 업그레이드
+              1회 구매
             </button>
-            {isMoneyUpgrade && (
+            {isMoneyUpgrade && maxAffordableAmountDisplay > 1 && (
               <button
                 type="button"
                 className="upgrade-card-btn"
                 onClick={() => handleUpgrade(upgrade, 'max')}
               >
-                {maxAffordableAmountDisplay > 1
-                  ? `가능한 최대 (${maxAffordableAmountDisplay}회)`
-                  : '가능한 최대'}
+                모두 구매
               </button>
+            )}
+            {!isMoneyUpgrade && (
+               /* Non-money upgrades don't usually have Max Buy, but if they did we'd add it here */
+               null
             )}
           </div>
         </div>
@@ -279,17 +363,36 @@ export default function UpgradeTab() {
     );
   };
 
-  const combined = [
-    ...upgrades.map((u) => ({ ...u, pill: 'Upgrade' })),
-    ...sparkleUpgrades.map((u) => ({ ...u, pill: 'Sparkle' })),
-    ...rebirthUpgrades.map((u) => ({ ...u, pill: 'Rebirth' })),
-    ...protonUpgrades.map((u) => ({ ...u, pill: 'Proton' })),
+  const categories = [
+    { id: 'money', label: '기본 업그레이드', icon: '💰' },
+    { id: 'sparkle', label: '스파클 업그레이드', icon: '🔥' },
+    { id: 'proton', label: '양성자 업그레이드', icon: '⚛️' },
+    { id: 'rebirth', label: '환생 업그레이드', icon: '🔮' },
   ];
 
   return (
     <div className="upgrade-tab-wrapper">
-      <div className="upgrade-grid">
-        {combined.map((upgrade, index) => renderCard(upgrade, index, upgrade.pill))}
+      <div className="upgrade-sidebar">
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            className={`upgrade-category-btn ${selectedCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(cat.id)}
+          >
+            <span className="upgrade-category-icon">{cat.icon}</span>
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="upgrade-content">
+        <div className="upgrade-grid">
+           {filteredUpgrades.length > 0 ? (
+             filteredUpgrades.map((upgrade, index) => renderCard(upgrade, index))
+           ) : (
+             <div style={{ padding: '20px', color: '#64748b' }}>표시할 업그레이드가 없습니다.</div>
+           )}
+        </div>
       </div>
 
       <AlertModal
