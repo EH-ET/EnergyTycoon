@@ -1,0 +1,76 @@
+
+Table users {
+  user_id string [pk, default: `generate_uuid()`, not null]
+  username string [unique, not null]
+  password string [not null]
+  refresh_jti string
+  energy_data bigint [default: 0, not null]
+  energy_high bigint [default: 0, not null]
+  money_data bigint [default: 0, not null]
+  money_high bigint [default: 0, not null]
+  production_bonus int [default: 0, not null]
+  heat_reduction int [default: 0, not null]
+  tolerance_bonus int [default: 0, not null]
+  max_generators_bonus int [default: 0, not null]
+  demand_bonus int [default: 0, not null]
+  play_time_ms bigint [default: 0, not null]
+  rebirth_count int [default: 0, not null]
+  rebirth_chain_upgrade int [default: 0, not null]
+  upgrade_batch_upgrade int [default: 0, not null]
+  rebirth_start_money_upgrade int [default: 0, not null]
+  tutorial int [default: 1, not null]
+  sold_energy_data bigint [default: 0, not null]
+  sold_energy_high bigint [default: 0, not null]
+  supercoin int [default: 0, not null]
+  build_speed_reduction int [default: 0, not null]
+  energy_multiplier int [default: 0, not null]
+  exchange_rate_multiplier int [default: 0, not null]
+}
+
+Table generator_types {
+  generator_type_id string [pk, default: `generate_uuid()`, not null]
+  name string [unique, not null]
+  description string [not null]
+  cost_data int [default: 0, not null]
+  cost_high int [default: 0, not null]
+}
+
+Table generators {
+  generator_id string [pk, default: `generate_uuid()`, not null]
+  generator_type_id string [not null]
+  owner_id string [not null]
+  level int [default: 1, not null]
+  x_position int [not null]
+  world_position int [not null]
+  isdeveloping boolean [default: false, not null]
+  build_complete_ts int
+  heat int [default: 0, not null]
+  running boolean [default: true, not null]
+}
+
+Table map_progress {
+  map_progress_id string [pk, default: `generate_uuid()`, not null]
+  user_id string [not null]
+  generator_id string [not null]
+  production_upgrade int [default: 0, not null]
+  heat_reduction_upgrade int [default: 0, not null]
+  tolerance_upgrade int [default: 0, not null]
+
+  Indexes {
+    (user_id, generator_id) [unique]
+  }
+}
+
+Table inquiries {
+  inquiry_id string [pk, default: `generate_uuid()`, not null]
+  user_id string [not null]
+  type string [not null, note: 'bug, vulnerability, proposal, other']
+  content string [not null]
+  created_at bigint [not null, note: 'timestamp in milliseconds']
+}
+
+Ref: generators.owner_id > users.user_id
+Ref: generators.generator_type_id > generator_types.generator_type_id
+Ref: map_progress.user_id > users.user_id
+Ref: map_progress.generator_id > generators.generator_id
+Ref: inquiries.user_id > users.user_id

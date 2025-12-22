@@ -3,7 +3,6 @@ import { useStore } from '../store/useStore';
 import { bulkUpgradeGenerators } from '../utils/apiClient';
 
 export function useGeneratorUpgradeQueue() {
-  const upgradeQueue = useStore(state => state.upgradeQueue);
   const clearUpgradeQueue = useStore(state => state.clearUpgradeQueue);
   const syncUserState = useStore(state => state.syncUserState);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
@@ -12,6 +11,7 @@ export function useGeneratorUpgradeQueue() {
 
   useEffect(() => {
     const syncPendingUpgrades = async () => {
+      const { upgradeQueue } = useStore.getState();
       if (isSyncing.current || upgradeQueue.length === 0) {
         return;
       }
@@ -60,5 +60,5 @@ export function useGeneratorUpgradeQueue() {
       // Attempt to sync any remaining items when the component unmounts
       syncPendingUpgrades();
     };
-  }, [upgradeQueue, clearUpgradeQueue, syncUserState, setPlacedGenerators]);
+  }, [clearUpgradeQueue, syncUserState, setPlacedGenerators]);
 }
