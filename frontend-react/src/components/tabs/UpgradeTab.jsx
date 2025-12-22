@@ -2,7 +2,7 @@ import { useState } from 'react';
 import './UpgradeTab.css';
 import { useStore } from '../../store/useStore';
 import { upgrades, rebirthUpgrades, sparkleUpgrades } from '../../utils/data';
-import { fromPlainValue, formatResourceValue, toPlainValue, multiplyValues, powerOfPlain, addValues, compareValues } from '../../utils/bigValue';
+import { fromPlainValue, formatResourceValue, toPlainValue, multiplyValues, powerOf, addValues, compareValues } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 

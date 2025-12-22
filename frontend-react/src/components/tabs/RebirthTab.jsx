@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { performRebirth, autosaveProgress } from '../../utils/apiClient';
-import { fromPlainValue, multiplyByPlain, formatResourceValue, compareValues, powerOfPlain, multiplyValues } from '../../utils/bigValue';
+import { fromPlainValue, multiplyByPlain, formatResourceValue, compareValues, powerOf, multiplyValues } from '../../utils/bigValue';
 import { readStoredPlayTime } from '../../utils/playTime';
 import './RebirthTab.css';
 
@@ -11,19 +11,19 @@ const BASE_REBIRTH_COST = 15_000_000; // 15M
 // 환생 비용 계산: 15M × 8^n (BigValue)
 function calculateRebirthCost(rebirthCount) {
   const baseCost = fromPlainValue(BASE_REBIRTH_COST);
-  const multiplier = powerOfPlain(8, rebirthCount);
+  const multiplier = powerOf(fromPlainValue(8), rebirthCount);
   return multiplyValues(baseCost, multiplier); // BigValue 간 곱셈
 }
 
 // 환생 배수 계산: 2^n (BigValue)
 function calculateRebirthMultiplier(rebirthCount) {
-  return powerOfPlain(2, rebirthCount);
+  return powerOf(fromPlainValue(2), rebirthCount);
 }
 
 // 환생 시작 자금 계산: 10 × 10^level (BigValue)
 function calculateRebirthStartMoney(level) {
   const base = fromPlainValue(10);
-  const multiplier = powerOfPlain(10, level);
+  const multiplier = powerOf(fromPlainValue(10), level);
   return multiplyValues(base, multiplier); // BigValue 간 곱셈
 }
 
