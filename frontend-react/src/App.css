@@ -211,8 +211,8 @@ main {
   border-radius: 22px;
 }
 
-.money-img, .energy-img, .money-icon, .energy-icon { position: relative; }
-.money-modal, .energy-modal {
+.money-img, .energy-img, .money-icon, .energy-icon, .sparkle-icon { position: relative; }
+.money-modal, .energy-modal, .sparkle-modal {
   position: absolute;
   top: 60px;
   left: 50%;
@@ -231,12 +231,14 @@ main {
   pointer-events: none;
 }
 .money-modal.is-visible,
-.energy-modal.is-visible {
+.energy-modal.is-visible,
+.sparkle-modal.is-visible {
   opacity: 1;
   visibility: visible;
   transform: translate(-50%, 0);
 }
-.money-rate, .energy-rate { font-weight: 700; color: #a8ff8e; }
+.money-rate, .energy-rate, .sparkle-rate { font-weight: 700; color: #a8ff8e; }
+.sparkle-rate { color: #ffeb3b; }
 
 .stat-card {
   display: flex;
@@ -662,7 +664,8 @@ main {
   }
 
   .money-modal,
-  .energy-modal {
+  .energy-modal,
+  .sparkle-modal {
     top: 50px;
     width: 150px;
     font-size: 12px;
@@ -779,7 +782,8 @@ main {
   }
 
   .money-modal,
-  .energy-modal {
+  .energy-modal,
+  .sparkle-modal {
     width: 130px;
     font-size: 11px;
     padding: 6px;
