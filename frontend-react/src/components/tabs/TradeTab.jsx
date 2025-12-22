@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import { exchangeEnergy, fetchExchangeRate, exchangeMoneyToProton, fetchProtonRate, autosaveProgress } from '../../utils/apiClient';
-import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues, subtractValues } from '../../utils/bigValue';
+import { fromPlainValue, formatResourceValue, toPlainValue, multiplyByFloat, compareValues, addValues, subtractValues, multiplyValues } from '../../utils/bigValue';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEvents';
 import AlertModal from '../AlertModal';
 
@@ -22,7 +22,7 @@ export default function TradeTab() {
   const getMoneyValue = useStore(state => state.getMoneyValue);
   const getEnergyValue = useStore(state => state.getEnergyValue);
 
-  const [protonRate, setProtonRate] = useState({ data: 1000, high: 0 }); // 1 Money = 1 Proton base
+  const [protonRate, setProtonRate] = useState({ data: 1, high: 0 }); // 1 Money = 1 Proton base
 
   useEffect(() => {
     loadRate();
@@ -58,7 +58,7 @@ export default function TradeTab() {
       setProtonRate(rateBV);
     } catch (e) {
       console.error('Failed to load proton rate:', e);
-      setProtonRate({ data: 1000, high: 0 });
+      setProtonRate({ data: 1, high: 0 });
     }
   };
 
@@ -219,7 +219,7 @@ export default function TradeTab() {
   const currentMoneyValue = getMoneyValue();
   const protonPercentageMultiplier = protonPercentage / 100.0;
   const protonExchangeAmountBigValue = multiplyByFloat(currentMoneyValue, protonPercentageMultiplier);
-  const expectedProtonGain = multiplyByFloat(protonExchangeAmountBigValue, toPlainValue(protonRate) / 1000);
+  const expectedProtonGain = multiplyValues(protonExchangeAmountBigValue, protonRate);
 
   const canTrade = Boolean(currentUser) && compareValues(exchangeAmountBigValue, {data: 0, high: 0}) > 0 && compareValues(expectedGainBigValue, {data: 0, high: 0}) >= 0;
   const canTradeProton = Boolean(currentUser) && compareValues(protonExchangeAmountBigValue, {data: 0, high: 0}) > 0;
@@ -487,7 +487,7 @@ export default function TradeTab() {
             <div style={{ fontSize: '11px', color: '#a68ac6', marginBottom: '4px' }}>예상 교환</div>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#e8edf5', lineHeight: '1.4' }}>
               {formatResourceValue(protonExchangeAmountBigValue)} 돈<br/>
-              → {formatResourceValue(fromPlainValue(expectedProtonGain))} 양성자
+              → {formatResourceValue(expectedProtonGain)} 양성자
             </div>
           </div>
         </div>
