@@ -6,9 +6,9 @@ import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../../utils/tutorialEven
 import AlertModal from '../AlertModal';
 
 export default function TradeTab() {
-  const [activeTab, setActiveTab] = useState('money'); // 'money' | 'proton'
-  const [percentage, setPercentage] = useState(10); // 1-100%
-  const [protonPercentage, setProtonPercentage] = useState(10); // For Proton exchange
+  const [activeTab, setActiveTab] = useState('money'); 
+  const [percentage, setPercentage] = useState(10);
+  const [protonPercentage, setProtonPercentage] = useState(10);
   const [message, setMessage] = useState('');
   const [protonMessage, setProtonMessage] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
@@ -16,14 +16,14 @@ export default function TradeTab() {
   const [isProtonLoading, setIsProtonLoading] = useState(false);
   const [showRateModal, setShowRateModal] = useState(false);
 
+  // Store & API
   const currentUser = useStore(state => state.currentUser);
   const exchangeRate = useStore(state => state.exchangeRate);
   const setExchangeRate = useStore(state => state.setExchangeRate);
   const syncUserState = useStore(state => state.syncUserState);
   const getMoneyValue = useStore(state => state.getMoneyValue);
   const getEnergyValue = useStore(state => state.getEnergyValue);
-
-  const [protonRate, setProtonRate] = useState({ data: 1, high: 0 }); // 1 Money = 1 Proton base
+  const [protonRate, setProtonRate] = useState({ data: 1, high: 0 });
 
   useEffect(() => {
     loadRate();
@@ -42,7 +42,6 @@ export default function TradeTab() {
       const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 0);
       setExchangeRate(rateBV);
     } catch (e) {
-      console.error('Failed to load exchange rate:', e);
       if (!exchangeRate || typeof exchangeRate.data !== 'number') {
         setExchangeRate({ data: 50000, high: 0 });
       }
@@ -56,7 +55,6 @@ export default function TradeTab() {
       const rateBV = data?.rate_data != null ? { data: data.rate_data, high: data.rate_high || 0 } : fromPlainValue(data?.rate || 1);
       setProtonRate(rateBV);
     } catch (e) {
-      console.error('Failed to load proton rate:', e);
       setProtonRate({ data: 1, high: 0 });
     }
   };
@@ -71,7 +69,6 @@ export default function TradeTab() {
       setAlertMessage('교환할 에너지가 없습니다');
       return;
     }
-
     if (!currentUser) {
       setAlertMessage('로그인이 필요합니다.');
       return;
@@ -114,7 +111,6 @@ export default function TradeTab() {
       } else if (typeof e === 'string') {
         errorMsg = e;
       }
-      console.error('Exchange error:', e);
       setAlertMessage(errorMsg);
     } finally {
       setIsLoading(false);
@@ -131,7 +127,6 @@ export default function TradeTab() {
       setAlertMessage('교환할 돈이 없습니다');
       return;
     }
-
     if (!currentUser) {
       setAlertMessage('로그인이 필요합니다.');
       return;
@@ -157,7 +152,6 @@ export default function TradeTab() {
       } else if (typeof e === 'string') {
         errorMsg = e;
       }
-      console.error('Proton exchange error:', e);
       setAlertMessage(errorMsg);
     } finally {
       setIsProtonLoading(false);
@@ -199,8 +193,8 @@ export default function TradeTab() {
   const canTrade = Boolean(currentUser) && compareValues(exchangeAmountBigValue, {data: 0, high: 0}) > 0 && compareValues(expectedGainBigValue, {data: 0, high: 0}) >= 0;
   const canTradeProton = Boolean(currentUser) && compareValues(protonExchangeAmountBigValue, {data: 0, high: 0}) > 0;
 
-  const rateText = (exchangeRate && typeof exchangeRate.data === 'number') ? formatResourceValue(exchangeRate) : '로딩 중...';
-  const protonRateText = (protonRate && typeof protonRate.data === 'number') ? formatResourceValue(protonRate) : '로딩 중...';
+  const rateText = (exchangeRate && typeof exchangeRate.data === 'number') ? formatResourceValue(exchangeRate) : '...';
+  const protonRateText = (protonRate && typeof protonRate.data === 'number') ? formatResourceValue(protonRate) : '...';
 
   const graphPoints = useMemo(() => {
     const rateSafe = toPlainValue(exchangeRate) || 50;
@@ -222,7 +216,7 @@ export default function TradeTab() {
     }).join(' ');
   }, []);
 
-  // Styles
+  // Styles - Unified Control Panel
   const wrapperStyle = {
     display: 'flex',
     flexDirection: 'row',
@@ -234,11 +228,11 @@ export default function TradeTab() {
   };
 
   const sidebarStyle = {
-    flex: '0 0 160px',
+    flex: '0 0 140px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
-    padding: '16px',
+    gap: '4px',
+    padding: '12px',
     background: '#0f1729',
     borderRight: '1px solid #1f2a3d',
     overflowY: 'auto'
@@ -247,11 +241,11 @@ export default function TradeTab() {
   const btnStyle = (isActive) => ({
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '8px',
     width: '100%',
-    padding: '12px',
+    padding: '10px 12px',
     background: isActive ? '#1e293b' : 'transparent',
-    border: isActive ? '1px solid #334155' : '1px solid transparent',
+    border: 'none',
     borderRadius: '8px',
     color: isActive ? '#f1f5f9' : '#64748b',
     fontSize: '13px',
@@ -259,17 +253,17 @@ export default function TradeTab() {
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     textAlign: 'left',
-    boxShadow: isActive ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : 'none'
+    boxShadow: isActive ? 'inset 2px 0 0 0 #3b82f6' : 'none'
   });
 
   const contentAreaStyle = {
     flex: 1,
     display: 'flex',
-    padding: '20px',
-    gap: '20px',
-    overflowY: 'auto',
-    flexWrap: 'wrap',
-    alignContent: 'flex-start'
+    padding: '12px',
+    gap: '12px',
+    height: '100%',
+    overflowY: 'hidden',
+    alignItems: 'stretch'
   };
 
   const cardStyle = {
@@ -279,6 +273,8 @@ export default function TradeTab() {
     padding: '16px',
     color: '#e8edf5',
     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+    display: 'flex',
+    flexDirection: 'column',
   };
 
   const protonCardStyle = {
@@ -289,7 +285,6 @@ export default function TradeTab() {
 
   return (
     <div style={wrapperStyle}>
-      {/* Sidebar */}
       <div style={sidebarStyle}>
         <button style={btnStyle(activeTab === 'money')} onClick={() => setActiveTab('money')}>
            ⚡ 에너지
@@ -302,14 +297,34 @@ export default function TradeTab() {
       <div style={contentAreaStyle}>
         {activeTab === 'money' && (
           <>
-            {/* Left Column: Controls & Info */}
-            <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Controls */}
-              <div style={cardStyle}>
-                <div style={{ fontSize: '14px', color: '#9ba4b5', fontWeight: 600, marginBottom: '12px' }}>판매</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#7c8aa6' }}>비율</span>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
+            {/* Unified Control & Info Card */}
+            <div style={{...cardStyle, flex: '0 0 320px', gap: '16px'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#e2e8f0'}}>거래소</div>
+                 <div style={{ fontSize: '11px', color: '#64748b', background:'#1e293b', padding:'2px 6px', borderRadius:'4px'}}>실시간</div>
+              </div>
+
+               {/* Info Section */}
+               <div style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '12px', borderRadius: '8px', border:'1px solid #1e293b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>환율</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#fbbf24' }}>
+                      1⚡ = {rateText}💰
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontSize: '12px', color: '#94a3b8' }}>예상 획득</span>
+                     <span style={{ fontSize: '15px', fontWeight: 700, color: '#e2e8f0' }}>
+                        {formatResourceValue(expectedGainBigValue)} 💰
+                     </span>
+                  </div>
+               </div>
+
+               {/* Controls Section */}
+               <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>판매 비율</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#60a5fa' }}>{percentage}%</span>
                   </div>
                   <input
                     type="range"
@@ -319,16 +334,15 @@ export default function TradeTab() {
                     onChange={(e) => setPercentage(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      height: '8px',
-                      borderRadius: '4px',
+                      height: '6px',
+                      borderRadius: '3px',
                       outline: 'none',
                       background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${percentage}%, #1f2a3d ${percentage}%, #1f2a3d 100%)`,
                       WebkitAppearance: 'none',
                       appearance: 'none',
-                      marginBottom: '20px'
+                      marginBottom: '16px'
                     }}
                   />
-
                   <button
                     type="button"
                     onClick={() => {
@@ -338,70 +352,43 @@ export default function TradeTab() {
                     disabled={isLoading || !canTrade}
                     style={{
                       width: '100%',
-                      padding: '14px',
-                      borderRadius: '10px',
+                      padding: '12px',
+                      borderRadius: '8px',
                       border: 'none',
                       background: isLoading || !canTrade ? '#2c3e55' : 'linear-gradient(135deg, #36b5ff 0%, #2563eb 100%)',
                       color: '#fff',
                       fontWeight: 700,
-                      fontSize: '16px',
+                      fontSize: '15px',
                       cursor: isLoading || !canTrade ? 'not-allowed' : 'pointer',
-                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                      boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
                     }}
                   >
-                    {isLoading ? '교환 중...' : '교환'}
+                    {isLoading ? '신호 대기중...' : '즉시 교환'}
                   </button>
-
                   {message && (
-                    <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', background: 'rgba(16, 32, 54, 0.6)', color: '#6ee7b7', fontSize: '12px', border: '1px solid #059669' }}>
+                    <div style={{ marginTop: '10px', padding: '8px', borderRadius: '6px', background: 'rgba(5, 150, 105, 0.15)', color: '#6ee7b7', fontSize: '11px', border: '1px solid rgba(5, 150, 105, 0.3)' }}>
                       {message}
                     </div>
                   )}
-              </div>
-
-              {/* Exchange Details */}
-              <div style={cardStyle}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                   <span style={{ fontSize: '12px', color: '#94a3b8' }}>환율</span>
-                   <span style={{ fontSize: '14px', fontWeight: 700, color: '#fbbf24' }}>
-                     1 ⚡ : {rateText} 💰
-                   </span>
-                 </div>
-                 <div style={{ borderTop: '1px solid #1f2a3d', margin: '8px 0' }}></div>
-                 <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>예상 획득</div>
-                 <div style={{ fontSize: '15px', fontWeight: 700, color: '#e2e8f0', lineHeight: 1.4 }}>
-                    {formatResourceValue(expectedGainBigValue)} 💰
-                    <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>
-                      (-{formatResourceValue(exchangeAmountBigValue)} ⚡)
-                    </div>
-                 </div>
-              </div>
+               </div>
             </div>
 
-            {/* Right Column: Graph - Now on the right side */}
-            <div style={{ flex: '1.2 1 400px', display: 'flex', flexDirection: 'column', ...cardStyle, padding: '0', overflow: 'hidden' }}>
-              <div style={{ padding: '16px', borderBottom: '1px solid #1f2a3d', background: 'rgba(15, 23, 42, 0.5)' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#e2e8f0' }}>시장 동향</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>수요/공급 스냅샷</div>
+            {/* Graph Card */}
+            <div style={{ flex: 1, ...cardStyle, padding: 0, overflow: 'hidden', minWidth: 0 }}>
+              <div style={{ padding: '12px', borderBottom: '1px solid #1f2a3d', background: 'rgba(15, 23, 42, 0.5)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>시장 동향</div>
               </div>
-              <div style={{ flex: 1, minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+              <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg
                   width="100%"
                   height="100%"
                   viewBox="0 0 360 220"
                   preserveAspectRatio="none"
                   onMouseEnter={() => setShowRateModal(true)}
-                  style={{ cursor: 'pointer', overflow: 'visible' }}
+                  style={{ cursor: 'pointer', overflow: 'visible', padding: '16px' }}
                 >
                   <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
                   <line x1="40" y1="200" x2="340" y2="200" stroke="#334155" strokeWidth="1" />
-                  <text x="12" y="36" fill="#64748b" fontSize="12">가격</text>
-                  <text x="290" y="215" fill="#64748b" fontSize="12">수량</text>
-                  
-                  {/* Grid lines */}
-                  <line x1="40" y1="140" x2="340" y2="140" stroke="#1f2a3d" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="40" y1="80" x2="340" y2="80" stroke="#1f2a3d" strokeWidth="1" strokeDasharray="4 4" />
-
                   <polyline points={scaleGraphPoints(graphPoints.demand)} stroke="#3b82f6" fill="none" strokeWidth="3" />
                   <polyline points={scaleGraphPoints(graphPoints.supply)} stroke="#fbbf24" fill="none" strokeWidth="3" />
                 </svg>
@@ -410,16 +397,33 @@ export default function TradeTab() {
           </>
         )}
 
-        {/* Proton Tab */}
+        {/* PROTON TAB - Unified as well */}
         {activeTab === 'proton' && (
-          <div style={{ flex: 1, maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             <div style={protonCardStyle}>
-                <div style={{ fontSize: '14px', color: '#e9d5ff', fontWeight: 600, marginBottom: '16px' }}>돈 → 양성자 교환</div>
+          <div style={{ flex: 1, maxWidth: '400px', margin: '0 auto' }}>
+             <div style={{...protonCardStyle, gap:'16px'}}>
+                <div style={{ fontSize: '14px', color: '#e9d5ff', fontWeight: 600 }}>양성자 변환소</div>
                 
-                <div style={{ marginBottom: '24px' }}>
+                {/* Info */}
+                <div style={{ background: 'rgba(50, 20, 80, 0.4)', padding: '12px', borderRadius: '8px', border:'1px solid #4c1d95' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                     <span style={{ fontSize: '12px', color: '#c084fc' }}>환율</span>
+                     <span style={{ fontSize: '13px', fontWeight: 700, color: '#e879f9' }}>
+                       1💰 = {protonRateText}⚛️
+                     </span>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <span style={{ fontSize: '12px', color: '#c084fc' }}>예상 획득</span>
+                     <span style={{ fontSize: '15px', fontWeight: 800, color: '#f3e8ff' }}>
+                        {formatResourceValue(expectedProtonGain)} ⚛️
+                     </span>
+                   </div>
+                </div>
+
+                {/* Controls */}
+                <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', color: '#a855f7' }}>비율</span>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#d8b4fe' }}>{protonPercentage}%</span>
+                    <span style={{ fontSize: '12px', color: '#a855f7' }}>변환 비율</span>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#d8b4fe' }}>{protonPercentage}%</span>
                   </div>
                   <input
                     type="range"
@@ -429,59 +433,41 @@ export default function TradeTab() {
                     onChange={(e) => setProtonPercentage(Number(e.target.value))}
                     style={{
                       width: '100%',
-                      height: '8px',
-                      borderRadius: '4px',
+                      height: '6px',
+                      borderRadius: '3px',
                       outline: 'none',
                       background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${protonPercentage}%, #4c1d95 ${protonPercentage}%, #4c1d95 100%)`,
                       WebkitAppearance: 'none',
                       appearance: 'none',
+                      marginBottom: '16px'
                     }}
                   />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleProtonExchange}
-                  disabled={isProtonLoading || !canTradeProton}
-                  style={{
-                    width: '100%',
-                    padding: '16px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: isProtonLoading || !canTradeProton ? '#4c1d95' : 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
-                    color: '#fff',
-                    fontWeight: 800,
-                    fontSize: '16px',
-                    cursor: isProtonLoading || !canTradeProton ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 15px rgba(124, 58, 237, 0.4)'
-                  }}
-                >
-                   {isProtonLoading ? '변환 중...' : '변환하기'}
-                </button>
-
-                {protonMessage && (
-                  <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: 'rgba(88, 28, 135, 0.5)', color: '#d8b4fe', fontSize: '13px', border: '1px solid #7c3aed' }}>
-                    {protonMessage}
-                  </div>
-                )}
-             </div>
-
-             <div style={protonCardStyle}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                   <span style={{ fontSize: '12px', color: '#c084fc' }}>환율</span>
-                   <span style={{ fontSize: '14px', fontWeight: 700, color: '#e879f9' }}>
-                     1 💰 : {protonRateText} ⚛️
-                   </span>
-                 </div>
-                 <div style={{ borderTop: '1px solid #4c1d95', margin: '12px 0' }}></div>
-                 <div style={{ fontSize: '12px', color: '#c084fc', marginBottom: '4px' }}>예상 획득</div>
-                 <div style={{ fontSize: '16px', fontWeight: 800, color: '#f3e8ff', lineHeight: 1.4 }}>
-                    {formatResourceValue(expectedProtonGain)} ⚛️
-                    <div style={{ fontSize: '12px', color: '#a855f7', fontWeight: 500 }}>
-                      (-{formatResourceValue(protonExchangeAmountBigValue)} 💰)
+                  <button
+                    type="button"
+                    onClick={handleProtonExchange}
+                    disabled={isProtonLoading || !canTradeProton}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: isProtonLoading || !canTradeProton ? '#4c1d95' : 'linear-gradient(135deg, #9333ea 0%, #7c3aed 100%)',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: '15px',
+                      cursor: isProtonLoading || !canTradeProton ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 15px rgba(124, 58, 237, 0.4)'
+                    }}
+                  >
+                     {isProtonLoading ? '처리 중...' : '변환하기'}
+                  </button>
+                  {protonMessage && (
+                    <div style={{ marginTop: '12px', padding: '8px', borderRadius: '6px', background: 'rgba(88, 28, 135, 0.5)', color: '#d8b4fe', fontSize: '12px', border: '1px solid #7c3aed' }}>
+                      {protonMessage}
                     </div>
-                 </div>
-              </div>
+                  )}
+               </div>
+             </div>
           </div>
         )}
       </div>
@@ -491,7 +477,7 @@ export default function TradeTab() {
         onClose={() => setAlertMessage('')}
       />
       
-      {/* Rate Modal is kept overlay for detail view if needed, but Graph is now always visible */}
+      {/* Graph Detail Overlay */}
       {showRateModal && activeTab === 'money' && (
         <div
           onClick={() => setShowRateModal(false)}
@@ -505,11 +491,9 @@ export default function TradeTab() {
             zIndex: 9999,
           }}
         >
-           <div style={{ background: '#0f1729', padding: '20px', borderRadius: '16px', border: '1px solid #334155', maxWidth: '90vw' }}>
-              <h3 style={{color:'#fff', marginTop:0}}>시장 상세</h3>
-              <p style={{color:'#94a3b8', fontSize:'14px'}}>그래프 확대 보기</p>
-              {/* Copy of graph */}
-              <svg width="400" height="250" viewBox="0 0 360 220" style={{background:'#020617', borderRadius:'8px'}}>
+           <div style={{ background: '#0f1729', padding: '16px', borderRadius: '12px', border: '1px solid #334155', maxWidth: '90vw' }}>
+              <h3 style={{color:'#fff', marginTop:0, fontSize:'16px'}}>시장 상세</h3>
+              <svg width="300" height="200" viewBox="0 0 360 220" style={{background:'#020617', borderRadius:'8px'}}>
                  <line x1="40" y1="20" x2="40" y2="200" stroke="#334155" strokeWidth="1" />
                  <line x1="40" y1="200" x2="340" y2="200" stroke="#334155" strokeWidth="1" />
                  <polyline points={scaleGraphPoints(graphPoints.demand)} stroke="#3b82f6" fill="none" strokeWidth="3" />

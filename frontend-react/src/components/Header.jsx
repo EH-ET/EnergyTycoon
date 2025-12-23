@@ -133,9 +133,6 @@ export default function Header() {
   };
 
   const ensureProtonRate = async () => {
-    // Always fetch latest or check if stale? For now, fetch on hover to be accurate.
-    // If we want to cache, we can check protonRate != null. 
-    // But rate changes dynamically, so fetching on hover is better UX.
     try {
       const data = await fetchProtonRate();
       if (data?.rate_data != null) {
@@ -144,7 +141,6 @@ export default function Header() {
         setProtonRate(fromPlainValue(data?.rate || 1));
       }
     } catch (e) {
-      // Fallback
       if (!protonRate) setProtonRate(fromPlainValue(1));
     }
   };
@@ -322,7 +318,6 @@ export default function Header() {
             onMouseEnter={() => {
               setShowMoneyModal(true);
               ensureExchangeRate();
-              // Tutorial: Detect money hover
               if (currentUser?.tutorial === 6) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_MONEY);
               }
@@ -373,7 +368,7 @@ export default function Header() {
         </div>
         <div className="stat-card">
           <div 
-            className="stat-icon" 
+            className="stat-icon proton-icon"
             style={{
               background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
               fontSize: '20px',
@@ -408,7 +403,6 @@ export default function Header() {
             className="stat-icon energy-icon"
             onMouseEnter={() => {
               setShowEnergyModal(true);
-              // Tutorial: Detect energy hover
               if (currentUser?.tutorial === 5) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_ENERGY);
               }
