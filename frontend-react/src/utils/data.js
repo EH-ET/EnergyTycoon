@@ -131,7 +131,7 @@ export const generators = rawGenerators.map((g) => {
 });
 
 export const upgrades = rawUpgrades.map((u) => {
-  if (u.costModel === 'polynomial') {
+  if (u.costModel === 'polynomial' || u.costModel === 'exponential') {
     return { ...u, costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 1, currency: u.currency || "money"};
   }
   const v = fromPlainValue(u.baseCost);
