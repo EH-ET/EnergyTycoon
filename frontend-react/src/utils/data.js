@@ -88,8 +88,8 @@ const rawUpgrades = [
   {"이름": "내열한계 증가", "endpoint": "tolerance", "field": "tolerance_bonus", "설명": "발전기의 내열한계를 높입니다.", "baseCost": 60, "priceGrowth": 2.0},
   {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 300, "priceGrowth": 8},
   {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 15, "priceGrowth": 2.0},
-  {"이름": "스파크 증가", "endpoint": "money_sparkle_bonus", "field": "money_sparkle_bonus_upgrade", "설명": "스파크 획득량을 1.5배 늘립니다.", "currency": "money", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
-  {"이름": "양성자 획득량 증가", "endpoint": "proton_gain_money", "field": "proton_gain_money_upgrade", "설명": "돈당 양성자 획득량을 2배 늘립니다.", "currency": "money", "costModel": "polynomial", "baseCost_plain": {data: 1000000, high: 0}, "costExponent": 2}, // 1M * lv^2
+  {"이름": "스파크 증가", "endpoint": "money_sparkle_bonus", "field": "money_sparkle_bonus_upgrade", "설명": "스파크 획득량을 1.5배 늘립니다.", "currency": "money", "costModel": "exponential", "baseCost_plain": {"data": 1, "high": 33}, "multiplier_base": {"data": 1, "high": 33}}, // 1N * (1N^lv)
+  {"이름": "양성자 획득량 증가", "endpoint": "proton_gain_money", "field": "proton_gain_money_upgrade", "설명": "돈당 양성자 획득량을 2배 늘립니다.", "currency": "money", "costModel": "exponential", "baseCost_plain": {"data": 100000, "high": 4}, "multiplier_base": {"data": 100000, "high": 4}}, // 1M * (1M^lv)
 ];
 
 const rawRebirthUpgrades = [
@@ -103,7 +103,7 @@ const rawRebirthUpgrades = [
 
 const rawProtonUpgrades = [
   {"이름": "수요 증가", "endpoint": "proton_demand_increase", "field": "proton_demand_increase_upgrade", "설명": "에너지당 돈 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * (1M^lv)
-  {"이름": "에너지 획득량 증가", "endpoint": "proton_energy_gain", "field": "proton_energy_gain_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "linear_exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * 1M * lv
+  {"이름": "에너지 획득량 증가", "endpoint": "proton_energy_gain", "field": "proton_energy_gain_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {"data": 100000, "high": 1}, "multiplier_base": {"data": 100000, "high": 1}}, // 1k * 1k^lv
   {"이름": "스파크 획득량 증가", "endpoint": "proton_sparkle_gain", "field": "proton_sparkle_gain_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 4}, "multiplier_base": {data: 100000, high: 4}}, // 1B * (1B^lv)
 ];
 

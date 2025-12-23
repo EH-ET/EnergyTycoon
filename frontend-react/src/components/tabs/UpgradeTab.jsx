@@ -14,6 +14,7 @@ export default function UpgradeTab() {
   const compareMoneyWith = useStore(state => state.compareMoneyWith);
   const compareElectronicSparkleWith = useStore(state => state.compareElectronicSparkleWith);
   const addGlobalUpgradeToQueue = useStore(state => state.addGlobalUpgradeToQueue);
+  const recalculateRates = useStore(state => state.recalculateRates);
 
   const getUpgradeBatchLimit = (user) => {
     const level = Number(user?.upgrade_batch_upgrade) || 0;
@@ -263,6 +264,7 @@ export default function UpgradeTab() {
 
     // 로컬 상태 업데이트 (persist: false로 서버 동기화는 나중에)
     syncUserState(updatedUser, { persist: false });
+    recalculateRates();
 
     // Tutorial 이벤트
     if (upgrade.field === 'production_bonus') {

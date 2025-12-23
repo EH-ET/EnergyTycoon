@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { formatResourceValue, fromPlainValue } from '../utils/bigValue';
-import { useEnergyRate, useSparkleRate } from '../hooks/useEnergyTimer';
 import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress, fetchProtonRate } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
@@ -30,8 +29,8 @@ export default function Header() {
   const placedGenerators = useStore(state => state.placedGenerators);
   const exchangeRate = useStore(state => state.exchangeRate);
   const setExchangeRate = useStore(state => state.setExchangeRate);
-  const energyRate = useEnergyRate();
-  const sparkleRate = useSparkleRate();
+  const energyRate = useStore(state => state.energyRate);
+  const sparkleRate = useStore(state => state.sparkleRate);
   const syncUserState = useStore(state => state.syncUserState);
   const profileRef = useRef(null);
 
