@@ -102,16 +102,16 @@ const rawRebirthUpgrades = [
 
 
 const rawProtonUpgrades = [
-  {"이름": "수요 증가", "endpoint": "proton_demand_increase", "field": "proton_demand_increase_upgrade", "설명": "에너지당 돈 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 1000000, high: 0}, "multiplier_base": {data: 1000000, high: 0}}, // 1M * (1M^lv)
-  {"이름": "에너지 획득량 증가", "endpoint": "proton_energy_gain", "field": "proton_energy_gain_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "linear_exponential", "baseCost_plain": {data: 1000000, high: 0}, "multiplier_base": {data: 1000000, high: 0}}, // 1M * 1M * lv
-  {"이름": "스파크 획득량 증가", "endpoint": "proton_sparkle_gain", "field": "proton_sparkle_gain_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 1000000000, high: 0}, "multiplier_base": {data: 1000000000, high: 0}}, // 1B * (1B^lv)
+  {"이름": "수요 증가", "endpoint": "proton_demand_increase", "field": "proton_demand_increase_upgrade", "설명": "에너지당 돈 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * (1M^lv)
+  {"이름": "에너지 획득량 증가", "endpoint": "proton_energy_gain", "field": "proton_energy_gain_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "linear_exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * 1M * lv
+  {"이름": "스파크 획득량 증가", "endpoint": "proton_sparkle_gain", "field": "proton_sparkle_gain_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 4}, "multiplier_base": {data: 100000, high: 4}}, // 1B * (1B^lv)
 ];
 
 const rawSparkleUpgrades = [
     {"이름": "스파크 획득 확률 증가", "endpoint": "sparkle_chance", "field": "sparkle_chance_upgrade", "설명": "스파크 획득 확률을 0.1%p 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 10000, high: 0}, "costExponent": 12, "maxLevel": 1000}, // 10 sparkles -> {data: 10000, high: 0}
     {"이름": "스파크 획득량 증가", "endpoint": "sparkle_amount", "field": "sparkle_amount_upgrade", "설명": "스파크 획득량을 제곱으로 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 5000, high: 0}, "costExponent": 8}, // 5 sparkles -> {data: 5000, high: 0}
-    {"이름": "에너지 획득량 배수", "endpoint": "sparkle_energy_multiplier", "field": "sparkle_energy_multiplier_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000000, high: 0}, "costExponent": 20}, // 1K sparkles -> {data: 1000000, high: 0}
-    {"이름": "환생 체인 증가", "endpoint": "sparkle_rebirth_chain", "field": "rebirth_chain_upgrade", "설명": "환생 체인 횟수를 1 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
+    {"이름": "에너지 획득량 배수", "endpoint": "sparkle_energy_multiplier", "field": "sparkle_energy_multiplier_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 100000, high: 1}, "costExponent": 20}, // 1K sparkles -> {data: 1000000, high: 0}
+    {"이름": "환생 체인 증가", "endpoint": "sparkle_rebirth_chain", "field": "sparkle_rebirth_chain_upgrade", "설명": "환생 체인 횟수를 1 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
 ];
 
 function withResourceFields(obj, key) {
@@ -159,5 +159,16 @@ export const sparkleUpgrades = rawSparkleUpgrades.map((u) => {
 });
 
 export const protonUpgrades = rawProtonUpgrades.map((u) => {
-  return { ...u, currency: "proton", costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 1 };
+  const v = u.baseCost_plain ? fromPlainValue(u.baseCost_plain) : { data: 0, high: 0 };
+  const m = u.multiplier_base ? fromPlainValue(u.multiplier_base) : { data: 0, high: 0 };
+  return { 
+    ...u, 
+    currency: "proton", 
+    baseCost_data: v.data, 
+    baseCost_high: v.high,
+    multiplier_base_data: m.data,
+    multiplier_base_high: m.high,
+    costExponentOffset: u.costExponentOffset ?? 0, 
+    levelDisplayOffset: u.levelDisplayOffset ?? 1 
+  };
 });

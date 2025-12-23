@@ -32,6 +32,7 @@ class UserOut(BaseModel):
     sparkle_energy_multiplier_upgrade: int = 0
     rebirth_sparkle_bonus_upgrade: int = 0
     money_sparkle_bonus_upgrade: int = 0
+    sparkle_rebirth_chain_upgrade: int = 0
     tutorial: int
     supercoin: int = 0
     build_speed_reduction: int = 0
