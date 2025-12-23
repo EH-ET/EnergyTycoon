@@ -122,7 +122,8 @@ export default function UpgradeTab() {
 
   const formatCost = (cost, currency) => {
     if (currency === 'rebirth') {
-      return `${cost.toLocaleString('ko-KR')} 🔮`;
+      const costPlain = typeof cost === 'object' ? toPlainValue(cost) : cost;
+      return `${costPlain.toLocaleString('ko-KR')} 🔮`;
     }
     if (currency === 'sparkle') {
       const costBV = typeof cost === 'number' ? fromPlainValue(cost) : cost;
@@ -189,7 +190,7 @@ export default function UpgradeTab() {
 
     // Resource check
     if ((upgrade.currency || 'money') === 'money') {
-      if (upgrade.costModel === 'polynomial') {
+      if (upgrade.costModel === 'polynomial' || upgrade.costModel === 'exponential') {
         if (compareValues(useStore.getState().getMoneyValue(), costValue) < 0) {
           setAlertMessage('돈이 부족합니다.');
           return;
@@ -224,10 +225,12 @@ export default function UpgradeTab() {
 
     // 2. 즉시 로컬 상태 업데이트 (Simulated)
     if ((upgrade.currency || 'money') === 'money') {
-      const { getMoneyValue, setMoneyValue, subtractFromMoney } = useStore.getState();
-      if (upgrade.costModel === 'polynomial') {
+      const { getMoneyValue, setMoneyValue } = useStore.getState();
+      if (upgrade.costModel === 'polynomial' || upgrade.costModel === 'exponential') {
         setMoneyValue(subtractValues(getMoneyValue(), costValue));
       } else {
+        // This is for the old linear growth model which returns a plain number
+        const { subtractFromMoney } = useStore.getState();
         subtractFromMoney(costValue);
       }
     } else if (upgrade.currency === 'sparkle') {
