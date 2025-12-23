@@ -381,7 +381,8 @@ export function formatResourceValue(value) {
   let text;
   if (scaled >= 100) text = scaled.toFixed(0);
   else if (scaled >= 10) text = scaled.toFixed(1);
-  else text = scaled.toFixed(2);
+  else if (scaled >= 1) text = scaled.toFixed(2);
+  else text = scaled.toFixed(3);
 
   return unit ? `${text}${unit}` : text;
 }
