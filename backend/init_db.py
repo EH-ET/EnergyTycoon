@@ -89,6 +89,7 @@ def ensure_user_upgrade_columns():
                 ("sparkle_energy_multiplier_upgrade", "INTEGER NOT NULL DEFAULT 0"),
                 ("rebirth_sparkle_bonus_upgrade", "INTEGER NOT NULL DEFAULT 0"),
                 ("money_sparkle_bonus_upgrade", "INTEGER NOT NULL DEFAULT 0"),
+                ("sparkle_rebirth_chain_upgrade", "INTEGER NOT NULL DEFAULT 0"),
             ]
             for col_name, col_def in needed:
                 if col_name not in cols:
@@ -229,7 +230,8 @@ def ensure_user_upgrade_columns():
                 "sparkle_amount_upgrade",
                 "sparkle_energy_multiplier_upgrade",
                 "rebirth_sparkle_bonus_upgrade",
-                "money_sparkle_bonus_upgrade"
+                "money_sparkle_bonus_upgrade",
+                "sparkle_rebirth_chain_upgrade"
             ]
             for col in sparkle_upgrades:
                 if col not in existing:
