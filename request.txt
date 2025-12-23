@@ -1,0 +1,30 @@
+index-CZirquj_.js:11  POST https://2f239dca.energytycoon.pages.dev/api/change/money2proton 500 (Internal Server Error)
+(익명) @ index-CZirquj_.js:11
+xhr @ index-CZirquj_.js:11
+Uh @ index-CZirquj_.js:13
+Promise.then
+_request @ index-CZirquj_.js:14
+request @ index-CZirquj_.js:13
+(익명) @ index-CZirquj_.js:14
+(익명) @ index-CZirquj_.js:9
+em @ index-CZirquj_.js:14
+O @ index-CZirquj_.js:14
+await in O
+v0 @ index-CZirquj_.js:8
+(익명) @ index-CZirquj_.js:8
+Tc @ index-CZirquj_.js:8
+lu @ index-CZirquj_.js:8
+bu @ index-CZirquj_.js:9
+Sy @ index-CZirquj_.js:9이 오류 이해하기
+installHook.js:1 Proton Exchange Error: _e {message: 'Request failed with status code 500', name: 'AxiosError', code: 'ERR_BAD_RESPONSE', config: {…}, request: XMLHttpRequest, …}code: "ERR_BAD_RESPONSE"config: {transitional: {…}, adapter: Array(3), transformRequest: Array(1), transformResponse: Array(1), timeout: 0, …}message: "Request failed with status code 500"name: "AxiosError"request: XMLHttpRequest {onreadystatechange: null, readyState: 4, timeout: 0, withCredentials: true, upload: XMLHttpRequestUpload, …}response: {data: 'Internal Server Error', status: 500, statusText: '', headers: Ut, config: {…}, …}status: 500stack: "AxiosError: Request failed with status code 500\n    at jp (https://2f239dca.energytycoon.pages.dev/assets/index-CZirquj_.js:11:1083)\n    at XMLHttpRequest.L (https://2f239dca.energytycoon.pages.dev/assets/index-CZirquj_.js:11:5823)\n    at Ca.request (https://2f239dca.energytycoon.pages.dev/assets/index-CZirquj_.js:13:2094)\n    at async em (https://2f239dca.energytycoon.pages.dev/assets/index-CZirquj_.js:14:22514)\n    at async O (https://2f239dca.energytycoon.pages.dev/assets/index-CZirquj_.js:14:77551)"[[Prototype]]: Error
+overrideMethod @ installHook.js:1
+O @ index-CZirquj_.js:14
+await in O
+v0 @ index-CZirquj_.js:8
+(익명) @ index-CZirquj_.js:8
+Tc @ index-CZirquj_.js:8
+lu @ index-CZirquj_.js:8
+bu @ index-CZirquj_.js:9
+Sy @ index-CZirquj_.js:9이 오류 이해하기
+index-CZirquj_.js:14 Error Response Status: 500
+index-CZirquj_.js:14 Error Response Data: Internal Server Error

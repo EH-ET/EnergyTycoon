@@ -11,45 +11,45 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     user_id: str
     username: str
-    energy_data: int
-    energy_high: int
-    money_data: int
-    money_high: int
-    electronic_sparkle_data: int
-    electronic_sparkle_high: int
-    production_bonus: int
-    heat_reduction: int
-    tolerance_bonus: int
-    max_generators_bonus: int
-    demand_bonus: int
-    play_time_ms: int
-    rebirth_count: int
-    rebirth_chain_upgrade: int = 0
-    upgrade_batch_upgrade: int = 0
-    rebirth_start_money_upgrade: int = 0
-    sparkle_chance_upgrade: int = 0
-    sparkle_amount_upgrade: int = 0
-    sparkle_energy_multiplier_upgrade: int = 0
-    rebirth_sparkle_bonus_upgrade: int = 0
-    money_sparkle_bonus_upgrade: int = 0
-    sparkle_rebirth_chain_upgrade: int = 0
-    tutorial: int
-    supercoin: int = 0
-    build_speed_reduction: int = 0
-    energy_multiplier: int = 0
-    exchange_rate_multiplier: int = 0
-    sold_energy_data: int = 0
-    sold_energy_high: int = 0
+    energy_data: Optional[int] = 0
+    energy_high: Optional[int] = 0
+    money_data: Optional[int] = 0
+    money_high: Optional[int] = 0
+    electronic_sparkle_data: Optional[int] = 0
+    electronic_sparkle_high: Optional[int] = 0
+    production_bonus: Optional[int] = 0
+    heat_reduction: Optional[int] = 0
+    tolerance_bonus: Optional[int] = 0
+    max_generators_bonus: Optional[int] = 0
+    demand_bonus: Optional[int] = 0
+    play_time_ms: Optional[int] = 0
+    rebirth_count: Optional[int] = 0
+    rebirth_chain_upgrade: Optional[int] = 0
+    upgrade_batch_upgrade: Optional[int] = 0
+    rebirth_start_money_upgrade: Optional[int] = 0
+    sparkle_chance_upgrade: Optional[int] = 0
+    sparkle_amount_upgrade: Optional[int] = 0
+    sparkle_energy_multiplier_upgrade: Optional[int] = 0
+    rebirth_sparkle_bonus_upgrade: Optional[int] = 0
+    money_sparkle_bonus_upgrade: Optional[int] = 0
+    sparkle_rebirth_chain_upgrade: Optional[int] = 0
+    tutorial: Optional[int] = 0
+    supercoin: Optional[int] = 0
+    build_speed_reduction: Optional[int] = 0
+    energy_multiplier: Optional[int] = 0
+    exchange_rate_multiplier: Optional[int] = 0
+    sold_energy_data: Optional[int] = 0
+    sold_energy_high: Optional[int] = 0
     
-    proton_data: int = 0
-    proton_high: int = 0
-    proton_gain_money_upgrade: int = 0
-    proton_gain_rebirth_upgrade: int = 0
-    proton_demand_increase_upgrade: int = 0
-    proton_energy_gain_upgrade: int = 0
-    proton_sparkle_gain_upgrade: int = 0
-    proton_gain_special_upgrade: int = 0
-    sparkle_gain_special_upgrade: int = 0
+    proton_data: Optional[int] = 0
+    proton_high: Optional[int] = 0
+    proton_gain_money_upgrade: Optional[int] = 0
+    proton_gain_rebirth_upgrade: Optional[int] = 0
+    proton_demand_increase_upgrade: Optional[int] = 0
+    proton_energy_gain_upgrade: Optional[int] = 0
+    proton_sparkle_gain_upgrade: Optional[int] = 0
+    proton_gain_special_upgrade: Optional[int] = 0
+    sparkle_gain_special_upgrade: Optional[int] = 0
 
     model_config = {"from_attributes": True}
 
