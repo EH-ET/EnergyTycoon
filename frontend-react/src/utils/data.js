@@ -1,5 +1,5 @@
 // 공통 상수와 하드코딩된 기본 데이터
-import { fromPlainValue } from "./bigValue.js";
+import { fromPlainValue, normalizeValue } from "./bigValue.js";
 
 const DEPLOY_FRONTEND_URL = "https://energytycoon.pages.dev";
 const DEPLOY_BACKEND_URL = "https://energy-tycoon-backend-bx7iyzi5sq-du.a.run.app";
@@ -89,6 +89,7 @@ const rawUpgrades = [
   {"이름": "최대 발전기 수 증가", "endpoint": "max_generators", "field": "max_generators_bonus", "설명": "설치 가능한 발전기의 최대 수를 늘립니다.", "baseCost": 300, "priceGrowth": 8},
   {"이름": "수요 증가", "endpoint": "demand", "field": "demand_bonus", "설명": "시장 수요를 늘려 교환 가치 하락을 늦춥니다.", "baseCost": 15, "priceGrowth": 2.0},
   {"이름": "스파크 증가", "endpoint": "money_sparkle_bonus", "field": "money_sparkle_bonus_upgrade", "설명": "스파크 획득량을 1.5배 늘립니다.", "currency": "money", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
+  {"이름": "양성자 획득량 증가", "endpoint": "proton_gain_money", "field": "proton_gain_money_upgrade", "설명": "돈당 양성자 획득량을 2배 늘립니다.", "currency": "money", "costModel": "polynomial", "baseCost_plain": {data: 1000000, high: 0}, "costExponent": 2}, // 1M * lv^2
 ];
 
 const rawRebirthUpgrades = [
@@ -96,13 +97,21 @@ const rawRebirthUpgrades = [
   {"이름": "전역 업그레이드 일괄 구매", "endpoint": "upgrade_batch", "field": "upgrade_batch_upgrade", "설명": "업그레이드 탭에서 한 번에 올릴 수 있는 최대 단계를 늘립니다.", "baseCost": 1, "priceGrowth": 2.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"},
   {"이름": "환생 시작 자금 배수", "endpoint": "rebirth_start_money", "field": "rebirth_start_money_upgrade", "설명": "환생 직후 시작하는 기본 자금을 10배씩 늘립니다.", "baseCost": 3, "priceGrowth": 3.0, "costExponentOffset": 0, "levelDisplayOffset": 0, "currency": "rebirth"},
   {"이름": "스파크 증가", "endpoint": "rebirth_sparkle_bonus", "field": "rebirth_sparkle_bonus_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "rebirth", "costModel": "polynomial", "baseCost_plain": 5, "costExponent": 5},
+  {"이름": "양성자 획득량 증가", "endpoint": "proton_gain_rebirth", "field": "proton_gain_rebirth_upgrade", "설명": "돈당 양성자 획득량을 1000배 늘립니다.", "currency": "rebirth", "costModel": "polynomial", "baseCost_plain": 3, "costExponent": 2}, // 3 * lv^2
+];
+
+
+const rawProtonUpgrades = [
+  {"이름": "수요 증가", "endpoint": "proton_demand_increase", "field": "proton_demand_increase_upgrade", "설명": "에너지당 돈 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * (1M^lv)
+  {"이름": "에너지 획득량 증가", "endpoint": "proton_energy_gain", "field": "proton_energy_gain_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "proton", "costModel": "linear_exponential", "baseCost_plain": {data: 100000, high: 1}, "multiplier_base": {data: 100000, high: 1}}, // 1M * 1M * lv
+  {"이름": "스파크 획득량 증가", "endpoint": "proton_sparkle_gain", "field": "proton_sparkle_gain_upgrade", "설명": "스파크 획득량을 2배 늘립니다.", "currency": "proton", "costModel": "exponential", "baseCost_plain": {data: 100000, high: 4}, "multiplier_base": {data: 100000, high: 4}}, // 1B * (1B^lv)
 ];
 
 const rawSparkleUpgrades = [
     {"이름": "스파크 획득 확률 증가", "endpoint": "sparkle_chance", "field": "sparkle_chance_upgrade", "설명": "스파크 획득 확률을 0.1%p 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 10000, high: 0}, "costExponent": 12, "maxLevel": 1000}, // 10 sparkles -> {data: 10000, high: 0}
     {"이름": "스파크 획득량 증가", "endpoint": "sparkle_amount", "field": "sparkle_amount_upgrade", "설명": "스파크 획득량을 제곱으로 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 5000, high: 0}, "costExponent": 8}, // 5 sparkles -> {data: 5000, high: 0}
-    {"이름": "에너지 획득량 배수", "endpoint": "sparkle_energy_multiplier", "field": "sparkle_energy_multiplier_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000000, high: 0}, "costExponent": 20}, // 1K sparkles -> {data: 1000000, high: 0}
-    {"이름": "환생 체인 증가", "endpoint": "sparkle_rebirth_chain", "field": "rebirth_chain_upgrade", "설명": "환생 체인 횟수를 1 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
+    {"이름": "에너지 획득량 배수", "endpoint": "sparkle_energy_multiplier", "field": "sparkle_energy_multiplier_upgrade", "설명": "에너지 획득량을 1.5배 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 100000, high: 1}, "costExponent": 20}, // 1K sparkles -> {data: 1000000, high: 0}
+    {"이름": "환생 체인 증가", "endpoint": "sparkle_rebirth_chain", "field": "sparkle_rebirth_chain_upgrade", "설명": "환생 체인 횟수를 1 늘립니다.", "currency": "sparkle", "costModel": "polynomial", "baseCost_plain": {data: 1000, high: 30}, "costExponent": 20}, // 1N * lv^20
 ];
 
 function withResourceFields(obj, key) {
@@ -147,4 +156,19 @@ export const rebirthUpgrades = rawRebirthUpgrades.map((u) => {
 
 export const sparkleUpgrades = rawSparkleUpgrades.map((u) => {
   return { ...u, currency: "sparkle", costExponentOffset: u.costExponentOffset ?? 0, levelDisplayOffset: u.levelDisplayOffset ?? 1 };
+});
+
+export const protonUpgrades = rawProtonUpgrades.map((u) => {
+  const v = u.baseCost_plain ? normalizeValue(u.baseCost_plain) : { data: 0, high: 0 };
+  const m = u.multiplier_base ? normalizeValue(u.multiplier_base) : { data: 0, high: 0 };
+  return { 
+    ...u, 
+    currency: "proton", 
+    baseCost_data: v.data, 
+    baseCost_high: v.high,
+    multiplier_base_data: m.data,
+    multiplier_base_high: m.high,
+    costExponentOffset: u.costExponentOffset ?? 0, 
+    levelDisplayOffset: u.levelDisplayOffset ?? 1 
+  };
 });

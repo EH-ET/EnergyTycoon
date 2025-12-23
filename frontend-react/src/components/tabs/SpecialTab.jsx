@@ -34,6 +34,22 @@ const specialUpgrades = [
     maxLevel: null, // No max level
     getBonus: (level) => `${formatResourceValue(powerOf(fromPlainValue(2), level))}배`,
   },
+  {
+    이름: '스파클 획득량 증가',
+    설명: '스파클 획득량을 4배씩 늘립니다.',
+    endpoint: 'sparkle_gain',
+    field: 'sparkle_gain_special_upgrade',
+    maxLevel: null,
+    getBonus: (level) => `${formatResourceValue(powerOf(fromPlainValue(4), level))}배`,
+  },
+  {
+    이름: '양성자 획득량 증가',
+    설명: '돈당 양성자 획득량을 1000배씩 늘립니다.',
+    endpoint: 'proton_gain',
+    field: 'proton_gain_special_upgrade',
+    maxLevel: null,
+    getBonus: (level) => `${formatResourceValue(powerOf(fromPlainValue(1000), level))}배`,
+  },
 ];
 
 function getUpgradeLevel(user, upgrade) {

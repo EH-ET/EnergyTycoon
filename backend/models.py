@@ -36,6 +36,7 @@ class User(Base):
     sparkle_energy_multiplier_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
     rebirth_sparkle_bonus_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
     money_sparkle_bonus_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
+    sparkle_rebirth_chain_upgrade = Column(Integer, default=0, server_default="0", nullable=False)
     tutorial = Column(Integer, default=1, server_default="1", nullable=False)
     sold_energy_data = Column(BigInteger, default=0, server_default="0", nullable=False)
     sold_energy_high = Column(BigInteger, default=0, server_default="0", nullable=False)

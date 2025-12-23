@@ -89,7 +89,7 @@ UPGRADE_TYPE_MAP = {
     "sparkle_chance": ("poly_sparkle", "sparkle_chance_upgrade"),
     "sparkle_amount": ("poly_sparkle", "sparkle_amount_upgrade"),
     "sparkle_energy_multiplier": ("poly_sparkle", "sparkle_energy_multiplier_upgrade"),
-    "sparkle_rebirth_chain": ("poly_sparkle", "rebirth_chain_upgrade"),
+    "sparkle_rebirth_chain": ("poly_sparkle", "sparkle_rebirth_chain_upgrade"),
 
     # New Rebirth Upgrade (Polynomial cost)
     "rebirth_sparkle_bonus": ("poly_rebirth", "rebirth_sparkle_bonus_upgrade"),

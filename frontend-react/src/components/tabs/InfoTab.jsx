@@ -195,6 +195,9 @@ export default function InfoTab() {
               key: 'sparkle',
               label: '🔥'
             }, {
+              key: 'proton',
+              label: '⚛️'
+            }, {
               key: 'energy',
               label: '⚡'
             }, {
@@ -220,7 +223,7 @@ export default function InfoTab() {
                   cursor: 'pointer',
                   fontWeight: rankCriteria === key ? 700 : 400,
                 }}
-                title={key === 'money' ? '돈' : key === 'sparkle' ? '스파클' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : key === 'rebirth' ? '환생' : '슈퍼코인'}
+                title={key === 'money' ? '돈' : key === 'sparkle' ? '스파클' : key === 'proton' ? '양성자' : key === 'energy' ? '에너지' : key === 'playtime' ? '플레이타임' : key === 'rebirth' ? '환생' : '슈퍼코인'}
               >
                 {label}
               </button>

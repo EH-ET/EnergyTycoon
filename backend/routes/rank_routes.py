@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..dependencies import get_user_and_db
 from ..models import User
-from ..bigvalue import get_user_money_value, get_user_energy_value, get_user_electronic_sparkle_value, normalize
+from ..bigvalue import get_user_money_value, get_user_energy_value, get_user_electronic_sparkle_value, get_user_proton_value, normalize
 
 router = APIRouter()
 
@@ -24,6 +24,13 @@ def _user_score(u: User, criteria: str = "money"):
         }
     elif criteria == "sparkle":
         bv = normalize(get_user_electronic_sparkle_value(u))
+        return {
+            "data": bv.data,
+            "high": bv.high,
+            "displayValue": f"{bv.data}e{bv.high}" if bv.high > 0 else str(bv.data)
+        }
+    elif criteria == "proton":
+        bv = normalize(get_user_proton_value(u))
         return {
             "data": bv.data,
             "high": bv.high,
@@ -51,6 +58,8 @@ def _get_order_by(criteria: str):
         return [User.energy_high.desc(), User.energy_data.desc(), User.user_id]
     elif criteria == "sparkle":
         return [User.electronic_sparkle_high.desc(), User.electronic_sparkle_data.desc(), User.user_id]
+    elif criteria == "proton":
+        return [User.proton_high.desc(), User.proton_data.desc(), User.user_id]
     elif criteria == "playtime":
         return [User.play_time_ms.desc(), User.user_id]
     elif criteria == "rebirth":
@@ -61,7 +70,7 @@ def _get_order_by(criteria: str):
         return [User.money_high.desc(), User.money_data.desc(), User.user_id]
 
 
-CRITERIA = ["money", "sparkle", "energy", "rebirth", "supercoin", "playtime"]
+CRITERIA = ["money", "sparkle", "energy", "rebirth", "supercoin", "playtime", "proton"]
 
 @router.get("/rank/me", summary="Get current user's rank for all criteria")
 async def get_my_total_rank(auth=Depends(get_user_and_db)):

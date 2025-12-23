@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
-import { formatResourceValue } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue } from '../utils/bigValue';
 import { useEnergyRate, useSparkleRate } from '../hooks/useEnergyTimer';
-import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress } from '../utils/apiClient';
+import { fetchExchangeRate, fetchMyRanks, updateTutorialProgress, fetchProtonRate } from '../utils/apiClient';
 import { dispatchTutorialEvent, TUTORIAL_EVENTS } from '../utils/tutorialEvents';
 import SettingsModal from './SettingsModal';
 import RebirthModal from './RebirthModal';
@@ -22,6 +22,9 @@ export default function Header() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showRebirthModal, setShowRebirthModal] = useState(false);
   const [isRankLoading, setIsRankLoading] = useState(false);
+  
+  // Local state for proton rate
+  const [protonRate, setProtonRate] = useState(null);
 
   const currentUser = useStore(state => state.currentUser);
   const placedGenerators = useStore(state => state.placedGenerators);
@@ -126,6 +129,19 @@ export default function Header() {
       }
     } catch (e) {
       // Silent fail
+    }
+  };
+
+  const ensureProtonRate = async () => {
+    try {
+      const data = await fetchProtonRate();
+      if (data?.rate_data != null) {
+        setProtonRate({ data: data.rate_data, high: data.rate_high || 0 });
+      } else {
+        setProtonRate(fromPlainValue(data?.rate || 1));
+      }
+    } catch (e) {
+      if (!protonRate) setProtonRate(fromPlainValue(1));
     }
   };
 
@@ -302,7 +318,6 @@ export default function Header() {
             onMouseEnter={() => {
               setShowMoneyModal(true);
               ensureExchangeRate();
-              // Tutorial: Detect money hover
               if (currentUser?.tutorial === 6) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_MONEY);
               }
@@ -342,7 +357,7 @@ export default function Header() {
                 {sparkleRate ? formatResourceValue(sparkleRate) : '0'}
               </span>/초</p>
             </div>
-            ⚡️
+            🔥
           </div>
           <div className="stat-info">
             <div className="stat-label">전자 스파클</div>
@@ -352,11 +367,42 @@ export default function Header() {
           </div>
         </div>
         <div className="stat-card">
+          <div 
+            className="stat-icon proton-icon"
+            style={{
+              background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+              fontSize: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}
+            onMouseEnter={() => {
+              setShowProtonModal(true);
+              ensureProtonRate();
+            }}
+            onMouseLeave={() => setShowProtonModal(false)}
+          >
+            <div className={`proton-modal modal ${showProtonModal ? 'is-visible' : ''}`}>
+              <p><strong>교환 비율</strong></p>
+              <p>돈 1 → 양성자 <span className="proton-rate">
+                {protonRate ? formatResourceValue(protonRate) : '로딩 중...'}
+              </span></p>
+            </div>
+            ⚛️
+          </div>
+          <div className="stat-info">
+            <div className="stat-label">양성자</div>
+            <div className="stat-value proton-value">
+              {currentUser?.proton_view ? formatResourceValue(currentUser.proton_view) : '0'}
+            </div>
+          </div>
+        </div>
+        <div className="stat-card">
           <div
             className="stat-icon energy-icon"
             onMouseEnter={() => {
               setShowEnergyModal(true);
-              // Tutorial: Detect energy hover
               if (currentUser?.tutorial === 5) {
                 dispatchTutorialEvent(TUTORIAL_EVENTS.HOVER_ENERGY);
               }
