@@ -145,6 +145,11 @@ export default function TradeTab() {
       const rateText = ` (rate ${formatResourceValue(rateBV)})`;
       setProtonMessage(`성공: ${formatResourceValue(exchangeAmountBigValue)} 돈 → ${formatResourceValue(gained)} 양성자${rateText}`);
     } catch (e) {
+      console.error("Proton Exchange Error:", e);
+      if (e.response) {
+        console.log("Error Response Status:", e.response.status);
+        console.log("Error Response Data:", e.response.data);
+      }
       let errorMsg = '교환 실패';
       if (e instanceof Error) {
         const detail = e.response?.data?.detail;
