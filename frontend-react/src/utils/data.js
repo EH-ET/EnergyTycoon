@@ -1,5 +1,5 @@
 // 공통 상수와 하드코딩된 기본 데이터
-import { fromPlainValue } from "./bigValue.js";
+import { fromPlainValue, normalizeValue } from "./bigValue.js";
 
 const DEPLOY_FRONTEND_URL = "https://energytycoon.pages.dev";
 const DEPLOY_BACKEND_URL = "https://energy-tycoon-backend-bx7iyzi5sq-du.a.run.app";
@@ -159,8 +159,8 @@ export const sparkleUpgrades = rawSparkleUpgrades.map((u) => {
 });
 
 export const protonUpgrades = rawProtonUpgrades.map((u) => {
-  const v = u.baseCost_plain ? fromPlainValue(u.baseCost_plain) : { data: 0, high: 0 };
-  const m = u.multiplier_base ? fromPlainValue(u.multiplier_base) : { data: 0, high: 0 };
+  const v = u.baseCost_plain ? normalizeValue(u.baseCost_plain) : { data: 0, high: 0 };
+  const m = u.multiplier_base ? normalizeValue(u.multiplier_base) : { data: 0, high: 0 };
   return { 
     ...u, 
     currency: "proton", 

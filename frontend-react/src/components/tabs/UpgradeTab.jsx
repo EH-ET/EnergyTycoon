@@ -55,17 +55,7 @@ export default function UpgradeTab() {
 
   const getUpgradeCostForAmount = (user, upgrade, amount) => {
     if (upgrade.costModel === 'polynomial') {
-      if (upgrade.currency === 'rebirth') {
-        const baseLevel = user ? Number(user[upgrade.field]) || 0 : 0;
-        const baseCost = upgrade.baseCost_plain || 0;
-        const exponent = upgrade.costExponent || 1;
-        let totalCost = 0;
-        for (let i = 0; i < amount; i++) {
-          const levelToBuy = baseLevel + i + 1;
-          totalCost += baseCost * Math.pow(levelToBuy, exponent);
-        }
-        return Math.round(totalCost);
-      }
+      // Rebirth upgrade logic unified to use BigValue
       return getPolynomialUpgradeCostForAmount(user, upgrade, amount);
     }
 
@@ -101,16 +91,15 @@ export default function UpgradeTab() {
          return totalCost;
        }
        if (upgrade.costModel === 'linear_exponential') {
-         // cost = base * (mult ^ lvl) * lvl
+         // Backend logic: cost = base * mult * (lvl + 1)
          const base = upgrade.baseCost_plain;
          const mult = upgrade.multiplier_base;
          for (let i = 0; i < amount; i++) {
             const lvl = baseLevel + i;
-            if (lvl === 0) continue; // or 1-based?
-            const p = powerOf(mult, lvl);
-            const term = multiplyValues(base, p);
-            const final = multiplyValues(term, {data: lvl, high: 0});
-            totalCost = addValues(totalCost, final);
+            const lvlMultiplier = fromPlainValue(lvl + 1);
+            const baseMult = multiplyValues(base, mult);
+            const term = multiplyValues(baseMult, lvlMultiplier);
+            totalCost = addValues(totalCost, term);
          }
          return totalCost;
        }
@@ -209,7 +198,8 @@ export default function UpgradeTab() {
         return;
       }
     } else if (upgrade.currency === 'rebirth') {
-      if ((currentUser?.rebirth_count ?? 0) < costValue) {
+      const currentRebirth = fromPlainValue(currentUser?.rebirth_count ?? 0);
+      if (compareValues(currentRebirth, costValue) < 0) {
         setAlertMessage('환생 포인트가 부족합니다.');
         return;
       }
@@ -261,7 +251,9 @@ export default function UpgradeTab() {
     const updatedUser = { ...baseUser };
 
     if (upgrade.currency === 'rebirth') {
-      updatedUser.rebirth_count = (updatedUser.rebirth_count || 0) - costValue;
+      const currentRebirth = fromPlainValue(updatedUser.rebirth_count || 0);
+      const newRebirth = subtractValues(currentRebirth, costValue);
+      updatedUser.rebirth_count = toPlainValue(newRebirth);
     }
 
     // 업그레이드 레벨 증가
