@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { autosaveProgress } from '../utils/apiClient';
 import { readStoredPlayTime } from '../utils/playTime';
-import { computeEnergyPerSecond } from './useEnergyTimer';
+import { computeEnergyPerSecond } from '../utils/rateCalculations';
 import { normalizeValue } from '../utils/bigValue';
 
 export function useAutosave() {
