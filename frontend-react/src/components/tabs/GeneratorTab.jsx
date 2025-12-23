@@ -19,6 +19,7 @@ export default function GeneratorTab() {
     const energyMultiplier = currentUser?.energy_multiplier || 0;
     const heatReduction = currentUser?.heat_reduction || 0;
     const toleranceBonus = currentUser?.tolerance_bonus || 0;
+    const protonEnergyGain = currentUser?.proton_energy_gain_upgrade || 0;
     
     // Production
     let finalProductionBV = valueFromServer(gen["생산량(에너지수)"], gen["생산량(에너지높이)"], gen["생산량(에너지)"]);
@@ -33,6 +34,11 @@ export default function GeneratorTab() {
 
     // Apply energy multiplier
     for (let i = 0; i < energyMultiplier; i++) {
+      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
+    }
+    
+    // Apply proton energy gain
+    for (let i = 0; i < protonEnergyGain; i++) {
       finalProductionBV = multiplyByPlain(finalProductionBV, 2);
     }
     
@@ -157,7 +163,7 @@ export default function GeneratorTab() {
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
             생산량: {hovered.dynamicStats ? formatResourceValue(hovered.dynamicStats.production) : formatResourceValue(hovered.production)}
-            {hovered.dynamicStats && (currentUser?.production_bonus > 0 || currentUser?.rebirth_count > 0 || currentUser?.energy_multiplier > 0) && (
+            {hovered.dynamicStats && (currentUser?.production_bonus > 0 || currentUser?.rebirth_count > 0 || currentUser?.energy_multiplier > 0 || currentUser?.proton_energy_gain_upgrade > 0) && (
               <span style={{ color: '#4ade80', fontSize: '11px', marginLeft: '4px' }}>
                 (보너스 적용됨)
               </span>

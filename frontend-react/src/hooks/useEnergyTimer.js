@@ -77,6 +77,12 @@ export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSecon
     multiplier *= Math.pow(2, energyMultiplier);
   }
 
+  // Apply proton energy gain: 2^n
+  const protonEnergyGain = currentUser ? Number(currentUser.proton_energy_gain_upgrade) || 0 : 0;
+  if (protonEnergyGain > 0) {
+    multiplier *= Math.pow(2, protonEnergyGain);
+  }
+
   // Return BigValue with multiplier applied
   return multiplyByFloat(baseTotalBV, multiplier);
 }
@@ -122,8 +128,12 @@ export function useEnergyTimer() {
       }
       
       // Apply energy multiplier from special upgrades: 2^n
+      const protonEnergyGain = Number(userFromStore?.proton_energy_gain_upgrade) || 0;
       if (energyMultiplier > 0) {
         multiplier *= Math.pow(2, energyMultiplier);
+      }
+      if (protonEnergyGain > 0) {
+        multiplier *= Math.pow(2, protonEnergyGain);
       }
 
       let energyGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total energy gain
@@ -177,6 +187,11 @@ export function useEnergyTimer() {
           }
           if (moneySparkleBonus > 0) {
             multiplier *= Math.pow(1.5, moneySparkleBonus);
+          }
+          
+          const protonSparkleGain = Number(userFromStore?.proton_sparkle_gain_upgrade) || 0;
+          if (protonSparkleGain > 0) {
+            multiplier *= Math.pow(2, protonSparkleGain);
           }
 
           if (multiplier > 1.0) {
@@ -309,7 +324,8 @@ export function computeSparklePerSecond(placedGenerators, currentUser) {
     sparkle_chance_upgrade = 0, 
     sparkle_amount_upgrade = 0, 
     rebirth_sparkle_bonus_upgrade = 0, 
-    money_sparkle_bonus_upgrade = 0 
+    money_sparkle_bonus_upgrade = 0,
+    proton_sparkle_gain_upgrade = 0
   } = currentUser;
 
   const baseSparkleChance = 0.01;
@@ -331,6 +347,9 @@ export function computeSparklePerSecond(placedGenerators, currentUser) {
     }
     if (money_sparkle_bonus_upgrade > 0) {
         multiplier *= Math.pow(1.5, money_sparkle_bonus_upgrade);
+    }
+    if (proton_sparkle_gain_upgrade > 0) {
+        multiplier *= Math.pow(2, proton_sparkle_gain_upgrade);
     }
 
     let amountPerTickBV = multiplyByFloat(levelBV, multiplier);
