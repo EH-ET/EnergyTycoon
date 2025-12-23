@@ -146,6 +146,12 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
         if exchange_mult_level > 0:
             exchange_multiplier = 2 ** exchange_mult_level
             rate *= exchange_multiplier
+            
+        # Apply Proton Demand Increase (2^level)
+        proton_demand = getattr(user, "proton_demand_increase_upgrade", 0) or 0
+        if proton_demand > 0:
+            proton_multiplier = 2 ** proton_demand
+            rate *= proton_multiplier
     
     return max(0.0001, rate)
 

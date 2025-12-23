@@ -334,15 +334,17 @@ export default function Main() {
                 const bonus = Number(currentUser?.production_bonus) || 0;
                 const rebirthCount = Number(currentUser?.rebirth_count) || 0;
                 const energyMultiplier = Number(currentUser?.energy_multiplier) || 0;
+                const protonEnergyGain = Number(currentUser?.proton_energy_gain_upgrade) || 0;
                 const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
                 const energyMult = energyMultiplier > 0 ? Math.pow(2, energyMultiplier) : 1;
+                const protonMult = protonEnergyGain > 0 ? Math.pow(2, protonEnergyGain) : 1;
                 const level = generator.upgrades?.production || 0;
 
                 const upgradedBV = multiplyByFloat(baseBV, (1 + 0.1 * level)); // PRODUCTION_UPGRADE_FACTOR = 0.1
                 const bonusBV = multiplyByFloat(upgradedBV, (1 + 0.1 * bonus));
                 const rebirthBV = multiplyByFloat(bonusBV, rebirthMultiplier);
                 
-                return multiplyByFloat(rebirthBV, energyMult);
+                return multiplyByFloat(rebirthBV, energyMult * protonMult);
               };
 
               const computeHeatRate = () => {
