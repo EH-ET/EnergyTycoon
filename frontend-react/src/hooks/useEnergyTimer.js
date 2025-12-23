@@ -1,13 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { useStore, getAuthToken } from '../store/useStore';
 import { generators } from '../utils/data';
-import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue, powerOf } from '../utils/bigValue';
+import { addValues, multiplyByFloat } from '../utils/bigValue';
 import { loadProgress, awardSupercoin } from '../utils/apiClient';
 import { getBuildDurationMs, normalizeServerGenerators } from '../utils/generatorHelpers';
-import { readStoredPlayTime } from '../utils/playTime';
 
 const HEAT_COOL_RATE = 1; // per second 자연 냉각량
-// ENERGY_SAVE_DELAY removed - useAutosave handles all saving every 30 seconds
 
 function handleExplosion(entry) {
   if (!entry) return null;
@@ -25,14 +23,6 @@ function handleExplosion(entry) {
   };
 }
 
-function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
-  // Now works with BigValue - returns BigValue
-  const level = upgrades[type] || 0;
-  if (!level) return baseValue;
-  const factor = 1 + 0.1 * level;
-  return multiplyByFloat(baseValue, factor);
-}
-
 function applyHeatReduction(heatRate, upgrades = {}) {
   const lvl = upgrades.heat_reduction || 0;
   if (!lvl) return heatRate;
@@ -41,60 +31,20 @@ function applyHeatReduction(heatRate, upgrades = {}) {
   return heatRate * factor;
 }
 
-export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSeconds = 1) {
-  // Returns BigValue for energy per second
-  let baseTotalBV = normalizeValue({ data: 0, high: 0 });
-  placedGenerators.forEach((pg) => {
-    if (!pg || pg.isDeveloping || pg.running === false) return;
-    if (pg.genIndex == null || pg.genIndex < 0) return;
-    const g = generators[pg.genIndex];
-    if (!g) return;
-    const upgrades = pg.upgrades || {};
-    const productionValue = valueFromServer(
-      g["생산량(에너지수)"],
-      g["생산량(에너지높이)"],
-      g["생산량(에너지)"]
-    );
-    // Apply upgrade effects (returns BigValue)
-    const producedBV = applyUpgradeEffects(productionValue, upgrades, { type: "production" });
-    // Multiply by deltaSeconds
-    const producedThisPeriod = multiplyByFloat(producedBV, deltaSeconds);
-    baseTotalBV = addValues(baseTotalBV, producedThisPeriod);
-  });
-  const bonus = currentUser ? Number(currentUser.production_bonus) || 0 : 0;
-  const rebirthCount = currentUser ? Number(currentUser.rebirth_count) || 0 : 0;
-  const energyMultiplier = currentUser ? Number(currentUser.energy_multiplier) || 0 : 0;
-
-  let multiplier = 1 + bonus * 0.1;
-
-  // Apply rebirth multiplier: 2^n
-  if (rebirthCount > 0) {
-    multiplier *= Math.pow(2, rebirthCount);
-  }
-
-  // Apply energy multiplier from special upgrades: 2^n
-  if (energyMultiplier > 0) {
-    multiplier *= Math.pow(2, energyMultiplier);
-  }
-
-  // Apply proton energy gain: 2^n
-  const protonEnergyGain = currentUser ? Number(currentUser.proton_energy_gain_upgrade) || 0 : 0;
-  if (protonEnergyGain > 0) {
-    multiplier *= Math.pow(2, protonEnergyGain);
-  }
-
-  // Return BigValue with multiplier applied
-  return multiplyByFloat(baseTotalBV, multiplier);
-}
-
 export function useEnergyTimer() {
   const currentUser = useStore(state => state.currentUser);
+  const placedGenerators = useStore(state => state.placedGenerators);
   const userId = currentUser?.user_id;
   const getEnergyValue = useStore(state => state.getEnergyValue);
   const setEnergyValue = useStore(state => state.setEnergyValue);
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const removePlacedGenerator = useStore(state => state.removePlacedGenerator);
   const updatePlacedGenerator = useStore(state => state.updatePlacedGenerator);
+  const recalculateRates = useStore(state => state.recalculateRates);
+
+  useEffect(() => {
+    recalculateRates();
+  }, [currentUser, placedGenerators, recalculateRates]);
 
   useEffect(() => {
     if (!userId) return;
@@ -106,38 +56,20 @@ export function useEnergyTimer() {
       const deltaSeconds = Math.max(0.5, (now - lastTick) / 1000);
       lastTick = now;
 
-      const { placedGenerators } = useStore.getState();
+      const { 
+        placedGenerators, 
+        currentUser: userFromStore,
+        energyRate,
+        sparkleRate,
+        getElectronicSparkleValue,
+        setElectronicSparkleValue
+      } = useStore.getState();
+
       if (!placedGenerators || placedGenerators.length === 0) return;
 
-      const { currentUser: userFromStore } = useStore.getState();
-      const bonus = Number(userFromStore?.production_bonus) || 0;
-      const rebirthCount = Number(userFromStore?.rebirth_count) || 0;
-      const energyMultiplier = Number(userFromStore?.energy_multiplier) || 0;
       const userHeatReduction = Number(userFromStore?.heat_reduction) || 0;
       const userToleranceBonus = Number(userFromStore?.tolerance_bonus) || 0;
-      const sparkleChanceUpgrade = Number(userFromStore?.sparkle_chance_upgrade) || 0;
-      const sparkleAmountUpgrade = Number(userFromStore?.sparkle_amount_upgrade) || 0;
-      const rebirthSparkleBonus = Number(userFromStore?.rebirth_sparkle_bonus_upgrade) || 0;
-      const moneySparkleBonus = Number(userFromStore?.money_sparkle_bonus_upgrade) || 0;
       
-      let multiplier = 1 + bonus * 0.1;
-      
-      // Apply rebirth multiplier: 2^n
-      if (rebirthCount > 0) {
-        multiplier *= Math.pow(2, rebirthCount);
-      }
-      
-      // Apply energy multiplier from special upgrades: 2^n
-      const protonEnergyGain = Number(userFromStore?.proton_energy_gain_upgrade) || 0;
-      if (energyMultiplier > 0) {
-        multiplier *= Math.pow(2, energyMultiplier);
-      }
-      if (protonEnergyGain > 0) {
-        multiplier *= Math.pow(2, protonEnergyGain);
-      }
-
-      let energyGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total energy gain
-      let sparkleGainBV = normalizeValue({ data: 0, high: 0 }); // BigValue for total sparkle gain
       let buildCompleted = false;
       const updated = placedGenerators.map((pg) => {
         if (!pg) return pg;
@@ -170,52 +102,7 @@ export function useEnergyTimer() {
         }
         if (!meta) return next;
 
-        // Sparkle Generation
-        const baseSparkleChance = 0.01;
-        const finalSparkleChance = baseSparkleChance + (sparkleChanceUpgrade * 0.001);
-        if (Math.random() < finalSparkleChance) {
-          let sparkleAmountBV = fromPlainValue(next.level || 1);
-
-          if (sparkleAmountUpgrade > 0) {
-            const power = Math.pow(2, sparkleAmountUpgrade);
-            sparkleAmountBV = powerOf(sparkleAmountBV, power);
-          }
-          
-          let multiplier = 1.0;
-          if (rebirthSparkleBonus > 0) {
-            multiplier *= Math.pow(2, rebirthSparkleBonus);
-          }
-          if (moneySparkleBonus > 0) {
-            multiplier *= Math.pow(1.5, moneySparkleBonus);
-          }
-          
-          const protonSparkleGain = Number(userFromStore?.proton_sparkle_gain_upgrade) || 0;
-          if (protonSparkleGain > 0) {
-            multiplier *= Math.pow(2, protonSparkleGain);
-          }
-
-          if (multiplier > 1.0) {
-            sparkleAmountBV = multiplyByFloat(sparkleAmountBV, multiplier);
-          }
-          
-          sparkleGainBV = addValues(sparkleGainBV, sparkleAmountBV);
-        }
-
         const upgrades = next.upgrades || {};
-        const productionValue = valueFromServer(
-          meta["생산량(에너지수)"],
-          meta["생산량(에너지높이)"],
-          meta["생산량(에너지)"]
-        );
-        // Apply upgrade effects to production (returns BigValue)
-        const producedBV = applyUpgradeEffects(
-          productionValue,
-          upgrades,
-          { type: "production" }
-        );
-        // Multiply by deltaSeconds
-        const producedThisTick = multiplyByFloat(producedBV, deltaSeconds);
-        energyGainBV = addValues(energyGainBV, producedThisTick);
 
         const baseHeatRate = typeof next.heatRate === "number" ? next.heatRate : (meta ? Number(meta["발열"]) || 0 : 0);
         const productionHeat = (upgrades.production || 0) * 0.5;
@@ -241,33 +128,27 @@ export function useEnergyTimer() {
 
       setPlacedGenerators(updated);
 
-      if (sparkleGainBV.data > 0 || sparkleGainBV.high > 0) {
-        const { getElectronicSparkleValue, setElectronicSparkleValue } = useStore.getState();
+      if (sparkleRate && (sparkleRate.data > 0 || sparkleRate.high > 0)) {
         const currentSparkles = getElectronicSparkleValue();
-        const newSparkles = addValues(currentSparkles, sparkleGainBV);
+        const sparkleGainThisTick = multiplyByFloat(sparkleRate, deltaSeconds);
+        const newSparkles = addValues(currentSparkles, sparkleGainThisTick);
         setElectronicSparkleValue(newSparkles);
       }
 
-      // Check if there's any energy gain (compare with zero)
-      if (energyGainBV.data > 0 || energyGainBV.high > 0) {
-        // Apply multiplier to energy gain (BigValue operation)
-        const totalGainBV = multiplyByFloat(energyGainBV, multiplier);
-        const nextValue = addValues(getEnergyValue(), totalGainBV);
+      if (energyRate && (energyRate.data > 0 || energyRate.high > 0)) {
+        const energyGainThisTick = multiplyByFloat(energyRate, deltaSeconds);
+        const nextValue = addValues(getEnergyValue(), energyGainThisTick);
         setEnergyValue(nextValue);
 
-        // Supercoin chance: (running generators / 1,000,000) per second
         const runningCount = placedGenerators.filter(pg => pg && !pg.isDeveloping && pg.running !== false).length;
         if (runningCount > 0) {
           const chance = runningCount / 1_000_000;
           if (Math.random() < chance) {
-            // Award 1 supercoin via server API (async IIFE)
             (async () => {
               try {
                 const result = await awardSupercoin();
                 const { syncUserState } = useStore.getState();
                 syncUserState({ supercoin: result.supercoin });
-                
-                // Show notification
                 console.log(`🪙 Supercoin acquired! Total: ${result.supercoin}`);
               } catch (err) {
                 console.error('Failed to award supercoin:', err);
@@ -275,9 +156,6 @@ export function useEnergyTimer() {
             })();
           }
         }
-
-        // Note: Energy saving is now handled by useAutosave hook (every 30 seconds)
-        // Removed redundant debounced save to reduce server traffic
       }
 
       if (buildCompleted && userFromStore?.user_id) {
@@ -305,68 +183,4 @@ export function useEnergyTimer() {
       clearInterval(timer);
     };
   }, [userId, setPlacedGenerators, setEnergyValue, getEnergyValue, updatePlacedGenerator, removePlacedGenerator]);
-}
-
-export function useEnergyRate() {
-  const currentUser = useStore(state => state.currentUser);
-  const placedGenerators = useStore(state => state.placedGenerators);
-
-  if (!currentUser) return normalizeValue();
-  return computeEnergyPerSecond(placedGenerators, currentUser);
-}
-
-export function computeSparklePerSecond(placedGenerators, currentUser) {
-  let totalSparkleRateBV = normalizeValue({ data: 0, high: 0 });
-
-  if (!currentUser) return totalSparkleRateBV;
-
-  const { 
-    sparkle_chance_upgrade = 0, 
-    sparkle_amount_upgrade = 0, 
-    rebirth_sparkle_bonus_upgrade = 0, 
-    money_sparkle_bonus_upgrade = 0,
-    proton_sparkle_gain_upgrade = 0
-  } = currentUser;
-
-  const baseSparkleChance = 0.01;
-  const finalSparkleChance = baseSparkleChance + (sparkle_chance_upgrade * 0.001);
-
-  placedGenerators.forEach((pg) => {
-    if (!pg || pg.isDeveloping || pg.running === false) return;
-    
-    let levelBV = fromPlainValue(pg.level || 1);
-    
-    if (sparkle_amount_upgrade > 0) {
-      const power = Math.pow(2, sparkle_amount_upgrade); // This will always be an integer exponent
-      levelBV = powerOf(levelBV, power);
-    }
-    
-    let multiplier = 1.0;
-    if (rebirth_sparkle_bonus_upgrade > 0) {
-        multiplier *= Math.pow(2, rebirth_sparkle_bonus_upgrade);
-    }
-    if (money_sparkle_bonus_upgrade > 0) {
-        multiplier *= Math.pow(1.5, money_sparkle_bonus_upgrade);
-    }
-    if (proton_sparkle_gain_upgrade > 0) {
-        multiplier *= Math.pow(2, proton_sparkle_gain_upgrade);
-    }
-
-    let amountPerTickBV = multiplyByFloat(levelBV, multiplier);
-    
-    // Now, multiply by the chance
-    const expectedSparklesBV = multiplyByFloat(amountPerTickBV, finalSparkleChance);
-    
-    totalSparkleRateBV = addValues(totalSparkleRateBV, expectedSparklesBV);
-  });
-
-  return totalSparkleRateBV;
-}
-
-export function useSparkleRate() {
-  const currentUser = useStore(state => state.currentUser);
-  const placedGenerators = useStore(state => state.placedGenerators);
-
-  if (!currentUser) return normalizeValue();
-  return computeSparklePerSecond(placedGenerators, currentUser);
 }

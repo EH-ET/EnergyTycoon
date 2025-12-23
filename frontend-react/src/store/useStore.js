@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { normalizeValue, valueFromServer, toPlainValue, comparePlainValue, valueToServer, compareValues, subtractPlainValue } from '../utils/bigValue.js';
+import { computeEnergyPerSecond, computeSparklePerSecond } from '../utils/rateCalculations.js';
 
 const STORAGE_KEYS = {
   user: "et_u",
@@ -41,6 +42,8 @@ export const useStore = create((set, get) => ({
   isAutosaveLocked: false, // Autosave lock
   upgradeQueue: [], // For batching generator upgrades
   globalUpgradeQueue: [], // For batching global upgrades
+  energyRate: null,
+  sparkleRate: null,
 
   // Actions
   lockAutosave: () => set({ isAutosaveLocked: true }),
@@ -49,6 +52,17 @@ export const useStore = create((set, get) => ({
   setContentMode: (mode) => set({ contentMode: mode }),
   setGlobalLoading: (isLoading, message = '') => set({ isGlobalLoading: isLoading, globalLoadingMessage: message }),
   
+  recalculateRates: () => {
+    const { currentUser, placedGenerators } = get();
+    if (!currentUser) {
+      set({ energyRate: normalizeValue(), sparkleRate: normalizeValue() });
+      return;
+    }
+    const newEnergyRate = computeEnergyPerSecond(placedGenerators, currentUser);
+    const newSparkleRate = computeSparklePerSecond(placedGenerators, currentUser);
+    set({ energyRate: newEnergyRate, sparkleRate: newSparkleRate });
+  },
+
   hydrateQueues: () => {
     const genQueue = loadQueueFromStorage(STORAGE_KEYS.genUpgradeQueue);
     const globalQueue = loadQueueFromStorage(STORAGE_KEYS.globalUpgradeQueue);
