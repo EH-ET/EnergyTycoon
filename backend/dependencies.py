@@ -27,21 +27,9 @@ def get_token_from_header(
 
 
 def get_user_and_db(token: str = Depends(get_token_from_header), db: Session = Depends(get_db)):
-    # print(f"DEBUG: get_user_and_db called. Token={token[:10]}...")
-    try:
-        user = require_user_from_token(token, db, expected_type=TOKEN_TYPE_ACCESS)
-        # print(f"DEBUG: User loaded: {user.username if user else 'None'}")
-        
-        # This function checks attributes, could cause 500 if DB columns missing
-        ensure_user_big_values(user, db)
-        # print("DEBUG: ensure_user_big_values done")
-        
-        return user, db, token
-    except Exception as e:
-        print(f"DEBUG: get_user_and_db FAILED: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise
+    user = require_user_from_token(token, db, expected_type=TOKEN_TYPE_ACCESS)
+    ensure_user_big_values(user, db)
+    return user, db, token
 
 
 def get_refresh_token(
