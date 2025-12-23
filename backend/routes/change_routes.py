@@ -18,6 +18,7 @@ from ..bigvalue import (
     compare,
     subtract_values,
     add_values,
+    multiply_values,
     from_plain,
     normalize,
     to_payload,
