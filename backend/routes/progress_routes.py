@@ -431,15 +431,22 @@ def _calculate_total_energy_production(user: User, db: Session) -> BigValue:
             total_production = multiply_by_float(total_production, rebirth_multiplier)
 
         # Apply energy multiplier from special upgrades (2^level)
-        if energy_multiplier_level > 0:
-            energy_multiplier = 2 ** energy_multiplier_level
+        energy_mult_level = getattr(user, "energy_multiplier", 0) or 0
+        if energy_mult_level > 0:
+            energy_multiplier = 2 ** energy_mult_level
             total_production = multiply_by_float(total_production, energy_multiplier)
 
-        # Apply Proton Energy Gain (2^level)
+        # Apply Proton Energy Gain (1.5^level)
         proton_energy_level = getattr(user, "proton_energy_gain_upgrade", 0) or 0
         if proton_energy_level > 0:
-            proton_multiplier = 2 ** proton_energy_level
+            proton_multiplier = 1.5 ** proton_energy_level
             total_production = multiply_by_float(total_production, proton_multiplier)
+
+        # Apply Sparkle Energy Gain (1.5^level)
+        sparkle_energy_level = getattr(user, "sparkle_energy_multiplier_upgrade", 0) or 0
+        if sparkle_energy_level > 0:
+            sparkle_multiplier = 1.5 ** sparkle_energy_level
+            total_production = multiply_by_float(total_production, sparkle_multiplier)
 
         return total_production
     except Exception as e:

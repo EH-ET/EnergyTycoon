@@ -172,6 +172,10 @@ export default function TradeTab() {
     const exchangeMultLevel = currentUser.exchange_rate_multiplier || 0;
     if (rebirthCount > 0) baseNumerator *= Math.pow(2, rebirthCount);
     if (exchangeMultLevel > 0) baseNumerator *= Math.pow(2, exchangeMultLevel);
+    
+    // Apply Proton Demand Increase (1.5^level)
+    const protonDemand = currentUser.proton_demand_increase_upgrade || 0;
+    if (protonDemand > 0) baseNumerator *= Math.pow(1.5, protonDemand);
 
     const demandVal = currentUser.demand_bonus || 0;
     const marketBonusFactor = 1.0 / (1.0 + demandVal * 0.05);
