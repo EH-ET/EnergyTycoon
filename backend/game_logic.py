@@ -28,35 +28,35 @@ from .bigvalue import (
 
 UPGRADE_CONFIG = {
     # 클라이언트(data.js)와 동일한 비용 곡선
-    "production": {"field": "production_bonus", "base_cost": 10, "price_growth": 1.8, "cost_offset": 1},
-    "heat_reduction": {"field": "heat_reduction", "base_cost": 50, "price_growth": 1.5, "cost_offset": 1},
-    "tolerance": {"field": "tolerance_bonus", "base_cost": 60, "price_growth": 2.0, "cost_offset": 1},
-    "max_generators": {"field": "max_generators_bonus", "base_cost": 300, "price_growth": 3.0, "cost_offset": 1},
-    "demand": {"field": "demand_bonus", "base_cost": 15, "price_growth": 2.0, "cost_offset": 1},
+    "production": {"field": "production_bonus", "base_cost": from_plain(10), "price_growth": 1.8},
+    "heat_reduction": {"field": "heat_reduction", "base_cost": from_plain(50), "price_growth": 1.5},
+    "tolerance": {"field": "tolerance_bonus", "base_cost": from_plain(60), "price_growth": 2.0},
+    "max_generators": {"field": "max_generators_bonus", "base_cost": from_plain(300), "price_growth": 8.0},
+    "demand": {"field": "demand_bonus", "base_cost": from_plain(15), "price_growth": 2.0},
 }
 
 REBIRTH_UPGRADE_CONFIG = {
-    # cost = base_cost * price_growth^(current_level + i), paid with rebirth count
-    "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
-    "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0, "cost_offset": 0},
-    "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0, "cost_offset": 0},
+    # cost = base_cost * price_growth^(current_level), paid with rebirth count
+    "rebirth_chain": {"field": "rebirth_chain_upgrade", "base_cost": 1, "price_growth": 2.0},
+    "upgrade_batch": {"field": "upgrade_batch_upgrade", "base_cost": 1, "price_growth": 2.0},
+    "rebirth_start_money": {"field": "rebirth_start_money_upgrade", "base_cost": 3, "price_growth": 3.0},
 }
 
 SPARKLE_UPGRADE_CONFIG = {
-    "sparkle_chance_upgrade": {"field": "sparkle_chance_upgrade", "base_cost": BigValue(10000, 0), "exponent": 12, "max_level": 1000},
-    "sparkle_amount_upgrade": {"field": "sparkle_amount_upgrade", "base_cost": BigValue(5000, 0), "exponent": 8},
-    "sparkle_energy_multiplier_upgrade": {"field": "sparkle_energy_multiplier_upgrade", "base_cost": BigValue(1000000, 0), "exponent": 20},
-    "rebirth_chain_upgrade": {"field": "rebirth_chain_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20},
+    "sparkle_chance_upgrade": {"field": "sparkle_chance_upgrade", "base_cost": BigValue(10000, 0), "price_growth": 12, "max_level": 1000},
+    "sparkle_amount_upgrade": {"field": "sparkle_amount_upgrade", "base_cost": BigValue(5000, 0), "price_growth": 8},
+    "sparkle_energy_multiplier_upgrade": {"field": "sparkle_energy_multiplier_upgrade", "base_cost": BigValue(100000, 1), "price_growth": 20},
+    "sparkle_rebirth_chain_upgrade": {"field": "sparkle_rebirth_chain_upgrade", "base_cost": BigValue(1000, 30), "price_growth": 20},
 }
 
 MONEY_UPGRADE_POLY_CONFIG = {
-    "money_sparkle_bonus_upgrade": {"field": "money_sparkle_bonus_upgrade", "base_cost": BigValue(1000, 30), "exponent": 20},
-    "proton_gain_money_upgrade": {"field": "proton_gain_money_upgrade", "base_cost": from_plain(1_000_000), "exponent": 2},
+    "money_sparkle_bonus_upgrade": {"field": "money_sparkle_bonus_upgrade", "base_cost": BigValue(1000, 30), "price_growth": 20},
+    "proton_gain_money_upgrade": {"field": "proton_gain_money_upgrade", "base_cost": from_plain(1_000_000), "price_growth": 2},
 }
 
 REBIRTH_UPGRADE_POLY_CONFIG = {
-    "rebirth_sparkle_bonus_upgrade": {"field": "rebirth_sparkle_bonus_upgrade", "base_cost": 5, "exponent": 5}, # cost is int
-    "proton_gain_rebirth_upgrade": {"field": "proton_gain_rebirth_upgrade", "base_cost": 3, "exponent": 2},
+    "rebirth_sparkle_bonus_upgrade": {"field": "rebirth_sparkle_bonus_upgrade", "base_cost": 5, "price_growth": 5}, # cost is int
+    "proton_gain_rebirth_upgrade": {"field": "proton_gain_rebirth_upgrade", "base_cost": 3, "price_growth": 2},
 }
 
 PROTON_UPGRADE_CONFIG = {
@@ -71,8 +71,7 @@ PROTON_UPGRADE_CONFIG = {
         "field": "proton_energy_gain_upgrade",
         "base_cost": from_plain(1_000_000),  # 1M proton
         "multiplier_base": from_plain(1_000_000),  # * 1M per level
-        "exponent": 1,  # linear in level
-        "type": "linear_exponential"  # 1M * 1M * level
+        "type": "exponential"
     },
     "proton_sparkle_gain": {
         "field": "proton_sparkle_gain_upgrade",
@@ -251,36 +250,12 @@ def get_upgrade_batch_limit(user: User) -> int:
     return 1 + (getattr(user, "upgrade_batch_upgrade", 0) or 0)
 
 
-def calculate_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
-    meta = get_upgrade_meta(key)
-    current_level = getattr(user, meta["field"], 0)
-    base_cost = float(meta["base_cost"])
-    growth = float(meta["price_growth"])
-    offset = float(meta.get("cost_offset", 1))
-    if amount <= 0:
-        return 0
-    if abs(growth - 1.0) < 1e-9:
-        return int(base_cost * amount)
-    start_exp = current_level + offset
-    ratio_power = growth ** amount
-    total_cost = base_cost * (growth ** start_exp) * ((ratio_power - 1.0) / (growth - 1.0))
-    return int(total_cost)
+def calculate_upgrade_cost(user: User, key: str, amount: int = 1) -> BigValue:
+    return calculate_polynomial_cost(user, UPGRADE_CONFIG, key, amount)
 
 
 def calculate_rebirth_upgrade_cost(user: User, key: str, amount: int = 1) -> int:
-    meta = get_rebirth_upgrade_meta(key)
-    current_level = getattr(user, meta["field"], 0)
-    base_cost = float(meta["base_cost"])
-    growth = float(meta["price_growth"])
-    offset = float(meta.get("cost_offset", 0))
-    if amount <= 0:
-        return 0
-    if abs(growth - 1.0) < 1e-9:
-        return int(base_cost * amount)
-    start_exp = current_level + offset
-    ratio_power = growth ** amount
-    total_cost = base_cost * (growth ** start_exp) * ((ratio_power - 1.0) / (growth - 1.0))
-    return int(total_cost)
+    return calculate_polynomial_cost_int(user, REBIRTH_UPGRADE_CONFIG, key, amount)
 
 
 def apply_upgrade(user: User, db: Session, key: str, amount: int, *, commit: bool = True) -> User:
@@ -292,9 +267,9 @@ def apply_upgrade(user: User, db: Session, key: str, amount: int, *, commit: boo
         raise HTTPException(status_code=400, detail=f"한 번에 {max_amount}회까지만 업그레이드할 수 있습니다.")
     cost = calculate_upgrade_cost(user, key, amount)
     money_value = get_user_money_value(user)
-    if compare_plain(money_value, cost) < 0:
+    if compare(money_value, cost) < 0:
         raise HTTPException(status_code=400, detail="Not enough money")
-    set_user_money_value(user, subtract_plain(money_value, cost))
+    set_user_money_value(user, subtract_values(money_value, cost))
     setattr(user, meta["field"], getattr(user, meta["field"], 0) + amount)
     if commit:
         db.commit()
@@ -326,18 +301,18 @@ def calculate_polynomial_cost(user: User, config: dict, key: str, amount: int = 
     meta = config[key]
     current_level = getattr(user, meta["field"], 0)
     base_cost = meta["base_cost"]
-    exponent = meta["exponent"]
+    price_growth = meta["price_growth"]
     
     total_cost = from_plain(0)
     
     for i in range(amount):
-        level_to_buy = current_level + i + 1
+        level_to_buy = current_level + i
         
-        level_pow_exp_plain = level_to_buy ** exponent
-        
-        level_pow_exp_bv = from_plain(level_pow_exp_plain)
+        # New formula: cost = base_cost * (price_growth ** level)
+        growth_bv = from_plain(price_growth)
+        growth_pow_level_bv = power_int(growth_bv, level_to_buy)
 
-        cost_for_level = multiply_values(base_cost, level_pow_exp_bv)
+        cost_for_level = multiply_values(base_cost, growth_pow_level_bv)
         total_cost = add_values(total_cost, cost_for_level)
         
     return total_cost
@@ -346,13 +321,14 @@ def calculate_polynomial_cost_int(user: User, config: dict, key: str, amount: in
     meta = config[key]
     current_level = getattr(user, meta["field"], 0)
     base_cost = meta["base_cost"]
-    exponent = meta["exponent"]
+    price_growth = meta["price_growth"]
 
     total_cost = 0
 
     for i in range(amount):
-        level_to_buy = current_level + i + 1
-        cost_for_level = base_cost * (level_to_buy ** exponent)
+        level_to_buy = current_level + i
+        # New formula: cost = base_cost * (price_growth ** level)
+        cost_for_level = base_cost * (price_growth ** level_to_buy)
         total_cost += cost_for_level
         
     return int(total_cost)
@@ -436,18 +412,9 @@ def calculate_proton_upgrade_cost(user: User, key: str, amount: int = 1) -> BigV
     for i in range(amount):
         level_to_buy = current_level + i
         
-        if upgrade_type == "linear_exponential":
-            # Cost = base_cost * multiplier_base * level
-            # For level 0: 1M * 1M * 0 = 0? That doesn't make sense.
-            # User said: 1M양성자*1M*lv
-            # I think they mean: cost at level L is base_cost * multiplier * L
-            # But level 0 would be free. Let's use (level + 1)
-            level_multiplier = from_plain(level_to_buy + 1)
-            cost_for_level = multiply_values(base_cost, multiply_values(multiplier_base, level_multiplier))
-        else:  # exponential
-            # Cost = base_cost * (multiplier_base ^ level)
-            multiplier = power_int(multiplier_base, level_to_buy)
-            cost_for_level = multiply_values(base_cost, multiplier)
+        # New formula: Cost = base_cost * (multiplier_base ^ level)
+        multiplier = power_int(multiplier_base, level_to_buy)
+        cost_for_level = multiply_values(base_cost, multiplier)
         
         total_cost = add_values(total_cost, cost_for_level)
     

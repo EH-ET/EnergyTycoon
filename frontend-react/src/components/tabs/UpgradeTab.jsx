@@ -40,15 +40,15 @@ export default function UpgradeTab() {
     const baseCost = typeof upgrade.baseCost_plain === 'object' 
       ? upgrade.baseCost_plain 
       : fromPlainValue(upgrade.baseCost_plain || 0);
-    const exponent = upgrade.costExponent || 1;
+    const growth = upgrade.priceGrowth || 1;
+    const growthBV = fromPlainValue(growth);
     
     let totalCost = fromPlainValue(0);
 
     for (let i = 0; i < amount; i++) {
-      const levelToBuy = baseLevel + i + 1;
-      const levelToBuyBV = fromPlainValue(levelToBuy);
-      const levelPowered = powerOfBigValue(levelToBuyBV, exponent);
-      const costForLevel = multiplyValues(baseCost, levelPowered);
+      const levelToBuy = baseLevel + i;
+      // New formula: cost = baseCost * (priceGrowth ** level)
+      const costForLevel = multiplyValues(baseCost, powerOf(growthBV, levelToBuy));
       totalCost = addValues(totalCost, costForLevel);
     }
     return totalCost;

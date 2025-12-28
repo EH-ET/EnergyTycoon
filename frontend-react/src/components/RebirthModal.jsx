@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { performRebirth } from '../utils/apiClient';
-import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOf, multiplyValues } from '../utils/bigValue';
+import { formatResourceValue, fromPlainValue, multiplyByPlain, powerOf, multiplyValues, addValues, compareValues } from '../utils/bigValue';
 
 // 환생 공식 (RebirthTab과 동일)
 const BASE_REBIRTH_COST = 15_000_000; // 15M
@@ -59,8 +59,26 @@ export default function RebirthModal({ open, onClose }) {
   const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
   const rebirthStartMoneyLevel = currentUser.rebirth_start_money_upgrade || 0;
 
+  const getMaxAffordableRebirths = useMemo(() => {
+    const money = useStore.getState().getMoneyValue();
+    const currentRebirthCount = currentUser.rebirth_count || 0;
+    const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
+
+    for (let count = maxChain; count > 0; count--) {
+        let totalCost = fromPlainValue(0);
+        for (let i = 0; i < count; i++) {
+            totalCost = addValues(totalCost, calculateRebirthCost(currentRebirthCount + i));
+        }
+        if (compareValues(money, totalCost) >= 0) {
+            return { affordableCount: count, cost: totalCost };
+        }
+    }
+    return { affordableCount: 0, cost: fromPlainValue(0) };
+  }, [currentUser]);
+
+  const { affordableCount, cost: affordableCost } = getMaxAffordableRebirths;
+
   const nextCost = calculateRebirthCost(rebirthCount);
-  const chainCost = calculateRebirthCost(rebirthCount + maxChain - 1);
   const currentMultiplier = calculateRebirthMultiplier(rebirthCount);
   const nextMultiplier = calculateRebirthMultiplier(rebirthCount + 1);
   const startMoney = calculateRebirthStartMoney(rebirthStartMoneyLevel);
@@ -122,9 +140,9 @@ export default function RebirthModal({ open, onClose }) {
           <div style={{ marginBottom: '12px' }}>
             <strong>환생 비용:</strong> {formatResourceValue(nextCost)}
           </div>
-          {maxChain > 1 && (
+          {affordableCount > 1 && (
             <div style={{ marginBottom: '12px' }}>
-              <strong>연속 환생({maxChain}회) 비용:</strong> {formatResourceValue(chainCost)}
+              <strong>연속 환생({affordableCount}회) 비용:</strong> {formatResourceValue(affordableCost)}
             </div>
           )}
           <div style={{ marginBottom: '12px' }}>
@@ -187,9 +205,9 @@ export default function RebirthModal({ open, onClose }) {
           >
             {loading ? '환생 중...' : '환생하기'}
           </button>
-          {maxChain > 1 && (
+          {affordableCount > 1 && (
             <button
-              onClick={() => handleRebirth(maxChain)}
+              onClick={() => handleRebirth(affordableCount)}
               disabled={loading}
               style={{
                 flex: 1,
@@ -204,7 +222,7 @@ export default function RebirthModal({ open, onClose }) {
                 minWidth: '200px',
               }}
             >
-              {loading ? '환생 중...' : `연속 환생(${maxChain}회)`}
+              {loading ? '환생 중...' : `연속 환생(${affordableCount}회)`}
             </button>
           )}
         </div>
