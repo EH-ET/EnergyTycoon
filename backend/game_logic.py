@@ -146,10 +146,10 @@ def current_market_rate(user: Optional[User] = None, sold_override: Optional[int
             exchange_multiplier = 2 ** exchange_mult_level
             rate *= exchange_multiplier
             
-        # Apply Proton Demand Increase (2^level)
+        # Apply Proton Demand Increase (1.5^level)
         proton_demand = getattr(user, "proton_demand_increase_upgrade", 0) or 0
         if proton_demand > 0:
-            proton_multiplier = 2 ** proton_demand
+            proton_multiplier = 1.5 ** proton_demand
             rate *= proton_multiplier
     
     return max(0.0001, rate)
@@ -186,6 +186,11 @@ def calculate_progressive_exchange(user: Optional[User], amount: int | BigValue)
         exchange_mult_level = getattr(user, "exchange_rate_multiplier", 0) or 0
         if exchange_mult_level > 0:
             base_numerator *= (2 ** exchange_mult_level)
+            
+        # Apply Proton Demand Increase (1.5^level)
+        proton_demand = getattr(user, "proton_demand_increase_upgrade", 0) or 0
+        if proton_demand > 0:
+            base_numerator *= (1.5 ** proton_demand)
 
     # Market Bonus (Denominator term)
     market_bonus_factor = 1.0

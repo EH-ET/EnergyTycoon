@@ -225,11 +225,17 @@ export default function GeneratorModal({ generator, onClose }) {
     const bonus = Number(currentUser?.production_bonus) || 0;
     const rebirthCount = Number(currentUser?.rebirth_count) || 0;
     const energyMultiplier = Number(currentUser?.energy_multiplier) || 0;
-    const rebirthMultiplier = rebirthCount > 0 ? Math.pow(2, rebirthCount) : 1;
-    const energyMult = energyMultiplier > 0 ? Math.pow(2, energyMultiplier) : 1;
+    const protonEnergyGain = Number(currentUser?.proton_energy_gain_upgrade) || 0;
+    const sparkleEnergyMultiplier = Number(currentUser?.sparkle_energy_multiplier_upgrade) || 0;
+
+    let multiplier = (1 + 0.1 * bonus);
+    if (rebirthCount > 0) multiplier *= Math.pow(2, rebirthCount);
+    if (energyMultiplier > 0) multiplier *= Math.pow(2, energyMultiplier);
+    if (protonEnergyGain > 0) multiplier *= Math.pow(1.5, protonEnergyGain);
+    if (sparkleEnergyMultiplier > 0) multiplier *= Math.pow(1.5, sparkleEnergyMultiplier);
     
     const upgraded = base * (1 + PRODUCTION_UPGRADE_FACTOR * level);
-    return upgraded * (1 + 0.1 * bonus) * rebirthMultiplier * energyMult;
+    return upgraded * multiplier;
   };
 
   const computeHeatRate = (level, prodLevel) => {

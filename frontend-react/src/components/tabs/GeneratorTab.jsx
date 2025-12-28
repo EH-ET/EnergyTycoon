@@ -24,23 +24,17 @@ export default function GeneratorTab() {
     // Production
     let finalProductionBV = valueFromServer(gen["생산량(에너지수)"], gen["생산량(에너지높이)"], gen["생산량(에너지)"]);
     
-    // Apply production bonus
-    finalProductionBV = multiplyByFloat(finalProductionBV, 1 + productionBonus * 0.1);
-
-    // Apply rebirth bonus
-    for (let i = 0; i < rebirthCount; i++) {
-      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
-    }
-
-    // Apply energy multiplier
-    for (let i = 0; i < energyMultiplier; i++) {
-      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
-    }
+    // Apply all multipliers
+    let combinedMultiplier = 1.0;
+    combinedMultiplier *= (1 + productionBonus * 0.1);
+    if (rebirthCount > 0) combinedMultiplier *= Math.pow(2, rebirthCount);
+    if (energyMultiplier > 0) combinedMultiplier *= Math.pow(2, energyMultiplier);
+    if (protonEnergyGain > 0) combinedMultiplier *= Math.pow(1.5, protonEnergyGain);
     
-    // Apply proton energy gain
-    for (let i = 0; i < protonEnergyGain; i++) {
-      finalProductionBV = multiplyByPlain(finalProductionBV, 2);
-    }
+    const sparkleEnergyMultiplier = currentUser?.sparkle_energy_multiplier_upgrade || 0;
+    if (sparkleEnergyMultiplier > 0) combinedMultiplier *= Math.pow(1.5, sparkleEnergyMultiplier);
+
+    finalProductionBV = multiplyByFloat(finalProductionBV, combinedMultiplier);
     
     // Heat: base * (1 - heat_reduction * 0.1)
     const baseHeat = gen.발열 || 0;
@@ -163,7 +157,7 @@ export default function GeneratorTab() {
           </p>
           <p style={{ margin: '0 0 4px', opacity: 0.9 }}>
             생산량: {hovered.dynamicStats ? formatResourceValue(hovered.dynamicStats.production) : formatResourceValue(hovered.production)}
-            {hovered.dynamicStats && (currentUser?.production_bonus > 0 || currentUser?.rebirth_count > 0 || currentUser?.energy_multiplier > 0 || currentUser?.proton_energy_gain_upgrade > 0) && (
+            {hovered.dynamicStats && (currentUser?.production_bonus > 0 || currentUser?.rebirth_count > 0 || currentUser?.energy_multiplier > 0 || currentUser?.proton_energy_gain_upgrade > 0 || currentUser?.sparkle_energy_multiplier_upgrade > 0) && (
               <span style={{ color: '#4ade80', fontSize: '11px', marginLeft: '4px' }}>
                 (보너스 적용됨)
               </span>
