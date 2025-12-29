@@ -1,5 +1,5 @@
 import { generators } from './data';
-import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue, powerOf } from './bigValue';
+import { valueFromServer, addValues, multiplyByFloat, normalizeValue, fromPlainValue, powerOf, multiplyValues } from './bigValue';
 
 function applyUpgradeEffects(baseValue, upgrades = {}, { type }) {
   // Now works with BigValue - returns BigValue
