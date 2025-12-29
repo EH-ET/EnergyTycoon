@@ -39,30 +39,36 @@ export function computeEnergyPerSecond(placedGenerators, currentUser, deltaSecon
     sparkle_energy_multiplier_upgrade = 0,
   } = currentUser;
 
-  let multiplier = 1 + production_bonus * 0.1;
+  let resultBV = baseTotalBV;
 
-  // Apply rebirth multiplier: 2^n
+  // Apply production bonus
+  resultBV = multiplyByFloat(resultBV, 1 + production_bonus * 0.1);
+
+  // Apply rebirth multiplier: 2^n (using BigValue)
   if (rebirth_count > 0) {
-    multiplier *= Math.pow(2, rebirth_count);
+    const rebirthMultiplierBV = powerOf(fromPlainValue(2), rebirth_count);
+    resultBV = multiplyValues(resultBV, rebirthMultiplierBV);
   }
 
-  // Apply energy multiplier from special upgrades: 2^n
+  // Apply energy multiplier from special upgrades: 2^n (using BigValue)
   if (energy_multiplier > 0) {
-    multiplier *= Math.pow(2, energy_multiplier);
+    const energyMultiplierBV = powerOf(fromPlainValue(2), energy_multiplier);
+    resultBV = multiplyValues(resultBV, energyMultiplierBV);
   }
 
-  // Apply proton energy gain: 1.5^n
+  // Apply proton energy gain: 1.5^n (using float multiplication)
   if (proton_energy_gain_upgrade > 0) {
-    multiplier *= Math.pow(1.5, proton_energy_gain_upgrade);
+    const protonMultiplier = Math.pow(1.5, proton_energy_gain_upgrade);
+    resultBV = multiplyByFloat(resultBV, protonMultiplier);
   }
   
-  // Apply sparkle energy multiplier: 1.5^n
+  // Apply sparkle energy multiplier: 1.5^n (using float multiplication)
   if (sparkle_energy_multiplier_upgrade > 0) {
-    multiplier *= Math.pow(1.5, sparkle_energy_multiplier_upgrade);
+    const sparkleMultiplier = Math.pow(1.5, sparkle_energy_multiplier_upgrade);
+    resultBV = multiplyByFloat(resultBV, sparkleMultiplier);
   }
 
-  // Return BigValue with multiplier applied
-  return multiplyByFloat(baseTotalBV, multiplier);
+  return resultBV;
 }
 
 export function computeSparklePerSecond(placedGenerators, currentUser) {

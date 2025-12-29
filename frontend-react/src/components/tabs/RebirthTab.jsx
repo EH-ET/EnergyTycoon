@@ -33,6 +33,8 @@ export default function RebirthTab() {
   const setPlacedGenerators = useStore(state => state.setPlacedGenerators);
   const getMoneyValue = useStore(state => state.getMoneyValue);
   const setSaveStatus = useStore(state => state.setSaveStatus);
+  const lockAutosave = useStore(state => state.lockAutosave);
+  const unlockAutosave = useStore(state => state.unlockAutosave);
 
   const [performing, setPerforming] = useState(false);
 
@@ -70,6 +72,7 @@ export default function RebirthTab() {
       return;
     }
 
+    lockAutosave(); // Autosave lock before critical operation
     try {
       setPerforming(true);
 
@@ -106,6 +109,7 @@ export default function RebirthTab() {
       alert(err.message || '환생에 실패했습니다');
     } finally {
       setPerforming(false);
+      unlockAutosave(); // Unlock autosave after operation completes
     }
   };
 

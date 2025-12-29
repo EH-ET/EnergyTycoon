@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useStore, getAuthToken } from '../store/useStore';
+import { useStore } from '../store/useStore';
 import { autosaveProgress } from '../utils/apiClient';
 import { readStoredPlayTime } from '../utils/playTime';
 import { computeEnergyPerSecond } from '../utils/rateCalculations';
@@ -17,7 +17,11 @@ export function useAutosave() {
         toEnergyServerPayload,
         toMoneyServerPayload,
         isAutosaveLocked,
-        setSaveStatus
+        setSaveStatus,
+        upgradeQueue,
+        globalUpgradeQueue,
+        clearUpgradeQueue,
+        clearGlobalUpgradeQueue,
       } = useStore.getState();
 
       if (!currentUser) {
@@ -63,18 +67,26 @@ export function useAutosave() {
           production_data: productionNormalized.data,
           production_high: productionNormalized.high,
           play_time_ms: Math.floor(playTimeMs || 0),
-          // supercoin은 서버에서만 관리하므로 autosave에 포함하지 않음
           generators: generators.length > 0 ? generators : undefined,
+          generator_upgrades: upgradeQueue.length > 0 ? upgradeQueue : undefined,
+          global_upgrades: globalUpgradeQueue.length > 0 ? globalUpgradeQueue : undefined,
         };
 
-        // Skip if data hasn't changed (compare with last saved)
+        const hasPendingUpgrades = upgradeQueue.length > 0 || globalUpgradeQueue.length > 0;
         const payloadStr = JSON.stringify(payload);
-        if (lastSavedRef.current === payloadStr) {
+        if (lastSavedRef.current === payloadStr && !hasPendingUpgrades) {
           return; // No changes, skip save
         }
-
+        
         await autosaveProgress(payload);
         lastSavedRef.current = payloadStr;
+        
+        // Clear queues on successful save
+        if (hasPendingUpgrades) {
+          clearUpgradeQueue();
+          clearGlobalUpgradeQueue();
+        }
+
         setSaveStatus('success');
       } catch (e) {
         console.error('Autosave failed:', e);
@@ -82,8 +94,8 @@ export function useAutosave() {
       }
     };
 
-    // 2분마다 자동 저장 (트래픽 75% 감소)
-    const timer = setInterval(save, 120000);
+    // 1분마다 자동 저장
+    const timer = setInterval(save, 60000);
 
     return () => {
       clearInterval(timer);
