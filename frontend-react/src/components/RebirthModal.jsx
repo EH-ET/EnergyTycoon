@@ -52,14 +52,9 @@ export default function RebirthModal({ open, onClose }) {
     }
   };
 
-  if (!open || !currentUser) return null;
-
-  // 프론트엔드에서 환생 정보 계산
-  const rebirthCount = currentUser.rebirth_count || 0;
-  const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
-  const rebirthStartMoneyLevel = currentUser.rebirth_start_money_upgrade || 0;
-
   const getMaxAffordableRebirths = useMemo(() => {
+    if (!currentUser) return { affordableCount: 0, cost: fromPlainValue(0) };
+
     const money = useStore.getState().getMoneyValue();
     const currentRebirthCount = currentUser.rebirth_count || 0;
     const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
@@ -75,6 +70,13 @@ export default function RebirthModal({ open, onClose }) {
     }
     return { affordableCount: 0, cost: fromPlainValue(0) };
   }, [currentUser]);
+
+  if (!open || !currentUser) return null;
+
+  // 프론트엔드에서 환생 정보 계산
+  const rebirthCount = currentUser.rebirth_count || 0;
+  const maxChain = Math.max(1, 1 + (currentUser.rebirth_chain_upgrade || 0));
+  const rebirthStartMoneyLevel = currentUser.rebirth_start_money_upgrade || 0;
 
   const { affordableCount, cost: affordableCost } = getMaxAffordableRebirths;
 
