@@ -230,7 +230,7 @@ export default function GeneratorModal({ generator, onClose }) {
 
     let multiplier = (1 + 0.1 * bonus);
     if (rebirthCount > 0) multiplier *= Math.pow(2, rebirthCount);
-    if (energyMultiplier > 0) multiplier *= Math.pow(2, energyMultiplier);
+    if (energyMultiplier > 0) multiplier *= Math.pow(1.5, energyMultiplier);
     if (protonEnergyGain > 0) multiplier *= Math.pow(1.5, protonEnergyGain);
     if (sparkleEnergyMultiplier > 0) multiplier *= Math.pow(1.5, sparkleEnergyMultiplier);
     
